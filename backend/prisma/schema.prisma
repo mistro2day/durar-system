@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum PropertyType {
+  HOTEL
+  BUILDING
+  COMMERCIAL
+}
+
+enum UnitType {
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
+enum UnitStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum BookingStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ContractStatus {
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  activityLogs ActivityLog[]
+  resets       PasswordReset[]
+}
+
+model Property {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  type      PropertyType
+  address   String?
+  units     Unit[]
+  createdAt DateTime     @default(now())
+}
+
+model Unit {
+  id          Int                 @id @default(autoincrement())
+  number      String
+  type        UnitType
+  status      UnitStatus          @default(AVAILABLE)
+  propertyId  Int
+  property    Property            @relation(fields: [propertyId], references: [id])
+  bookings    Booking[]
+  contracts   Contract[]
+  maintenance MaintenanceTicket[]
+  createdAt   DateTime            @default(now())
+  // إضافات اختيارية للوصف التفصيلي
+  floor       Int?                @default(0)
+  rooms       Int?                @default(1)
+  baths       Int?                @default(1)
+  area        Float?
+}
+
+model Tenant {
+  id        Int        @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  bookings  Booking[]
+  contracts Contract[]
+  invoices  Invoice[]
+  createdAt DateTime   @default(now())
+}
+
+model Booking {
+  id        Int           @id @default(autoincrement())
+  tenantId  Int
+  unitId    Int
+  startDate DateTime
+  endDate   DateTime
+  total     Float
+  status    BookingStatus @default(ACTIVE)
+  invoices  Invoice[]
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  unit      Unit          @relation(fields: [unitId], references: [id])
+  createdAt DateTime      @default(now())
+}
+
+model Invoice {
+  id         Int           @id @default(autoincrement())
+  tenantId   Int?
+  bookingId  Int?
+  contractId Int?
+  amount     Float
+  dueDate    DateTime
+  status     InvoiceStatus @default(PENDING)
+  tenant     Tenant?       @relation(fields: [tenantId], references: [id])
+  booking    Booking?      @relation(fields: [bookingId], references: [id])
+  contract   Contract?     @relation(fields: [contractId], references: [id])
+  payments   Payment[]
+  createdAt  DateTime      @default(now())
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  invoiceId Int
+  amount    Float
+  method    PaymentMethod
+  paidAt    DateTime      @default(now())
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id])
+}
+
+model Shop {
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String?
+  phone     String?
+  ownerId   Int?
+  createdAt DateTime @default(now())
+}
+
+model MaintenanceTicket {
+  id          Int                 @id @default(autoincrement())
+  unitId      Int
+  description String
+  priority    Priority
+  status      TicketStatus        @default(NEW)
+  unit        Unit                @relation(fields: [unitId], references: [id])
+  actions     MaintenanceAction[]
+  createdAt   DateTime            @default(now())
+}
+
+model MaintenanceAction {
+  id          Int               @id @default(autoincrement())
+  ticketId    Int
+  actionTaken String
+  performedBy String
+  performedAt DateTime          @default(now())
+  ticket      MaintenanceTicket @relation(fields: [ticketId], references: [id])
+}
+
+model Contract {
+  id           Int            @id @default(autoincrement())
+  tenantName   String
+  tenantId     Int?
+  unitId       Int
+  startDate    DateTime
+  endDate      DateTime
+  amount       Float
+  rentAmount   Float
+  deposit      Float?         @default(0) // ← أضف هذا السطر
+  rentalType   String
+  status       ContractStatus @default(ACTIVE)
+  autoInvoice  Boolean        @default(true)
+  invoices     Invoice[]
+  unit         Unit           @relation(fields: [unitId], references: [id])
+  createdAt    DateTime       @default(now())
+  tenant       Tenant?        @relation(fields: [tenantId], references: [id])
+  activityLogs ActivityLog[]
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  action      String // مثال: "End Contract" أو "Create Invoice"
+  description String? // وصف مختصر
+  contractId  Int?
+  userId      Int?
+  createdAt   DateTime @default(now())
+
+  contract Contract? @relation(fields: [contractId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
+}
+
+// إعدادات عامة على مستوى التطبيق (تخزين JSON)
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}

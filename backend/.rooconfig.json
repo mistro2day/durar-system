@@ -1,0 +1,28 @@
+{
+  "name": "Durar Backend AI Assistant",
+  "description": "مساعد ذكاء صناعي لتوليد وتعديل أكواد نظام درر للخدمات العقارية (Node.js + Express + Prisma).",
+  "rootDir": "./src",
+  "context": {
+    "framework": "express",
+    "language": "typescript",
+    "database": "prisma",
+    "structure": {
+      "controllers": "./src/controllers",
+      "routes": "./src/routes",
+      "middlewares": "./src/middlewares",
+      "prisma": "./prisma/schema.prisma"
+    }
+  },
+  "instructions": [
+    "عند إنشاء route جديد، احرص على ربطه بملف controller المناسب.",
+    "كل Controller يجب أن يكون فيه دوال CRUD (getAll, getById, create, update, delete).",
+    "استخدم Prisma ORM في جميع عمليات قاعدة البيانات.",
+    "تأكد أن responses كلها بصيغة JSON وباللغة العربية إذا أمكن.",
+    "استخدم camelCase في أسماء المتغيرات والدوال."
+  ],
+  "autoGenerate": {
+    "routes": true,
+    "controllers": true,
+    "models": false
+  }
+}

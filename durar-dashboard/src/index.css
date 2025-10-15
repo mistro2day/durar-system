@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Tajawal:wght@400;500;700&display=swap');
+
+/* Tailwind v4 theme tokens */
+@theme {
+  --color-durar-blue: #1E3A8A;
+  --color-durar-gold: #D4AF37;
+  --color-durar-light: #F8F9FB;
+  --font-sans: "Tajawal", "Poppins", ui-sans-serif, system-ui, Segoe UI, Arial, sans-serif;
+  --color-primary: #5C61F2;
+  --color-secondary: #6C5DD3;
+  --color-success: #54BA4A;
+  --color-warning: #FFAA05;
+  --color-danger: #E4606D;
+  --color-info: #48A3D7;
+}
+
+/* خلفية عامة ولون النص */
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: #F5F6FA;
+    --text: #2B2E4A;
+    --surface: #FFFFFF;
+    --surface-2: #F2F3F7;
+    --border: rgba(0,0,0,0.06);
+    /* primary gradient for sidebar */
+    --color-primary: #5C61F2;
+    --color-secondary: #6C5DD3;
+  }
+  body { background: var(--bg); color: var(--text); @apply font-sans; }
+}
+
+
+/* تحسين المظهر العام للبطاقات */
+@layer components {
+  .card { background: var(--surface); border: 1px solid var(--border); @apply rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300; }
+
+  .btn-primary { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-[--color-primary] hover:bg-indigo-600 transition; }
+  .btn-outline { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition; }
+  .btn-soft { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg transition; }
+  .btn-soft-primary { @apply bg-[--color-primary]/10 text-[--color-primary] hover:bg-[--color-primary]/15; }
+  .btn-soft-success { @apply bg-[--color-success]/10 text-[--color-success] hover:bg-[--color-success]/15; }
+  .btn-soft-warning { @apply bg-[--color-warning]/10 text-[--color-warning] hover:bg-[--color-warning]/15; }
+  .btn-soft-danger  { @apply bg-[--color-danger]/10  text-[--color-danger]  hover:bg-[--color-danger]/15; }
+  .btn-soft-info    { @apply bg-[--color-info]/10    text-[--color-info]    hover:bg-[--color-info]/15; }
+  .badge-success { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-success]/15 text-[--color-success]; }
+  .badge-warning { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-warning]/15 text-[--color-warning]; }
+  .badge-danger { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-danger]/15 text-[--color-danger]; }
+  .badge-info { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-info]/15 text-[--color-info]; }
+}
+
+/* Sidebar / Topbar styles inspired by Tivo */
+@layer components {
+  .tivo-sidebar {
+    background-image: linear-gradient(to bottom, var(--color-primary), var(--color-secondary));
+    @apply text-white;
+  }
+  .tivo-brand { @apply px-6 py-5 border-b border-white/10; }
+  .tivo-nav { @apply p-4 space-y-2; }
+  .tivo-link { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition; }
+  .tivo-link-active { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/15 text-white font-semibold ring-1 ring-white/20; }
+  .tivo-topbar { background: var(--surface); @apply h-16 backdrop-blur sticky top-0 z-10 border-b; border-color: var(--border); }
+  .tivo-container { @apply w-full max-w-none mx-auto px-6; }
+
+  /* Forms */
+  .form-input { background: var(--surface); border: 1px solid var(--border); color: var(--text); @apply w-full rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-100 placeholder:text-gray-400; }
+  .form-select { background: var(--surface); border: 1px solid var(--border); color: var(--text); @apply w-full rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-100; }
+
+  /* Tables */
+  .table { @apply min-w-full text-sm; table-layout: fixed; }
+  .table thead th { background: var(--surface-2); color: var(--text); @apply text-right p-3 font-semibold; }
+  .table thead th, .table td { @apply whitespace-nowrap overflow-hidden text-ellipsis; }
+  .table tbody tr { background: var(--surface); }
+  .table tbody tr:nth-child(even) { background: var(--surface-2); }
+  .table td { color: var(--text); @apply p-3; }
+
+  /* Sticky header support */
+  .table.sticky thead th { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--border); }
+}
+
+/* Dark theme */
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+[data-theme='dark'] {
+  --bg: #0B0F1E;          /* خلفية عامة داكنة */
+  --text: #E7EAF3;        /* نص فاتح وواضح */
+  --surface: #121635;     /* بطاقات داكنة صريحة */
+  --surface-2: #0D1230;   /* رؤوس جداول/أسطح ثانوية */
+  --border: rgba(231,234,243,0.12);
+}
+
+/* تحسين وضوح الروابط والعناوين في الداكن */
+[data-theme='dark'] h1, [data-theme='dark'] h2, [data-theme='dark'] h3 { color: var(--text); }
+[data-theme='dark'] .tivo-link { color: #F3F4F6 !important; }
+[data-theme='dark'] .tivo-link-active { color: #FFF !important; }
+/* فرض ألوان صفوف الجداول حتى لو وُجدت odd:bg-white / even:bg-gray-50 */
+[data-theme='dark'] .table tbody tr { background-color: var(--surface) !important; }
+[data-theme='dark'] .table tbody tr:nth-child(even) { background-color: var(--surface-2) !important; }
+[data-theme='dark'] .table tbody tr > td { background-color: inherit !important; color: var(--text) !important; border-color: var(--border) !important; }
+
+/* تغطية الجداول التي لا تحمل صنف .table داخل البطاقات */
+[data-theme='dark'] .card table { background-color: var(--surface) !important; border-color: var(--border) !important; }
+[data-theme='dark'] .card table thead th { background-color: var(--surface-2) !important; color: var(--text) !important; }
+[data-theme='dark'] .card table tbody tr { background-color: var(--surface) !important; }
+[data-theme='dark'] .card table tbody tr:nth-child(even) { background-color: var(--surface-2) !important; }
+[data-theme='dark'] .card table td { background-color: inherit !important; color: var(--text) !important; border-color: var(--border) !important; }
+
+/* Override common gray utility classes under dark to keep النص واضح */
+[data-theme='dark'] .text-gray-800 { color: var(--text) !important; }
+[data-theme='dark'] .text-gray-700 { color: #E2E8F0 !important; }
+[data-theme='dark'] .text-gray-600 { color: #CBD5E1 !important; }
+[data-theme='dark'] .text-gray-500 { color: var(--text) !important; }
+[data-theme='dark'] .text-slate-500 { color: var(--text) !important; }
+[data-theme='dark'] .text-slate-600 { color: var(--text) !important; }
+[data-theme='dark'] .text-gray-400 { color: #E7EAF3CC !important; }
+[data-theme='dark'] .border-gray-200 { border-color: var(--border) !important; }
+[data-theme='dark'] .bg-white { background-color: var(--surface) !important; }
+[data-theme='dark'] .btn-soft-primary { background-color: rgba(92,97,242,.25) !important; color: #FFFFFF !important; }
+[data-theme='dark'] .btn-soft-success { background-color: rgba(84,186,74,.25) !important; color: #FFFFFF !important; }
+[data-theme='dark'] .btn-soft-warning { background-color: rgba(255,170,5,.25) !important; color: #1F2937 !important; }
+[data-theme='dark'] .btn-soft-danger  { background-color: rgba(228,96,109,.25) !important; color: #FFFFFF !important; }
+[data-theme='dark'] .btn-soft-info    { background-color: rgba(72,163,215,.25) !important; color: #FFFFFF !important; }
+
+/* رفيعة ومتناسقة مع التصميم لداخل البطاقات */
+.scroll-area::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-area::-webkit-scrollbar-track { background: transparent; border-radius: 9999px; }
+.scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
+[data-theme='dark'] .scroll-area::-webkit-scrollbar-thumb { background: rgba(231,234,243,0.25); }
+
+/* إزالة الخط الفاصل (divide-y) في الجداول أثناء الوضع الداكن */
+[data-theme='dark'] .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  border-color: transparent !important;
+}
+[data-theme='dark'] .table tbody tr { border: 0 !important; }
+[data-theme='dark'] .card .divide-y > tr { border: 0 !important; }
