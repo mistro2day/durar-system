@@ -7,7 +7,12 @@
     "seed": "ts-node prisma/seed.ts",
     "seed:admin": "ts-node prisma/seed-admin.ts",
     "build:client": "npm --prefix ../durar-dashboard run build",
-    "dev:one": "npm run build:client && nodemon --exec ts-node --esm src/index.ts"
+    "dev:one": "npm run build:client && nodemon --exec ts-node --esm src/index.ts",
+    "db:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:check": "node scripts/checkAdmin.cjs",
+    "db:import:samples": "ts-node scripts/import-from-samples.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
