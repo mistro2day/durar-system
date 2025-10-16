@@ -1,4 +1,4 @@
-// Lightweight currency formatter allowing a custom SAR symbol instead of "ر.س"
+// Lightweight currency formatter for SAR with customizable symbol (default "ر.س")
 export type CurrencyOpts = {
   locale?: string;
   symbol?: string; // default from env or ﷼
@@ -7,7 +7,7 @@ export type CurrencyOpts = {
 };
 
 const env = (import.meta as any).env || {};
-export const CURRENCY_SYMBOL: string = env.VITE_CURRENCY_SYMBOL || '﷼';
+export const CURRENCY_SYMBOL: string = env.VITE_CURRENCY_SYMBOL || 'ر.س';
 const DEFAULT_POS: 'prefix' | 'suffix' = (env.VITE_CURRENCY_POS === 'prefix' ? 'prefix' : 'suffix');
 
 export function formatSAR(value: number | string | null | undefined, opts: CurrencyOpts = {}): string {

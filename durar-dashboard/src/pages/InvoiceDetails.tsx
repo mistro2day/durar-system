@@ -7,7 +7,6 @@ import QRCode from "qrcode";
 import { getSettings } from "../lib/settings";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR, CURRENCY_SYMBOL } from "../lib/currency";
-import SARIcon from "../components/icons/SAR";
 import Currency from "../components/Currency";
 
 type Invoice = {
@@ -240,7 +239,7 @@ export default function InvoiceDetails() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="text-right p-3">الوصف</th>
-                <th className="text-right p-3"><span className="inline-flex items-center gap-1">المبلغ <SARIcon className="w-3.5 h-3.5" /></span></th>
+                <th className="text-right p-3">المبلغ ({CURRENCY_SYMBOL})</th>
               </tr>
             </thead>
             <tbody className="divide-y">
