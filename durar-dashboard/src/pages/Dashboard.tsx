@@ -68,6 +68,12 @@ export default function Dashboard() {
     }
   }, []);
 
+  const isDark = useMemo(() => {
+    try { return (document.documentElement.getAttribute('data-theme') === 'dark'); } catch { return false; }
+  }, []);
+  const axisColor = themeColors.text;
+  const gridColor = isDark ? 'rgba(231,234,243,0.15)' : 'rgba(0,0,0,0.08)';
+
   // مكوّن إضافي لرسم قيمة آخر نقطة على مخطط الإيرادات — لزيادة الوضوح
   const lastPointPlugin: any = {
     id: 'lastPointValue',
@@ -478,7 +484,10 @@ export default function Dashboard() {
                   responsive: true,
                   maintainAspectRatio: false,
                   plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff' } },
-                  scales: { x: { display: false, grid: { display: false } }, y: { display: false, grid: { display: false } } },
+                  scales: {
+                    x: { display: true, grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 11, family: fontStack } } },
+                    y: { display: true, grid: { color: gridColor, drawBorder: true }, ticks: { color: axisColor, font: { size: 11, family: fontStack } } },
+                  },
                 }}
               />
             </Suspense>
@@ -555,10 +564,10 @@ export default function Dashboard() {
                   },
                 },
                 scales: {
-                  x: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { size: 12, family: fontStack } } },
+                  x: { grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 12, family: fontStack } }, border: { color: gridColor } },
                   y: {
-                    grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
-                    ticks: { callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, family: fontStack } },
+                    grid: { color: gridColor, drawBorder: false },
+                    ticks: { color: axisColor, callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, family: fontStack } },
                   },
                 },
                 animation: { duration: 900, easing: 'easeOutQuart' },
