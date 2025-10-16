@@ -73,8 +73,8 @@ export default function Dashboard() {
   }, [typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : '']);
   // في النهاري أغمق قليلاً؛ في الداكن أبيض كما كان
   const axisColor = isDark ? '#FFFFFF' : '#0F172A';
-  const gridColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)';
-  const borderColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)';
+  const borderColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.32)';
 
   // مكوّن إضافي لرسم قيمة آخر نقطة على مخطط الإيرادات — لزيادة الوضوح
   const lastPointPlugin: any = {
