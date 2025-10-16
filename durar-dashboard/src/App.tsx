@@ -11,6 +11,7 @@ const Contracts = lazy(() => import("./pages/Contracts"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const InvoiceDetails = lazy(() => import("./pages/InvoiceDetails"));
 const Units = lazy(() => import("./pages/Units"));
+const UnitDetails = lazy(() => import("./pages/UnitDetails"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="invoices/:id" element={<InvoiceDetails />} />
           <Route path="properties" element={<Properties />} />
           <Route path="units" element={<Units />} />
+          <Route path="units/:id" element={<UnitDetails />} />
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="reports" element={<Reports />} />
           {/* Hotel scoped routes */}

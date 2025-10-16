@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import { Pencil, Trash2, Flag, Loader2 } from "lucide-react";
@@ -126,7 +126,15 @@ export default function Contracts() {
               {rows.map((c) => (
                 <tr key={c.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{c.tenantName}</Td>
-                  <Td>{c.unit?.unitNumber || "-"}</Td>
+                  <Td>
+                    {c.unit?.id ? (
+                      <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
+                        {c.unit?.unitNumber || "-"}
+                      </Link>
+                    ) : (
+                      c.unit?.unitNumber || "-"
+                    )}
+                  </Td>
                   <Td>{mapRentalType(c.rentalType)}</Td>
                   <Td>
                     <span className={`px-2 py-1 rounded text-xs ${statusClass(c.status)}`}>{mapStatus(c.status)}</span>

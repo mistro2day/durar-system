@@ -10,7 +10,7 @@ import { getUser } from "../lib/auth";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
 
@@ -656,7 +656,15 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
             return (
               <tr key={c.id} className="odd:bg-white even:bg-gray-50">
                 <td className="p-3 text-gray-800">{c.tenantName || c.tenant?.name || '-'}</td>
-                <td className="p-3">{c.unit?.unitNumber || c.unit?.number || '-'}</td>
+                <td className="p-3">
+                  {c.unit?.id ? (
+                    <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
+                      {c.unit?.unitNumber || c.unit?.number || '-'}
+                    </Link>
+                  ) : (
+                    c.unit?.unitNumber || c.unit?.number || '-'
+                  )}
+                </td>
                 <td className="p-3">{endDate.toLocaleDateString(localeTag)}</td>
                 <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft<=7? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
                 <td className="p-3">

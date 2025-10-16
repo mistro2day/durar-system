@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
 type Ticket = {
   id: number;
@@ -75,7 +75,15 @@ export default function Maintenance() {
               {rows.map((t) => (
                 <tr key={t.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{t.id}</Td>
-                  <Td>{t.unit?.unitNumber || t.unitId}</Td>
+                  <Td>
+                    {t.unit?.id ? (
+                      <Link to={`/units/${t.unit.id}`} className="text-primary hover:underline">
+                        {t.unit?.unitNumber || t.unitId}
+                      </Link>
+                    ) : (
+                      t.unit?.unitNumber || t.unitId
+                    )}
+                  </Td>
                   <Td>{t.description}</Td>
                   <Td>{mapPriority(t.priority)}</Td>
                   <Td>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { Printer, ArrowRight, Download } from "lucide-react";
 import api from "../lib/api";
 import Logo from "../components/Logo";
@@ -28,7 +28,7 @@ export default function InvoiceDetails() {
   const [loading, setLoading] = useState<boolean>(!passed);
   const [error, setError] = useState<string | null>(null);
   const [qr, setQr] = useState<string>("");
-  const [unitInfo, setUnitInfo] = useState<{ unitNumber?: string; propertyName?: string }>({});
+  const [unitInfo, setUnitInfo] = useState<{ unitId?: number; unitNumber?: string; propertyName?: string }>({});
 
   useEffect(() => {
     if (passed) return;
@@ -97,6 +97,7 @@ export default function InvoiceDetails() {
         const res = await api.get<any[]>(`/api/contracts`);
         const c = (res.data || []).find((x: any) => Number(x.id) === Number(contractId));
         if (!c) return;
+        const unitId = c.unit?.id as number | undefined;
         const unitNumber = c.unit?.unitNumber || c.unit?.number;
         let propertyName: string | undefined = undefined;
         if (c.unit?.propertyId) {
@@ -106,7 +107,7 @@ export default function InvoiceDetails() {
             if (p) propertyName = p.name;
           } catch {}
         }
-        setUnitInfo({ unitNumber, propertyName });
+        setUnitInfo({ unitId, unitNumber, propertyName });
       } catch {}
     })();
   }, [invoice]);
@@ -245,7 +246,17 @@ export default function InvoiceDetails() {
             <tbody className="divide-y">
               <tr>
                 <td className="p-3 text-gray-800">
-                  {`قيمة الإيجار${unitInfo.unitNumber || unitInfo.propertyName ? ` للوحدة رقم ${unitInfo.unitNumber || '-'}` : ''}${unitInfo.propertyName ? ` - ${unitInfo.propertyName}` : ''}`}
+                  قيمة الإيجار
+                  {unitInfo.unitNumber || unitInfo.propertyName ? (
+                    <>
+                      {" "}للوحدة رقم {unitInfo.unitId ? (
+                        <Link to={`/units/${unitInfo.unitId}`} className="text-primary hover:underline">{unitInfo.unitNumber || '-'}</Link>
+                      ) : (
+                        unitInfo.unitNumber || '-'
+                      )}
+                      {unitInfo.propertyName ? ` - ${unitInfo.propertyName}` : ''}
+                    </>
+                  ) : null}
                 </td>
                 <td className="p-3"><Currency amount={Number(invoice.amount || 0)} locale={localeTag} /></td>
               </tr>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Wrench, Plus, Edit, ChevronDown, ChevronRight } from "lucide-react";
 
 type Unit = {
@@ -300,7 +300,11 @@ export default function Units() {
                         ) })()}
                         {openFloors[propName]?.[f] !== false && floors.get(f)!.map((u) => (
                           <tr key={u.id} className="odd:bg-white even:bg-gray-50">
-                            <td className="p-3">{u.unitNumber || (u as any).number}</td>
+                            <td className="p-3">
+                              <Link to={`/units/${u.id}`} className="text-primary hover:underline">
+                                {u.unitNumber || (u as any).number}
+                              </Link>
+                            </td>
                             <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${statusClass(u.status)}`}>{mapStatus(u.status)}</span></td>
                             <td className="p-3">{u.type || '-'}</td>
                             <td className="p-3">{mapRental(u.rentalType)}</td>
