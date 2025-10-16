@@ -71,10 +71,10 @@ export default function Dashboard() {
   const isDark = useMemo(() => {
     try { return (document.documentElement.getAttribute('data-theme') === 'dark'); } catch { return false; }
   }, [typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : '']);
-  // أقوى قليلاً في النهاري لزيادة الوضوح
-  const axisColor = isDark ? '#E7EAF3' : '#0F172A';
-  const gridColor = isDark ? 'rgba(231,234,243,0.18)' : 'rgba(0,0,0,0.16)';
-  const borderColor = isDark ? 'rgba(231,234,243,0.28)' : 'rgba(0,0,0,0.25)';
+  // في النهاري أغمق قليلاً؛ في الداكن أبيض كما كان
+  const axisColor = isDark ? '#FFFFFF' : '#0F172A';
+  const gridColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)';
+  const borderColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)';
 
   // مكوّن إضافي لرسم قيمة آخر نقطة على مخطط الإيرادات — لزيادة الوضوح
   const lastPointPlugin: any = {
