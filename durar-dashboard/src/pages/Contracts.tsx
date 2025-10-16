@@ -12,7 +12,7 @@ type Contract = {
   status: string;
   startDate: string;
   endDate: string;
-  unit?: { id: number; unitNumber: string } | null;
+  unit?: { id: number; unitNumber?: string; number?: string } | null;
 };
 
 export default function Contracts() {
@@ -129,10 +129,10 @@ export default function Contracts() {
                   <Td>
                     {c.unit?.id ? (
                       <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
-                        {c.unit?.unitNumber || "-"}
+                        {c.unit?.unitNumber || c.unit?.number || "-"}
                       </Link>
                     ) : (
-                      c.unit?.unitNumber || "-"
+                      c.unit?.unitNumber || c.unit?.number || "-"
                     )}
                   </Td>
                   <Td>{mapRentalType(c.rentalType)}</Td>
