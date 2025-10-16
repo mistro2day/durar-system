@@ -6,6 +6,7 @@ import Logo from "../components/Logo";
 import QRCode from "qrcode";
 import { getSettings } from "../lib/settings";
 import { useLocaleTag } from "../lib/settings-react";
+import { formatSAR, CURRENCY_SYMBOL } from "../lib/currency";
 
 type Invoice = {
   id: number;
@@ -51,9 +52,7 @@ export default function InvoiceDetails() {
   const localeTag = useLocaleTag();
   const totalText = useMemo(() => {
     if (!invoice) return "";
-    return new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(
-      Number(invoice.amount || 0)
-    );
+    return formatSAR(Number(invoice.amount || 0), { locale: localeTag });
   }, [invoice, localeTag]);
 
   const site = getSettings();
@@ -239,7 +238,7 @@ export default function InvoiceDetails() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="text-right p-3">الوصف</th>
-                <th className="text-right p-3">المبلغ (ر.س)</th>
+                <th className="text-right p-3">المبلغ ({CURRENCY_SYMBOL})</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -255,15 +254,15 @@ export default function InvoiceDetails() {
                 <>
                   <tr>
                     <td className="p-3 text-right font-semibold">المجموع قبل الضريبة</td>
-                    <td className="p-3">{new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(Number(invoice.amount || 0))}</td>
+                    <td className="p-3">{formatSAR(Number(invoice.amount || 0), { locale: localeTag })}</td>
                   </tr>
                   <tr>
                     <td className="p-3 text-right font-semibold">ضريبة القيمة المضافة ({vatPercent}%)</td>
-                    <td className="p-3">{new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(vatAmount)}</td>
+                    <td className="p-3">{formatSAR(vatAmount, { locale: localeTag })}</td>
                   </tr>
                   <tr>
                     <td className="p-3 text-right font-semibold">الإجمالي</td>
-                    <td className="p-3 font-bold text-gray-800">{new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(grandTotal)}</td>
+                    <td className="p-3 font-bold text-gray-800">{formatSAR(grandTotal, { locale: localeTag })}</td>
                   </tr>
                 </>
               ) : (

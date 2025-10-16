@@ -8,6 +8,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
 import { getUser } from "../lib/auth";
 import { useLocaleTag } from "../lib/settings-react";
+import { formatSAR } from "../lib/currency";
 import { useParams } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
@@ -104,8 +105,9 @@ export default function Dashboard() {
     return new Intl.NumberFormat(localeTag).format(n ?? 0);
   }
 
+  // استخدم رمز ﷼ أو المعرّف من البيئة بدل "ر.س"
   function formatCurrency(n: number) {
-    return new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(n ?? 0);
+    return formatSAR(n, { locale: localeTag });
   }
 
   async function fetchSummary(): Promise<{ hasRevenue: boolean }> {
@@ -548,7 +550,7 @@ export default function Dashboard() {
                   tooltip: {
                     backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff',
                     titleFont: { family: fontStack }, bodyFont: { family: fontStack },
-                    callbacks: { label: (ctx:any) => new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(Number(ctx.parsed.y || 0)) }
+                    callbacks: { label: (ctx:any) => formatSAR(Number(ctx.parsed.y || 0), { locale: 'ar-SA' }) }
                   },
                 },
                 scales: {

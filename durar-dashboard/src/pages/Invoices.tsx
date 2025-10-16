@@ -5,6 +5,7 @@ import { Eye } from "lucide-react";
 import api from "../lib/api";
 import DateInput from "../components/DateInput";
 import { useLocaleTag } from "../lib/settings-react";
+import { formatSAR } from "../lib/currency";
 
 type Invoice = {
   id: number;
@@ -96,7 +97,7 @@ export default function Invoices() {
           <DateInput value={to} onChange={setTo} />
         </div>
         <div className="ml-auto text-sm text-gray-700">
-          الإجمالي: <strong>{new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(total)}</strong>
+          الإجمالي: <strong>{formatSAR(total, { locale: localeTag })}</strong>
         </div>
         <div className="ml-2">
           <AddInvoiceButton onAdded={load} />
@@ -125,7 +126,7 @@ export default function Invoices() {
                 <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{inv.id}</Td>
                   <Td>{inv.contract?.tenantName || "-"}</Td>
-                  <Td>{new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(Number(inv.amount || 0))}</Td>
+                  <Td>{formatSAR(Number(inv.amount || 0), { locale: localeTag })}</Td>
                   <Td>
                     <select
                       className={`border rounded p-1 ${savingId === inv.id ? "opacity-60" : ""}`}
