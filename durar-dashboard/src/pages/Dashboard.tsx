@@ -373,10 +373,30 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="relative h-56">
             <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
-              <Doughnut
-                data={{ labels, datasets: [{ data: values as any, backgroundColor: colors, borderWidth: 0 }] }}
-                options={{ plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` } } }, maintainAspectRatio: false, cutout: "70%" as any, animation: { animateRotate: true, duration: 900 } }}
-              />
+                    <Doughnut
+                      data={{ labels, datasets: [{
+                        data: values as any,
+                        backgroundColor: colors,
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                        spacing: 2,
+                        hoverOffset: 6,
+                      }] }}
+                      options={{
+                        plugins: {
+                          legend: { display: false },
+                          tooltip: {
+                            backgroundColor: 'rgba(17,24,39,0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` },
+                          },
+                        },
+                        maintainAspectRatio: false,
+                        cutout: '72%' as any,
+                        animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
+                      }}
+                    />
             </Suspense>
             <div className="absolute inset-0 grid place-items-center pointer-events-none">
               <div className="text-center">
@@ -429,14 +449,34 @@ export default function Dashboard() {
                   datasets: [
                     {
                       data: monthlyRevenue.map((m) => m.value),
-                      borderColor: "#5C61F2",
-                      backgroundColor: "rgba(92,97,242,0.15)",
-                      tension: 0.35,
+                      borderColor: '#5C61F2',
+                      backgroundColor: (ctx:any) => {
+                        const { chart } = ctx;
+                        const { ctx: c, chartArea } = chart as any;
+                        if (!chartArea) return 'rgba(92,97,242,0.18)';
+                        const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        g.addColorStop(0, 'rgba(92,97,242,0.25)');
+                        g.addColorStop(1, 'rgba(92,97,242,0.02)');
+                        return g;
+                      },
+                      cubicInterpolationMode: 'monotone',
+                      tension: 0.4,
+                      borderWidth: 3,
+                      pointRadius: 3,
+                      pointHoverRadius: 5,
+                      pointBackgroundColor: '#fff',
+                      pointBorderColor: '#5C61F2',
+                      pointBorderWidth: 2,
                       fill: true,
                     },
                   ],
                 }}
-                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff' } },
+                  scales: { x: { display: false, grid: { display: false } }, y: { display: false, grid: { display: false } } },
+                }}
               />
             </Suspense>
           </div>
@@ -480,13 +520,22 @@ export default function Dashboard() {
                 labels: monthlyRevenue.slice(-rangeMonths).map((m) => m.label),
                 datasets: [
                   {
-                    label: "الإيرادات (ر.س)",
+                    label: 'الإيرادات (ر.س)',
                     data: monthlyRevenue.slice(-rangeMonths).map((m) => m.value),
-                    borderColor: "#5c61f2",
-                    backgroundColor: "rgba(92, 97, 242, 0.20)",
-                    tension: 0.35,
+                    borderColor: '#5C61F2',
+                    backgroundColor: (ctx:any) => {
+                      const { chart } = ctx; const { ctx: c, chartArea } = chart as any; if (!chartArea) return 'rgba(92,97,242,0.2)';
+                      const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                      g.addColorStop(0, 'rgba(92,97,242,0.25)'); g.addColorStop(1, 'rgba(92,97,242,0.02)'); return g;
+                    },
                     borderWidth: 3,
                     pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#5C61F2',
+                    pointBorderWidth: 2,
+                    cubicInterpolationMode: 'monotone',
+                    tension: 0.4,
                     fill: true,
                   },
                 ],
@@ -496,16 +545,17 @@ export default function Dashboard() {
                 maintainAspectRatio: false,
                 plugins: {
                   legend: { display: false, labels: { font: { family: fontStack } } },
-                  tooltip: { titleFont: { family: fontStack }, bodyFont: { family: fontStack } },
+                  tooltip: {
+                    backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff',
+                    titleFont: { family: fontStack }, bodyFont: { family: fontStack },
+                    callbacks: { label: (ctx:any) => new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(Number(ctx.parsed.y || 0)) }
+                  },
                 },
                 scales: {
-                  x: { grid: { display: false }, ticks: { font: { size: 12, family: fontStack } } },
+                  x: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { size: 12, family: fontStack } } },
                   y: {
-                    ticks: {
-                      callback: (v) =>
-                        new Intl.NumberFormat("ar-SA", { notation: "compact" }).format(Number(v as any)),
-                      font: { size: 12, family: fontStack },
-                    },
+                    grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
+                    ticks: { callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, family: fontStack } },
                   },
                 },
                 animation: { duration: 900, easing: 'easeOutQuart' },

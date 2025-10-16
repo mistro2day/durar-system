@@ -5,6 +5,7 @@ import { logout, getRole } from "../lib/auth";
 import { hasPermission, getSettings } from "../lib/settings";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
+import BottomNav from "./BottomNav";
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -153,9 +154,11 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 md:p-8 tivo-container">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 pb-24 md:pb-8 tivo-container">
           <Outlet />
         </main>
+        {/* Bottom navigation on mobile */}
+        <BottomNav />
       </div>
     </div>
   );
