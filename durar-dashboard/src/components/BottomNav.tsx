@@ -19,24 +19,28 @@ export default function BottomNav() {
   // حد أقصى 5 عناصر لعرض أنيق على الموبايل
   const visible = items.slice(0, 5);
 
+  // iOS-like translucent tab bar with blur and safe-area
   return (
     <div
-      className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t bg-white/90 dark:bg-[var(--surface)]/90 backdrop-blur"
-      style={{ borderColor: "var(--border)", paddingBottom: "calc(env(safe-area-inset-bottom, 0px))" }}
+      className="md:hidden fixed bottom-0 inset-x-0 z-30 ios-nav"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
       aria-label="شريط تنقل سفلي"
     >
-      <nav className={`grid grid-cols-${visible.length} gap-1`}>
+      <nav className="grid gap-1 max-w-[640px] mx-auto"
+           style={{ gridTemplateColumns: `repeat(${visible.length || 1}, minmax(0, 1fr))` }}>
         {visible.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-2 text-[11px] ${
-                isActive ? "text-[--color-primary] font-semibold" : "text-gray-500"
+              `relative flex flex-col items-center justify-center py-2 text-[11px] transition-colors ${
+                isActive ? 'text-[--color-primary] font-semibold' : 'text-gray-500'
               }`
             }
           >
-            {item.icon}
+            <div className="w-6 h-6 grid place-items-center">
+              {item.icon}
+            </div>
             <span className="leading-none mt-0.5">{item.label}</span>
           </NavLink>
         ))}
@@ -44,4 +48,3 @@ export default function BottomNav() {
     </div>
   );
 }
-

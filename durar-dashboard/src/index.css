@@ -34,6 +34,19 @@
 
 /* تحسين المظهر العام للبطاقات */
 @layer components {
+  /* iOS-like bottom nav */
+  .ios-nav {
+    background: linear-gradient(to top, rgba(255,255,255,0.86), rgba(255,255,255,0.7));
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 20px rgba(0,0,0,.08);
+    backdrop-filter: blur(16px);
+  }
+  [data-theme='dark'] .ios-nav {
+    background: linear-gradient(to top, rgba(18,22,53,.92), rgba(18,22,53,.75));
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgba(0,0,0,.35);
+    backdrop-filter: blur(18px);
+  }
   .card { background: var(--surface); border: 1px solid var(--border); @apply rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300; }
 
   .btn-primary { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-[--color-primary] hover:bg-indigo-600 transition; }
