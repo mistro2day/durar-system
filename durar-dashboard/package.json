@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
     "start": "node index.js"
   },
   "dependencies": {
@@ -15,7 +15,7 @@
     "axios": "^1.12.2",
     "chart.js": "^4.5.1",
     "lucide-react": "^0.545.0",
-    "qrcode": " ^1.5.3 ",
+    "qrcode": "^1.5.3",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.1",
