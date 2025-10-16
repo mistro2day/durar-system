@@ -70,9 +70,11 @@ export default function Dashboard() {
 
   const isDark = useMemo(() => {
     try { return (document.documentElement.getAttribute('data-theme') === 'dark'); } catch { return false; }
-  }, []);
-  const axisColor = themeColors.text;
-  const gridColor = isDark ? 'rgba(231,234,243,0.15)' : 'rgba(0,0,0,0.08)';
+  }, [typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : '']);
+  // أقوى قليلاً في النهاري لزيادة الوضوح
+  const axisColor = isDark ? '#E7EAF3' : '#0F172A';
+  const gridColor = isDark ? 'rgba(231,234,243,0.18)' : 'rgba(0,0,0,0.16)';
+  const borderColor = isDark ? 'rgba(231,234,243,0.28)' : 'rgba(0,0,0,0.25)';
 
   // مكوّن إضافي لرسم قيمة آخر نقطة على مخطط الإيرادات — لزيادة الوضوح
   const lastPointPlugin: any = {
@@ -485,8 +487,8 @@ export default function Dashboard() {
                   maintainAspectRatio: false,
                   plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff' } },
                   scales: {
-                    x: { display: true, grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 11, family: fontStack } } },
-                    y: { display: true, grid: { color: gridColor, drawBorder: true }, ticks: { color: axisColor, font: { size: 11, family: fontStack } } },
+                    x: { display: true, grid: { color: gridColor, lineWidth: 1 }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
+                    y: { display: true, grid: { color: gridColor, drawBorder: true, lineWidth: 1 }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
                   },
                 }}
               />
@@ -564,10 +566,10 @@ export default function Dashboard() {
                   },
                 },
                 scales: {
-                  x: { grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 12, family: fontStack } }, border: { color: gridColor } },
+                  x: { grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
                   y: {
                     grid: { color: gridColor, drawBorder: false },
-                    ticks: { color: axisColor, callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, family: fontStack } },
+                    ticks: { color: axisColor, callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, weight: '600', family: fontStack } },
                   },
                 },
                 animation: { duration: 900, easing: 'easeOutQuart' },
