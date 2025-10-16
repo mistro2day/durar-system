@@ -149,10 +149,19 @@
 [data-theme='dark'] .scroll-area::-webkit-scrollbar-thumb { background: rgba(231,234,243,0.25); }
 
 /* إزالة الخط الفاصل (divide-y) في الجداول أثناء الوضع الداكن */
-[data-theme='dark'] .divide-y > :not([hidden]) ~ :not([hidden]) {
+[data-theme='dark'] .divide-y > :not([hidden]) ~ :not([hidden]),
+[data-theme='dark'] .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+[data-theme='dark'] .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
   border-top-width: 0 !important;
   border-bottom-width: 0 !important;
   border-color: transparent !important;
 }
 [data-theme='dark'] .table tbody tr { border: 0 !important; }
+[data-theme='dark'] .table tbody tr > td,
+[data-theme='dark'] .card table tbody tr > td {
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  border-left-color: rgba(231,234,243,0.06) !important;
+  border-right-color: rgba(231,234,243,0.06) !important;
+}
 [data-theme='dark'] .card .divide-y > tr { border: 0 !important; }
