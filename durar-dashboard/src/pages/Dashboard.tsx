@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { RefreshCw, FileText, Building2, Wrench, Coins, TrendingUp, CheckCircle2, Clock, Home, Phone, RotateCcw } from "lucide-react";
-import { Line, Doughnut } from "react-chartjs-2";
-import { Chart as ChartJS } from "chart.js/auto";
+// حمّل مكونات الرسوم بشكل كسول لتقليل وزن حزمة التحميل الأولى
+const Line = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Line })));
+const Doughnut = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Doughnut })));
+// سجّل فقط العناصر المطلوبة من Chart.js بدل "auto" لتقليل الحجم
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend } from "chart.js";
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
 import { getUser } from "../lib/auth";
 import { useLocaleTag } from "../lib/settings-react";
 import { useParams } from "react-router-dom";
@@ -104,7 +108,7 @@ export default function Dashboard() {
     return new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(n ?? 0);
   }
 
-  async function fetchSummary() {
+  async function fetchSummary(): Promise<{ hasRevenue: boolean }> {
     setError(null);
     try {
       // المحاولة أولاً على endpoint المطلوب
@@ -116,6 +120,7 @@ export default function Dashboard() {
           const [y, mo] = m.key.split('-').map(Number);
           return { label: formatter.format(new Date(y, (mo||1)-1, 1)), value: m.value };
         }));
+        return { hasRevenue: true };
       }
       if (res.data?.charts?.occupancy) setOccupancy(res.data.charts.occupancy);
     } catch (e: any) {
@@ -131,6 +136,7 @@ export default function Dashboard() {
       setRefreshing(false);
       setFirstLoad(false);
     }
+    return { hasRevenue: false };
   }
 
   async function waitForServer(maxMs = 15000) {
@@ -194,8 +200,8 @@ export default function Dashboard() {
     (async () => {
       setLoading(true);
       await waitForServer();
-      await fetchSummary();
-      fetchMonthlyRevenue();
+      const { hasRevenue } = await fetchSummary();
+      if (!hasRevenue) fetchMonthlyRevenue();
     })();
     // جلب العقود لبطاقة "العقود القريبة الانتهاء"
     api.get(`/api/contracts${propertyId ? `?propertyId=${propertyId}` : ''}`)
@@ -365,18 +371,20 @@ export default function Dashboard() {
             return (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative h-56">
-                    <Doughnut
-                      data={{ labels, datasets: [{ data: values as any, backgroundColor: colors, borderWidth: 0 }] }}
-                      options={{ plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` } } }, maintainAspectRatio: false, cutout: "70%" as any, animation: { animateRotate: true, duration: 900 } }}
-                    />
-                    <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                      <div className="text-center">
-                        <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('ar-SA').format(total)}</div>
-                        <div className="text-xs" style={{ color: themeColors.text }}>إجمالي الوحدات</div>
-                      </div>
-                    </div>
-                  </div>
+          <div className="relative h-56">
+            <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
+              <Doughnut
+                data={{ labels, datasets: [{ data: values as any, backgroundColor: colors, borderWidth: 0 }] }}
+                options={{ plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` } } }, maintainAspectRatio: false, cutout: "70%" as any, animation: { animateRotate: true, duration: 900 } }}
+              />
+            </Suspense>
+            <div className="absolute inset-0 grid place-items-center pointer-events-none">
+              <div className="text-center">
+                <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('ar-SA').format(total)}</div>
+                <div className="text-xs" style={{ color: themeColors.text }}>إجمالي الوحدات</div>
+              </div>
+            </div>
+          </div>
                   <div className="flex flex-col justify-center gap-3">
                     {labels.map((lab, i) => {
                       const count = Number(values[i] || 0);
@@ -414,21 +422,23 @@ export default function Dashboard() {
         <div className="col-span-12 md:col-span-4 md:col-start-5 md:row-start-1 card h-full min-h-[360px] flex flex-col">
           <div className="text-xs text-indigo-600/80 font-semibold mb-2">• إجمالي الإيرادات</div>
           <div className="flex-1 min-h-[180px]">
-            <Line
-              data={{
-                labels: monthlyRevenue.map((m) => m.label),
-                datasets: [
-                  {
-                    data: monthlyRevenue.map((m) => m.value),
-                    borderColor: "#5C61F2",
-                    backgroundColor: "rgba(92,97,242,0.15)",
-                    tension: 0.35,
-                    fill: true,
-                  },
-                ],
-              }}
-              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }}
-            />
+            <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
+              <Line
+                data={{
+                  labels: monthlyRevenue.map((m) => m.label),
+                  datasets: [
+                    {
+                      data: monthlyRevenue.map((m) => m.value),
+                      borderColor: "#5C61F2",
+                      backgroundColor: "rgba(92,97,242,0.15)",
+                      tension: 0.35,
+                      fill: true,
+                    },
+                  ],
+                }}
+                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }}
+              />
+            </Suspense>
           </div>
           <div className="mt-3 text-right text-sm text-gray-500">{formatCurrency(summary.revenue)} هذا الشهر</div>
         </div>

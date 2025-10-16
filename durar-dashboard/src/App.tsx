@@ -1,27 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import type { ReactElement } from "react";
+import { Suspense, lazy } from "react";
 import Layout from "./components/Layout";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Contracts from "./pages/Contracts";
-import Invoices from "./pages/Invoices";
-import InvoiceDetails from "./pages/InvoiceDetails";
-import Units from "./pages/Units";
-import Maintenance from "./pages/Maintenance";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import Permissions from "./pages/Permissions";
-import Users from "./pages/Users";
-import Properties from "./pages/Properties";
-import HotelLayout from "./pages/hotel/HotelLayout";
-import HotelDashboard from "./pages/hotel/HotelDashboard";
-import HotelUnits from "./pages/hotel/HotelUnits";
-import HotelContracts from "./pages/hotel/HotelContracts";
-import HotelInvoices from "./pages/hotel/HotelInvoices";
-import HotelMaintenance from "./pages/hotel/HotelMaintenance";
-import HotelReports from "./pages/hotel/HotelReports";
-import HotelTenants from "./pages/hotel/HotelTenants";
 import { isAuthed } from "./lib/auth";
+
+// Route-level code splitting for faster first paint
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Contracts = lazy(() => import("./pages/Contracts"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const InvoiceDetails = lazy(() => import("./pages/InvoiceDetails"));
+const Units = lazy(() => import("./pages/Units"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Permissions = lazy(() => import("./pages/Permissions"));
+const Users = lazy(() => import("./pages/Users"));
+const Properties = lazy(() => import("./pages/Properties"));
+const HotelLayout = lazy(() => import("./pages/hotel/HotelLayout"));
+const HotelDashboard = lazy(() => import("./pages/hotel/HotelDashboard"));
+const HotelUnits = lazy(() => import("./pages/hotel/HotelUnits"));
+const HotelContracts = lazy(() => import("./pages/hotel/HotelContracts"));
+const HotelInvoices = lazy(() => import("./pages/hotel/HotelInvoices"));
+const HotelMaintenance = lazy(() => import("./pages/hotel/HotelMaintenance"));
+const HotelReports = lazy(() => import("./pages/hotel/HotelReports"));
+const HotelTenants = lazy(() => import("./pages/hotel/HotelTenants"));
 
 function PrivateRoute({ children }: { children: ReactElement }) {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -30,6 +33,7 @@ function PrivateRoute({ children }: { children: ReactElement }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="p-6 text-center">جارٍ تحميل الواجهة…</div>}>
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -68,6 +72,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to={isAuthed() ? "/dashboard" : "/login"} replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
