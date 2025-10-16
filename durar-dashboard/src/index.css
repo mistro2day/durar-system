@@ -19,11 +19,11 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #F5F6FA;
-    --text: #2B2E4A;
+    --bg: #F5F7FB;
+    --text: #111827;          /* رفع التباين للنصوص في الوضع النهاري */
     --surface: #FFFFFF;
-    --surface-2: #F2F3F7;
-    --border: rgba(0,0,0,0.06);
+    --surface-2: #F3F4F6;
+    --border: rgba(0,0,0,0.12); /* حدود أوضح قليلاً */
     /* primary gradient for sidebar */
     --color-primary: #5C61F2;
     --color-secondary: #6C5DD3;
@@ -49,7 +49,13 @@
   }
   .card { background: var(--surface); border: 1px solid var(--border); @apply rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300; }
 
-  .btn-primary { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-[--color-primary] hover:bg-indigo-600 transition; }
+  .btn-primary { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-[--color-primary] hover:bg-indigo-600 shadow-sm ring-1 transition; }
+  .btn-primary { box-shadow: 0 6px 16px rgba(92,97,242,.25); }
+  .btn-primary { border-color: transparent; }
+  .btn-primary { color: #fff; }
+  /* حل مشكلة ضعف ظهور زر التحديث في الوضع النهاري بتقوية الإطار */
+  .btn-primary { border-width: 1px; border-style: solid; }
+  .btn-primary { --tw-ring-color: rgba(199,210,254,.9); }
   .btn-outline { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition; }
   .btn-soft { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg transition; }
   .btn-soft-primary { @apply bg-[--color-primary]/10 text-[--color-primary] hover:bg-[--color-primary]/15; }
