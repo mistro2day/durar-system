@@ -9,6 +9,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcEleme
 import { getUser } from "../lib/auth";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
+import Currency from "../components/Currency";
 import { useParams } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
@@ -482,7 +483,7 @@ export default function Dashboard() {
               />
             </Suspense>
           </div>
-          <div className="mt-3 text-right text-sm text-gray-500">{formatCurrency(summary.revenue)} هذا الشهر</div>
+          <div className="mt-3 text-right text-sm text-gray-500"><Currency amount={summary.revenue} locale={localeTag} /> هذا الشهر</div>
         </div>
 
         {/* (تم نقل عمود الترحيب + الأنشطة إلى بداية الصف أعلاه) */}

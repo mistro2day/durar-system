@@ -7,6 +7,8 @@ import QRCode from "qrcode";
 import { getSettings } from "../lib/settings";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR, CURRENCY_SYMBOL } from "../lib/currency";
+import SARIcon from "../components/icons/SAR";
+import Currency from "../components/Currency";
 
 type Invoice = {
   id: number;
@@ -238,7 +240,7 @@ export default function InvoiceDetails() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="text-right p-3">الوصف</th>
-                <th className="text-right p-3">المبلغ ({CURRENCY_SYMBOL})</th>
+                <th className="text-right p-3"><span className="inline-flex items-center gap-1">المبلغ <SARIcon className="w-3.5 h-3.5" /></span></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -246,7 +248,7 @@ export default function InvoiceDetails() {
                 <td className="p-3 text-gray-800">
                   {`قيمة الإيجار${unitInfo.unitNumber || unitInfo.propertyName ? ` للوحدة رقم ${unitInfo.unitNumber || '-'}` : ''}${unitInfo.propertyName ? ` - ${unitInfo.propertyName}` : ''}`}
                 </td>
-                <td className="p-3">{totalText}</td>
+                <td className="p-3"><Currency amount={Number(invoice.amount || 0)} locale={localeTag} /></td>
               </tr>
             </tbody>
             <tfoot>
@@ -254,15 +256,15 @@ export default function InvoiceDetails() {
                 <>
                   <tr>
                     <td className="p-3 text-right font-semibold">المجموع قبل الضريبة</td>
-                    <td className="p-3">{formatSAR(Number(invoice.amount || 0), { locale: localeTag })}</td>
+                    <td className="p-3"><Currency amount={Number(invoice.amount || 0)} locale={localeTag} /></td>
                   </tr>
                   <tr>
                     <td className="p-3 text-right font-semibold">ضريبة القيمة المضافة ({vatPercent}%)</td>
-                    <td className="p-3">{formatSAR(vatAmount, { locale: localeTag })}</td>
+                    <td className="p-3"><Currency amount={vatAmount} locale={localeTag} /></td>
                   </tr>
                   <tr>
                     <td className="p-3 text-right font-semibold">الإجمالي</td>
-                    <td className="p-3 font-bold text-gray-800">{formatSAR(grandTotal, { locale: localeTag })}</td>
+                    <td className="p-3 font-bold text-gray-800"><Currency amount={grandTotal} locale={localeTag} /></td>
                   </tr>
                 </>
               ) : (

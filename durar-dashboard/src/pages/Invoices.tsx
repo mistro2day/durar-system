@@ -6,6 +6,7 @@ import api from "../lib/api";
 import DateInput from "../components/DateInput";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
+import Currency from "../components/Currency";
 
 type Invoice = {
   id: number;
@@ -97,7 +98,7 @@ export default function Invoices() {
           <DateInput value={to} onChange={setTo} />
         </div>
         <div className="ml-auto text-sm text-gray-700">
-          الإجمالي: <strong>{formatSAR(total, { locale: localeTag })}</strong>
+          الإجمالي: <strong><Currency amount={total} locale={localeTag} /></strong>
         </div>
         <div className="ml-2">
           <AddInvoiceButton onAdded={load} />
@@ -126,7 +127,7 @@ export default function Invoices() {
                 <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{inv.id}</Td>
                   <Td>{inv.contract?.tenantName || "-"}</Td>
-                  <Td>{formatSAR(Number(inv.amount || 0), { locale: localeTag })}</Td>
+                  <Td><Currency amount={Number(inv.amount || 0)} locale={localeTag} /></Td>
                   <Td>
                     <select
                       className={`border rounded p-1 ${savingId === inv.id ? "opacity-60" : ""}`}
