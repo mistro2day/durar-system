@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: durar-system-backend
+    env: node
+    rootDir: backend
+    region: ohio
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/health
+    buildCommand: |
+      npm ci --include=dev
+      npm --prefix ../durar-dashboard ci --include=dev
+      npm --prefix ../durar-dashboard run build
+      npx prisma generate
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: node --enable-source-maps --loader ts-node/esm src/index.ts
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      - key: DASHBOARD_CACHE_TTL_MS
+        value: "10000"
+      - key: DATABASE_URL
+        fromSecret: DATABASE_URL
+      - key: DIRECT_URL
+        fromSecret: DIRECT_URL
+      - key: JWT_SECRET
+        fromSecret: JWT_SECRET
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+

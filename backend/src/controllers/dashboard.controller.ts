@@ -2,11 +2,26 @@ import { PrismaClient } from "@prisma/client";
 import type { Request, Response } from "express";
 
 const prisma = new PrismaClient();
+const cache = new Map<string, { expire: number; payload: any }>();
+const TTL_MS = Number(process.env.DASHBOARD_CACHE_TTL_MS || 10_000);
+
+function getCache(key: string) {
+  const e = cache.get(key);
+  if (e && e.expire > Date.now()) return e.payload;
+  if (e) cache.delete(key);
+  return null;
+}
+function setCache(key: string, payload: any) {
+  cache.set(key, { expire: Date.now() + TTL_MS, payload });
+}
 
 // 📊 لوحة التحكم الرئيسية
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const { propertyId } = req.query as { propertyId?: string };
+    const cacheKey = `stats:${propertyId || 'all'}`;
+    const cached = getCache(cacheKey);
+    if (cached) return res.json(cached);
     const unitScope = propertyId ? { propertyId: Number(propertyId) } : undefined;
     // 🧾 الإحصائيات العامة
     const [activeContracts, endedContracts, availableUnits, occupiedUnits] = await Promise.all([
@@ -51,7 +66,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       include: { user: true },
     });
 
-    res.json({
+    const payload = {
       summary: {
         contracts: {
           active: activeContracts,
@@ -76,7 +91,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         user: a.user ? a.user.name : "نظام تلقائي",
       })),
       lastUpdated: new Date(),
-    });
+    };
+    setCache(cacheKey, payload);
+    res.json(payload);
   } catch (err: any) {
     console.error("❌ خطأ في لوحة التحكم:", err);
     res.status(500).json({ message: err.message });
@@ -87,6 +104,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
     const { propertyId } = req.query as { propertyId?: string };
+    const cacheKey = `summary:${propertyId || 'all'}`;
+    const cached = getCache(cacheKey);
+    if (cached) return res.json(cached);
     const unitScope = propertyId ? { propertyId: Number(propertyId) } : undefined;
 
     // الإحصائيات العامة (كما في الدالة السابقة)
@@ -147,7 +167,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       include: { user: true },
     });
 
-    res.json({
+    const payload = {
       summary: {
         contracts: { active: activeContracts, ended: endedContracts, newThisMonth: newContractsThisMonth },
         units: { available: availableUnits, occupied: occupiedUnits, maintenance: maintUnits },
@@ -170,7 +190,9 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
         user: a.user ? a.user.name : "نظام تلقائي",
       })),
       lastUpdated: new Date(),
-    });
+    };
+    setCache(cacheKey, payload);
+    res.json(payload);
   } catch (err: any) {
     console.error("❌ خطأ في ملخص لوحة التحكم:", err);
     res.status(500).json({ message: err.message });

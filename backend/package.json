@@ -2,17 +2,20 @@
   "name": "durar-backend",
   "version": "1.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "nodemon --exec ts-node --esm src/index.ts",
-    "seed": "ts-node prisma/seed.ts",
-    "seed:admin": "ts-node prisma/seed-admin.ts",
-    "build:client": "npm --prefix ../durar-dashboard run build",
-    "dev:one": "npm run build:client && nodemon --exec ts-node --esm src/index.ts",
-    "db:generate": "prisma generate",
-    "db:migrate:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio",
-    "db:check": "node scripts/checkAdmin.cjs",
-    "db:import:samples": "ts-node scripts/import-from-samples.ts"
+"scripts": {
+  "dev": "nodemon --exec ts-node --esm src/index.ts",
+  "seed": "ts-node prisma/seed.ts",
+  "seed:admin": "ts-node prisma/seed-admin.ts",
+  "build:client": "npm --prefix ../durar-dashboard run build",
+  "dev:one": "npm run build:client && nodemon --exec ts-node --esm src/index.ts",
+  "db:generate": "prisma generate",
+  "db:migrate:deploy": "prisma migrate deploy",
+  "db:studio": "prisma studio",
+  "db:check": "node scripts/checkAdmin.cjs",
+  "db:import:samples": "ts-node scripts/import-from-samples.ts",
+  
+  "build": "tsc",
+  "start": "node dist/index.js"
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
@@ -23,7 +26,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "compression": "^1.7.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

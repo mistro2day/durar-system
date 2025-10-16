@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();
 
@@ -28,12 +29,16 @@ export const getTickets = async (req: Request, res: Response) => {
   const { propertyId } = req.query as { propertyId?: string };
   const where: any = {};
   if (propertyId) where.unit = { propertyId: Number(propertyId) };
-  const tickets = await prisma.maintenanceTicket.findMany({
-    where,
-    include: { unit: true },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(tickets);
+  const pg = getPagination(req);
+  if (!pg) {
+    const tickets = await prisma.maintenanceTicket.findMany({ where, include: { unit: true }, orderBy: { createdAt: "desc" } });
+    return res.json(tickets);
+  }
+  const [items, total] = await Promise.all([
+    prisma.maintenanceTicket.findMany({ where, include: { unit: true }, orderBy: { createdAt: "desc" }, skip: pg.skip, take: pg.take }),
+    prisma.maintenanceTicket.count({ where }),
+  ]);
+  res.json({ items, total, page: pg.page, pageSize: pg.pageSize });
 };
 
 // 🔄 تحديث حالة البلاغ

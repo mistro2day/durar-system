@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();
 
@@ -8,11 +9,16 @@ export const getUnits = async (req: Request, res: Response) => {
   const { propertyId } = req.query as { propertyId?: string };
   const where: any = {};
   if (propertyId) where.propertyId = Number(propertyId);
-  const units = await prisma.unit.findMany({
-    where,
-    include: { property: true },
-  });
-  res.json(units);
+  const pg = getPagination(req);
+  if (!pg) {
+    const units = await prisma.unit.findMany({ where, include: { property: true } });
+    return res.json(units);
+  }
+  const [items, total] = await Promise.all([
+    prisma.unit.findMany({ where, include: { property: true }, skip: pg.skip, take: pg.take, orderBy: { id: "desc" } }),
+    prisma.unit.count({ where }),
+  ]);
+  res.json({ items, total, page: pg.page, pageSize: pg.pageSize });
 };
 
 // ✅ عرض وحدة محددة

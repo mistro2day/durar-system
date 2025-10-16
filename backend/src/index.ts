@@ -5,6 +5,7 @@ import { createServer } from "http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import compression from "compression";
 import bcrypt from "bcryptjs";
 
 dotenv.config();
@@ -12,6 +13,8 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+// ضغط الاستجابات لتسريع نقل البيانات
+app.use(compression());
 
 // ✨ المسارات
 import authRoutes from "./routes/auth.routes.ts";
@@ -77,7 +80,16 @@ ensureAdmin();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "..", "..", "durar-dashboard", "dist");
 
-app.use(express.static(clientDist));
+// تفعيل التخزين المؤقت للملفات الثابتة (year-long for hashed assets)
+app.use(express.static(clientDist, {
+  maxAge: "1y",
+  immutable: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith("index.html")) {
+      res.setHeader("Cache-Control", "no-cache");
+    }
+  },
+}));
 // أي مسار ليس ضمن /api يعاد توجيهه إلى index.html لدعم SPA Router
 app.get(/^(?!\/api\/).*/, (_req, res) => {
   res.sendFile(path.join(clientDist, "index.html"));

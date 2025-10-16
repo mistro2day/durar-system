@@ -133,7 +133,6 @@ model MaintenanceTicket {
   unit        Unit                @relation(fields: [unitId], references: [id])
   @@index([unitId])
   @@index([status])
-  @@index([createdAt])
 }
 
 model MaintenanceAction {
@@ -169,7 +168,6 @@ model Contract {
   @@index([status])
   @@index([startDate])
   @@index([endDate])
-  @@index([createdAt])
 }
 
 model ActivityLog {

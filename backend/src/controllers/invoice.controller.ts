@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();
 
@@ -9,12 +10,16 @@ export const getInvoices = async (req: Request, res: Response) => {
   if (propertyId) {
     where.contract = { is: { unit: { propertyId: Number(propertyId) } } };
   }
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: { contract: true },
-    orderBy: { dueDate: "asc" },
-  });
-  res.json(invoices);
+  const pg = getPagination(req);
+  if (!pg) {
+    const invoices = await prisma.invoice.findMany({ where, include: { contract: true }, orderBy: { dueDate: "asc" } });
+    return res.json(invoices);
+  }
+  const [items, total] = await Promise.all([
+    prisma.invoice.findMany({ where, include: { contract: true }, orderBy: { dueDate: "asc" }, skip: pg.skip, take: pg.take }),
+    prisma.invoice.count({ where }),
+  ]);
+  res.json({ items, total, page: pg.page, pageSize: pg.pageSize });
 };
 
 export const updateInvoiceStatus = async (req: Request, res: Response) => {
