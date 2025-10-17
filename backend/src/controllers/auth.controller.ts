@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 import bcrypt from "bcryptjs";
 import { signJwt } from "../utils/jwt.ts";
 import crypto from "node:crypto";

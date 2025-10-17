@@ -1,6 +1,6 @@
 import type { Response, NextFunction } from "express";
 import type { AuthedRequest } from "./auth.ts";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 
 const prisma = new PrismaClient();
 
@@ -19,6 +19,9 @@ const DEFAULT = {
       "units.edit",
       "maintenance.view",
       "maintenance.edit",
+      "tenants.view",
+      "tenants.edit",
+      "tenants.delete",
       "users.view",
       "settings.view",
     ],
@@ -28,6 +31,7 @@ const DEFAULT = {
       "invoices.view",
       "units.view",
       "maintenance.view",
+      "tenants.view",
     ],
   },
 } as const;
@@ -36,7 +40,16 @@ type RoleKey = keyof typeof DEFAULT.permissions;
 
 async function loadPermissions() {
   const row = await prisma.setting.findUnique({ where: { key: "permissions" } });
-  return row?.value || DEFAULT;
+  const value: any = row?.value;
+  if (!value) return DEFAULT;
+  return {
+    ...DEFAULT,
+    ...value,
+    permissions: {
+      ...DEFAULT.permissions,
+      ...(value?.permissions || {}),
+    },
+  };
 }
 
 export function requirePermission(permission: string) {

@@ -56,6 +56,17 @@ model Tenant {
   name      String
   phone     String
   email     String?
+  nationalId String? @unique
+  birthDate DateTime?
+  gender    String?
+  nationality String?
+  address   String?
+  city      String?
+  country   String?
+  employer  String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  notes     String?
   createdAt DateTime   @default(now())
   bookings  Booking[]
   contracts Contract[]
@@ -160,6 +171,11 @@ model Contract {
   rentalType   String
   tenantName   String
   deposit      Float?         @default(0)
+  ejarContractNumber String?
+  paymentMethod String?
+  paymentFrequency String?
+  servicesIncluded String?
+  notes       String?
   activityLogs ActivityLog[]
   tenant       Tenant?        @relation(fields: [tenantId], references: [id])
   unit         Unit           @relation(fields: [unitId], references: [id])

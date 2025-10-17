@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../lib/api";
+import SortHeader from "../components/SortHeader";
+import { useTableSort } from "../hooks/useTableSort";
 
 type MaintenanceAction = {
   id: number;
@@ -65,8 +67,54 @@ export default function UnitDetails() {
     if (id) load();
   }, [id]);
 
+  const maintenanceTickets = useMemo(() => unit?.maintenance ?? [], [unit]);
   const contractsActive = useMemo(() => (unit?.contracts || []).filter(c => c.status === "ACTIVE"), [unit]);
   const contractsEnded = useMemo(() => (unit?.contracts || []).filter(c => c.status !== "ACTIVE"), [unit]);
+
+  type MaintenanceSortKey = "id" | "description" | "priority" | "status" | "actions" | "createdAt";
+  const maintenanceSortAccessors = useMemo<Record<MaintenanceSortKey, (ticket: MaintenanceTicket) => unknown>>(
+    () => ({
+      id: (ticket) => ticket.id,
+      description: (ticket) => ticket.description || "",
+      priority: (ticket) => ticket.priority || "",
+      status: (ticket) => ticket.status || "",
+      actions: (ticket) => ticket.actions?.length ?? 0,
+      createdAt: (ticket) => ticket.createdAt || "",
+    }),
+    []
+  );
+  const {
+    sortedItems: sortedMaintenance,
+    sortState: maintenanceSort,
+    toggleSort: toggleMaintenanceSort,
+  } = useTableSort<MaintenanceTicket, MaintenanceSortKey>(maintenanceTickets, maintenanceSortAccessors, {
+    key: "createdAt",
+    direction: "desc",
+  });
+
+  type ContractSortKey = "tenant" | "startDate" | "endDate" | "rentAmount" | "status";
+  const contractSortAccessors = useMemo<Record<ContractSortKey, (contract: Contract) => unknown>>(
+    () => ({
+      tenant: (contract) => contract.tenantName || "",
+      startDate: (contract) => contract.startDate || "",
+      endDate: (contract) => contract.endDate || "",
+      rentAmount: (contract) => Number(contract.rentAmount || 0),
+      status: (contract) => contract.status || "",
+    }),
+    []
+  );
+
+  const {
+    sortedItems: sortedActiveContracts,
+    sortState: activeContractSort,
+    toggleSort: toggleActiveContractSort,
+  } = useTableSort<Contract, ContractSortKey>(contractsActive, contractSortAccessors, { key: "endDate", direction: "asc" });
+
+  const {
+    sortedItems: sortedEndedContracts,
+    sortState: endedContractSort,
+    toggleSort: toggleEndedContractSort,
+  } = useTableSort<Contract, ContractSortKey>(contractsEnded, contractSortAccessors, { key: "endDate", direction: "desc" });
 
   if (loading) return <div className="p-6 card text-center text-gray-500">جاري التحميل...</div>;
   if (error) return <div className="p-6 card text-center text-red-600">{error}</div>;
@@ -96,7 +144,7 @@ export default function UnitDetails() {
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">الصيانة على الوحدة</h3>
-          <span className="text-sm text-gray-500">الإجمالي: {unit.maintenance?.length || 0}</span>
+          <span className="text-sm text-gray-500">الإجمالي: {maintenanceTickets.length}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="table">
@@ -110,17 +158,59 @@ export default function UnitDetails() {
             </colgroup>
             <thead>
               <tr>
-                <th className="text-right p-3">الرقم</th>
-                <th className="text-right p-3">الوصف</th>
-                <th className="text-right p-3">الأولوية</th>
-                <th className="text-right p-3">الحالة</th>
-                <th className="text-right p-3">الإجراءات</th>
-                <th className="text-right p-3">تاريخ البلاغ</th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الرقم"
+                    active={maintenanceSort?.key === "id"}
+                    direction={maintenanceSort?.key === "id" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("id")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الوصف"
+                    active={maintenanceSort?.key === "description"}
+                    direction={maintenanceSort?.key === "description" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("description")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الأولوية"
+                    active={maintenanceSort?.key === "priority"}
+                    direction={maintenanceSort?.key === "priority" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("priority")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الحالة"
+                    active={maintenanceSort?.key === "status"}
+                    direction={maintenanceSort?.key === "status" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("status")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الإجراءات"
+                    active={maintenanceSort?.key === "actions"}
+                    direction={maintenanceSort?.key === "actions" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("actions")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="تاريخ البلاغ"
+                    active={maintenanceSort?.key === "createdAt"}
+                    direction={maintenanceSort?.key === "createdAt" ? maintenanceSort.direction : null}
+                    onToggle={() => toggleMaintenanceSort("createdAt")}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {(unit.maintenance || []).length ? (
-                (unit.maintenance || []).map(t => (
+              {sortedMaintenance.length ? (
+                sortedMaintenance.map(t => (
                   <tr key={t.id} className="odd:bg-white even:bg-gray-50">
                     <td className="p-3">{t.id}</td>
                     <td className="p-3">{t.description}</td>
@@ -157,15 +247,50 @@ export default function UnitDetails() {
             </colgroup>
             <thead>
               <tr>
-                <th className="text-right p-3">النزيل</th>
-                <th className="text-right p-3">بداية</th>
-                <th className="text-right p-3">نهاية</th>
-                <th className="text-right p-3">الإيجار</th>
-                <th className="text-right p-3">الحالة</th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="النزيل"
+                    active={activeContractSort?.key === "tenant"}
+                    direction={activeContractSort?.key === "tenant" ? activeContractSort.direction : null}
+                    onToggle={() => toggleActiveContractSort("tenant")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="بداية"
+                    active={activeContractSort?.key === "startDate"}
+                    direction={activeContractSort?.key === "startDate" ? activeContractSort.direction : null}
+                    onToggle={() => toggleActiveContractSort("startDate")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="نهاية"
+                    active={activeContractSort?.key === "endDate"}
+                    direction={activeContractSort?.key === "endDate" ? activeContractSort.direction : null}
+                    onToggle={() => toggleActiveContractSort("endDate")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الإيجار"
+                    active={activeContractSort?.key === "rentAmount"}
+                    direction={activeContractSort?.key === "rentAmount" ? activeContractSort.direction : null}
+                    onToggle={() => toggleActiveContractSort("rentAmount")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الحالة"
+                    active={activeContractSort?.key === "status"}
+                    direction={activeContractSort?.key === "status" ? activeContractSort.direction : null}
+                    onToggle={() => toggleActiveContractSort("status")}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {contractsActive.length ? contractsActive.map(c => (
+              {contractsActive.length ? sortedActiveContracts.map(c => (
                 <tr key={c.id} className="odd:bg-white even:bg-gray-50">
                   <td className="p-3">{c.tenantName}</td>
                   <td className="p-3">{formatDate(c.startDate)}</td>
@@ -198,15 +323,50 @@ export default function UnitDetails() {
             </colgroup>
             <thead>
               <tr>
-                <th className="text-right p-3">النزيل</th>
-                <th className="text-right p-3">بداية</th>
-                <th className="text-right p-3">نهاية</th>
-                <th className="text-right p-3">الإيجار</th>
-                <th className="text-right p-3">الحالة</th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="النزيل"
+                    active={endedContractSort?.key === "tenant"}
+                    direction={endedContractSort?.key === "tenant" ? endedContractSort.direction : null}
+                    onToggle={() => toggleEndedContractSort("tenant")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="بداية"
+                    active={endedContractSort?.key === "startDate"}
+                    direction={endedContractSort?.key === "startDate" ? endedContractSort.direction : null}
+                    onToggle={() => toggleEndedContractSort("startDate")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="نهاية"
+                    active={endedContractSort?.key === "endDate"}
+                    direction={endedContractSort?.key === "endDate" ? endedContractSort.direction : null}
+                    onToggle={() => toggleEndedContractSort("endDate")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الإيجار"
+                    active={endedContractSort?.key === "rentAmount"}
+                    direction={endedContractSort?.key === "rentAmount" ? endedContractSort.direction : null}
+                    onToggle={() => toggleEndedContractSort("rentAmount")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الحالة"
+                    active={endedContractSort?.key === "status"}
+                    direction={endedContractSort?.key === "status" ? endedContractSort.direction : null}
+                    onToggle={() => toggleEndedContractSort("status")}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {contractsEnded.length ? contractsEnded.map(c => (
+              {contractsEnded.length ? sortedEndedContracts.map(c => (
                 <tr key={c.id} className="odd:bg-white even:bg-gray-50">
                   <td className="p-3">{c.tenantName}</td>
                   <td className="p-3">{formatDate(c.startDate)}</td>
@@ -324,4 +484,3 @@ function contractStatusClass(s: Contract["status"]) {
     case "CANCELLED": return "bg-red-100 text-red-700";
   }
 }
-

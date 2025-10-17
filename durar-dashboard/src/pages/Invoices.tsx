@@ -7,6 +7,8 @@ import DateInput from "../components/DateInput";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
+import SortHeader from "../components/SortHeader";
+import { useTableSort } from "../hooks/useTableSort";
 
 type Invoice = {
   id: number;
@@ -15,6 +17,8 @@ type Invoice = {
   dueDate: string;
   contract?: { id: number; tenantName?: string } | null;
 };
+
+type InvoiceSortKey = "id" | "tenant" | "amount" | "status" | "dueDate";
 
 export default function Invoices() {
   const [items, setItems] = useState<Invoice[]>([]);
@@ -45,7 +49,7 @@ export default function Invoices() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
+  const filteredItems = useMemo(() => {
     return items.filter((inv) => {
       const okStatus = statusFilter === "ALL" || inv.status === statusFilter;
       const d = inv.dueDate ? new Date(inv.dueDate) : null;
@@ -55,7 +59,27 @@ export default function Invoices() {
     });
   }, [items, statusFilter, from, to]);
 
-  const total = useMemo(() => filtered.reduce((s, i) => s + Number(i.amount || 0), 0), [filtered]);
+  const invoiceSortAccessors = useMemo<Record<InvoiceSortKey, (inv: Invoice) => unknown>>(
+    () => ({
+      id: (inv) => inv.id,
+      tenant: (inv) => inv.contract?.tenantName || "",
+      amount: (inv) => Number(inv.amount || 0),
+      status: (inv) => inv.status || "",
+      dueDate: (inv) => inv.dueDate || "",
+    }),
+    []
+  );
+
+  const {
+    sortedItems: sortedInvoices,
+    sortState: invoiceSort,
+    toggleSort: toggleInvoiceSort,
+  } = useTableSort<Invoice, InvoiceSortKey>(filteredItems, invoiceSortAccessors, {
+    key: "dueDate",
+    direction: "desc",
+  });
+
+  const total = useMemo(() => filteredItems.reduce((s, i) => s + Number(i.amount || 0), 0), [filteredItems]);
 
   async function updateStatus(id: number, status: string) {
     setSavingId(id);
@@ -114,16 +138,51 @@ export default function Invoices() {
           <table className="table sticky">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-right p-3 font-semibold text-gray-700">#</th>
-                <th className="text-right p-3 font-semibold text-gray-700">المستأجر</th>
-                <th className="text-right p-3 font-semibold text-gray-700">المبلغ</th>
-                <th className="text-right p-3 font-semibold text-gray-700">الحالة</th>
-                <th className="text-right p-3 font-semibold text-gray-700">تاريخ الاستحقاق</th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="#"
+                    active={invoiceSort?.key === "id"}
+                    direction={invoiceSort?.key === "id" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("id")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="المستأجر"
+                    active={invoiceSort?.key === "tenant"}
+                    direction={invoiceSort?.key === "tenant" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("tenant")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="المبلغ"
+                    active={invoiceSort?.key === "amount"}
+                    direction={invoiceSort?.key === "amount" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("amount")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="الحالة"
+                    active={invoiceSort?.key === "status"}
+                    direction={invoiceSort?.key === "status" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("status")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="تاريخ الاستحقاق"
+                    active={invoiceSort?.key === "dueDate"}
+                    direction={invoiceSort?.key === "dueDate" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("dueDate")}
+                  />
+                </th>
                 <th className="text-right p-3 font-semibold text-gray-700">إجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((inv) => (
+              {sortedInvoices.map((inv) => (
                 <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{inv.id}</Td>
                   <Td>{inv.contract?.tenantName || "-"}</Td>
@@ -228,3 +287,4 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
     </>
   );
 }
+

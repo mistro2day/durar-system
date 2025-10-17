@@ -1,13 +1,34 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();
 
+function normalizeString(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const text = String(value).trim();
+  return text.length ? text : null;
+}
+
 // 📝 إنشاء عقد جديد + إنشاء المستأجر تلقائيًا + إصدار أول فاتورة
 export const createContract = async (req: Request, res: Response) => {
   try {
-    const { tenantName, unitId, startDate, endDate, amount, rentAmount, rentalType } = req.body;
+    const {
+      tenantName,
+      unitId,
+      startDate,
+      endDate,
+      amount,
+      rentAmount,
+      rentalType,
+      deposit,
+      ejarContractNumber,
+      paymentMethod,
+      paymentFrequency,
+      servicesIncluded,
+      notes,
+    } = req.body;
 
     // 🔍 تحقق من وجود الوحدة
     const unit = await prisma.unit.findUnique({ where: { id: Number(unitId) } });
@@ -24,6 +45,9 @@ export const createContract = async (req: Request, res: Response) => {
     }
 
     // ✅ إنشاء العقد
+    const totalAmount = amount !== undefined ? Number(amount) : rentAmount !== undefined ? Number(rentAmount) : 0;
+    const periodicRent = rentAmount !== undefined ? Number(rentAmount) : totalAmount;
+
     const contract = await prisma.contract.create({
       data: {
         tenantName,
@@ -31,10 +55,16 @@ export const createContract = async (req: Request, res: Response) => {
         unitId: Number(unitId),
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        amount: Number(amount),
-        rentAmount: Number(rentAmount) || Number(amount),
+        amount: totalAmount,
+        rentAmount: periodicRent,
         status: "ACTIVE",
         rentalType,
+        deposit: deposit !== undefined ? Number(deposit) : undefined,
+        ejarContractNumber: normalizeString(ejarContractNumber),
+        paymentMethod: normalizeString(paymentMethod),
+        paymentFrequency: normalizeString(paymentFrequency),
+        servicesIncluded: normalizeString(servicesIncluded),
+        notes: normalizeString(notes),
       },
       include: { unit: true, tenant: true },
     });
@@ -44,7 +74,7 @@ export const createContract = async (req: Request, res: Response) => {
       data: {
         tenantId: tenant.id,
         contractId: contract.id,
-        amount: Number(rentAmount) || Number(amount),
+        amount: periodicRent,
         dueDate: new Date(startDate),
         status: "PENDING",
       },
@@ -88,17 +118,36 @@ export const getContracts = async (req: Request, res: Response) => {
 export const updateContract = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { startDate, endDate, amount, rentAmount, rentalType, status } = req.body;
+    const {
+      startDate,
+      endDate,
+      amount,
+      rentAmount,
+      rentalType,
+      status,
+      deposit,
+      ejarContractNumber,
+      paymentMethod,
+      paymentFrequency,
+      servicesIncluded,
+      notes,
+    } = req.body;
 
     const contract = await prisma.contract.update({
       where: { id: Number(id) },
       data: {
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        amount: amount ? Number(amount) : undefined,
-        rentAmount: rentAmount ? Number(rentAmount) : undefined,
+        amount: amount !== undefined ? Number(amount) : undefined,
+        rentAmount: rentAmount !== undefined ? Number(rentAmount) : undefined,
         rentalType,
         status,
+        deposit: deposit !== undefined ? Number(deposit) : undefined,
+        ejarContractNumber: normalizeString(ejarContractNumber),
+        paymentMethod: normalizeString(paymentMethod),
+        paymentFrequency: normalizeString(paymentFrequency),
+        servicesIncluded: normalizeString(servicesIncluded),
+        notes: normalizeString(notes),
       },
     });
 
@@ -330,6 +379,8 @@ export const importContractsCsv = async (req: Request, res: Response) => {
             rentalType,
             status: cstatus,
             deposit,
+            paymentMethod: normalizeString(I.payType >= 0 ? r[I.payType] : undefined),
+            notes: normalizeString(I.notes >= 0 ? r[I.notes] : undefined),
           },
         });
 

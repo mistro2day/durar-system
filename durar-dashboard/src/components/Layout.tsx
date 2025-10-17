@@ -6,6 +6,7 @@ import { hasPermission, getSettings } from "../lib/settings";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import BottomNav from "./BottomNav";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -145,7 +146,7 @@ export default function Layout() {
                 onClick={() => setMobileOpen(true)} aria-label="فتح القائمة">
                 <Menu className="w-5 h-5" />
               </button>
-              <input className="hidden md:block w-72 px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring focus:ring-indigo-100" placeholder="بحث..." />
+              <GlobalSearch />
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />

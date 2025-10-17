@@ -11,6 +11,9 @@ export type PermissionKey =
   | "units.edit"
   | "maintenance.view"
   | "maintenance.edit"
+  | "tenants.view"
+  | "tenants.edit"
+  | "tenants.delete"
   | "users.view"
   | "users.edit"
   | "settings.view"
@@ -28,6 +31,9 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
   "units.edit",
   "maintenance.view",
   "maintenance.edit",
+  "tenants.view",
+  "tenants.edit",
+  "tenants.delete",
   "users.view",
   "users.edit",
   "settings.view",
@@ -73,6 +79,9 @@ export function getDefaultSettings(): SiteSettings {
         "units.edit",
         "maintenance.view",
         "maintenance.edit",
+        "tenants.view",
+        "tenants.edit",
+        "tenants.delete",
         "users.view",
         "settings.view",
       ],
@@ -82,6 +91,7 @@ export function getDefaultSettings(): SiteSettings {
         "invoices.view",
         "units.view",
         "maintenance.view",
+        "tenants.view",
       ],
     },
     locale: (env.VITE_DEFAULT_LOCALE === 'en' ? 'en' : 'ar') as any,

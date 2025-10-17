@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import SortHeader from "../components/SortHeader";
+import { useTableSort } from "../hooks/useTableSort";
 
 type Property = { id: number; name: string; type: string; address?: string|null; _count?: { units: number }; tenantsCount?: number; invoicesCount?: number };
+
+type PropertySortKey = "name" | "type" | "units" | "tenants" | "invoices";
 
 export default function Properties() {
   const [items, setItems] = useState<Property[]>([]);
@@ -29,6 +33,23 @@ export default function Properties() {
     return items.filter(p => (p.name||'').toLowerCase().includes(t));
   }, [items, search]);
 
+  const propertySortAccessors = useMemo<Record<PropertySortKey, (p: Property) => unknown>>(
+    () => ({
+      name: (p) => p.name || "",
+      type: (p) => mapType(p.type),
+      units: (p) => p._count?.units ?? 0,
+      tenants: (p) => p.tenantsCount ?? 0,
+      invoices: (p) => p.invoicesCount ?? 0,
+    }),
+    []
+  );
+
+  const {
+    sortedItems: sortedProperties,
+    sortState: propertySort,
+    toggleSort: togglePropertySort,
+  } = useTableSort<Property, PropertySortKey>(rows, propertySortAccessors, { key: "name", direction: "asc" });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -48,16 +69,51 @@ export default function Properties() {
           <table className="table">
             <thead>
               <tr>
-                <th className="text-right p-3">الاسم</th>
-                <th className="text-right p-3">النوع</th>
-                <th className="text-right p-3">الوحدات</th>
-                <th className="text-right p-3">المستأجرون</th>
-                <th className="text-right p-3">الفواتير</th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الاسم"
+                    active={propertySort?.key === "name"}
+                    direction={propertySort?.key === "name" ? propertySort.direction : null}
+                    onToggle={() => togglePropertySort("name")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="النوع"
+                    active={propertySort?.key === "type"}
+                    direction={propertySort?.key === "type" ? propertySort.direction : null}
+                    onToggle={() => togglePropertySort("type")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الوحدات"
+                    active={propertySort?.key === "units"}
+                    direction={propertySort?.key === "units" ? propertySort.direction : null}
+                    onToggle={() => togglePropertySort("units")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="المستأجرون"
+                    active={propertySort?.key === "tenants"}
+                    direction={propertySort?.key === "tenants" ? propertySort.direction : null}
+                    onToggle={() => togglePropertySort("tenants")}
+                  />
+                </th>
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="الفواتير"
+                    active={propertySort?.key === "invoices"}
+                    direction={propertySort?.key === "invoices" ? propertySort.direction : null}
+                    onToggle={() => togglePropertySort("invoices")}
+                  />
+                </th>
                 <th className="text-right p-3">إجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map(p => (
+              {sortedProperties.map(p => (
                 <tr key={p.id}>
                   <td className="p-3">{p.name}</td>
                   <td className="p-3">{mapType(p.type)}</td>

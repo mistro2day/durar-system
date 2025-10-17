@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();

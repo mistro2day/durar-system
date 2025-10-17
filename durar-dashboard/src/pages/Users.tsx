@@ -4,8 +4,12 @@ import { useLocaleTag } from "../lib/settings-react";
 import { hasPermission, getSettings } from "../lib/settings";
 import { getRole } from "../lib/auth";
 import { Pencil, Plus, KeyRound, Mail } from "lucide-react";
+import SortHeader from "../components/SortHeader";
+import { useTableSort } from "../hooks/useTableSort";
 
 type User = { id: number; name: string; email: string; role: string; createdAt: string };
+
+type UserSortKey = "id" | "name" | "email" | "role" | "createdAt";
 
 export default function Users() {
   const [items, setItems] = useState<User[]>([]);
@@ -37,6 +41,23 @@ export default function Users() {
   }, []);
 
   const rows = useMemo(() => items, [items]);
+
+  const userSortAccessors = useMemo<Record<UserSortKey, (user: User) => unknown>>(
+    () => ({
+      id: (user) => user.id,
+      name: (user) => user.name || "",
+      email: (user) => user.email || "",
+      role: (user) => user.role || "",
+      createdAt: (user) => user.createdAt || "",
+    }),
+    []
+  );
+
+  const {
+    sortedItems: sortedUsers,
+    sortState: userSort,
+    toggleSort: toggleUserSort,
+  } = useTableSort<User, UserSortKey>(rows, userSortAccessors, { key: "createdAt", direction: "desc" });
 
   async function handleSaveUser(form: Partial<User> & { password?: string }) {
     setSaving(true);
@@ -101,16 +122,51 @@ export default function Users() {
           <table className="table sticky">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-right p-3 font-semibold text-gray-700">#</th>
-                <th className="text-right p-3 font-semibold text-gray-700">الاسم</th>
-                <th className="text-right p-3 font-semibold text-gray-700">البريد</th>
-                <th className="text-right p-3 font-semibold text-gray-700">الدور</th>
-                <th className="text-right p-3 font-semibold text-gray-700">تاريخ الإنشاء</th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="#"
+                    active={userSort?.key === "id"}
+                    direction={userSort?.key === "id" ? userSort.direction : null}
+                    onToggle={() => toggleUserSort("id")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="الاسم"
+                    active={userSort?.key === "name"}
+                    direction={userSort?.key === "name" ? userSort.direction : null}
+                    onToggle={() => toggleUserSort("name")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="البريد"
+                    active={userSort?.key === "email"}
+                    direction={userSort?.key === "email" ? userSort.direction : null}
+                    onToggle={() => toggleUserSort("email")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="الدور"
+                    active={userSort?.key === "role"}
+                    direction={userSort?.key === "role" ? userSort.direction : null}
+                    onToggle={() => toggleUserSort("role")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="تاريخ الإنشاء"
+                    active={userSort?.key === "createdAt"}
+                    direction={userSort?.key === "createdAt" ? userSort.direction : null}
+                    onToggle={() => toggleUserSort("createdAt")}
+                  />
+                </th>
                 <th className="text-right p-3 font-semibold text-gray-700">إجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map((u) => (
+              {sortedUsers.map((u) => (
                 <tr key={u.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{u.id}</Td>
                   <Td>{u.name}</Td>
