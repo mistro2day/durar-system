@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "./lib/prisma.ts";
 import compression from "compression";
 import bcrypt from "bcryptjs";
 
@@ -28,6 +28,7 @@ import settingsRoutes from "./routes/settings.routes.ts";
 import userRoutes from "./routes/user.routes.ts";
 import propertyRoutes from "./routes/property.routes.ts";
 import tenantRoutes from "./routes/tenant.routes.ts";
+import searchRoutes from "./routes/search.routes.ts";
 
 
 // ✅ ربط المسارات
@@ -42,6 +43,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/tenants", tenantRoutes);
+app.use("/api/search", searchRoutes);
 
 // Healthcheck for quick connectivity tests
 app.get("/api/health", (_req, res) => {

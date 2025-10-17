@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 import cron from "node-cron";
 
 const prisma = new PrismaClient();

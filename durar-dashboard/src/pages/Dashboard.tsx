@@ -10,7 +10,9 @@ import { getUser } from "../lib/auth";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
-import { useParams } from "react-router-dom";
+import SortHeader from "../components/SortHeader";
+import { useTableSort } from "../hooks/useTableSort";
+import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
 
@@ -628,35 +630,107 @@ function Header({
   );
 }
 
-function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; range: 'week'|'month'; localeTag: string }) {
-  const now = new Date();
-  const end = new Date(now);
-  if (range === 'week') end.setDate(end.getDate() + 7); else end.setMonth(end.getMonth()+1, 0);
-  const rows = (items||[])
-    .filter((c:any)=>{ const d = c.endDate ? new Date(c.endDate) : null; return d && d >= now && d <= end; })
-    .sort((a:any,b:any)=> new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
-    .slice(0, 10);
+function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; range: "week" | "month"; localeTag: string }) {
+  const now = useMemo(() => new Date(), [items, range]);
+  const horizon = useMemo(() => {
+    const end = new Date(now);
+    if (range === "week") {
+      end.setDate(end.getDate() + 7);
+    } else {
+      end.setMonth(end.getMonth() + 1, 0);
+    }
+    return end;
+  }, [now, range]);
+
+  const filtered = useMemo(
+    () =>
+      (items || []).filter((c: any) => {
+        const d = c.endDate ? new Date(c.endDate) : null;
+        return d && d >= now && d <= horizon;
+      }),
+    [horizon, items, now]
+  );
+
+  type ExpiringSortKey = "tenant" | "unit" | "endDate" | "remaining";
+
+  const expiringSortAccessors = useMemo<Record<ExpiringSortKey, (c: any) => unknown>>(
+    () => ({
+      tenant: (c) => c.tenantName || c.tenant?.name || "",
+      unit: (c) => c.unit?.unitNumber || c.unit?.number || "",
+      endDate: (c) => c.endDate || "",
+      remaining: (c) => {
+        const d = c.endDate ? new Date(c.endDate) : null;
+        return d ? d.getTime() - now.getTime() : Number.POSITIVE_INFINITY;
+      },
+    }),
+    [now]
+  );
+
+  const {
+    sortedItems: sortedExpiring,
+    sortState: expiringSort,
+    toggleSort: toggleExpiringSort,
+  } = useTableSort<any, ExpiringSortKey>(filtered, expiringSortAccessors, { key: "endDate", direction: "asc" });
+
+  const rows = sortedExpiring.slice(0, 10);
+
   if (!rows.length) return <p className="text-sm text-gray-500">لا توجد عقود قريبة الانتهاء.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="table">
         <thead>
           <tr>
-            <th className="text-right p-3">النزيل</th>
-            <th className="text-right p-3">الوحدة</th>
-            <th className="text-right p-3">تاريخ النهاية</th>
-            <th className="text-right p-3">متبق</th>
+            <th className="text-right p-3">
+              <SortHeader
+                label="النزيل"
+                active={expiringSort?.key === "tenant"}
+                direction={expiringSort?.key === "tenant" ? expiringSort.direction : null}
+                onToggle={() => toggleExpiringSort("tenant")}
+              />
+            </th>
+            <th className="text-right p-3">
+              <SortHeader
+                label="الوحدة"
+                active={expiringSort?.key === "unit"}
+                direction={expiringSort?.key === "unit" ? expiringSort.direction : null}
+                onToggle={() => toggleExpiringSort("unit")}
+              />
+            </th>
+            <th className="text-right p-3">
+              <SortHeader
+                label="تاريخ النهاية"
+                active={expiringSort?.key === "endDate"}
+                direction={expiringSort?.key === "endDate" ? expiringSort.direction : null}
+                onToggle={() => toggleExpiringSort("endDate")}
+              />
+            </th>
+            <th className="text-right p-3">
+              <SortHeader
+                label="متبق"
+                active={expiringSort?.key === "remaining"}
+                direction={expiringSort?.key === "remaining" ? expiringSort.direction : null}
+                onToggle={() => toggleExpiringSort("remaining")}
+              />
+            </th>
             <th className="text-right p-3">إجراءات</th>
           </tr>
         </thead>
         <tbody className="divide-y">
-          {rows.map((c:any)=>{
+          {rows.map((c: any) => {
             const endDate = new Date(c.endDate);
-            const daysLeft = Math.ceil((endDate.getTime() - now.getTime())/ (1000*60*60*24));
+            const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             return (
               <tr key={c.id} className="odd:bg-white even:bg-gray-50">
                 <td className="p-3 text-gray-800">{c.tenantName || c.tenant?.name || '-'}</td>
-                <td className="p-3">{c.unit?.unitNumber || c.unit?.number || '-'}</td>
+                <td className="p-3">
+                  {c.unit?.id ? (
+                    <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
+                      {c.unit?.unitNumber || c.unit?.number || '-'}
+                    </Link>
+                  ) : (
+                    c.unit?.unitNumber || c.unit?.number || '-'
+                  )}
+                </td>
                 <td className="p-3">{endDate.toLocaleDateString(localeTag)}</td>
                 <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft<=7? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
                 <td className="p-3">

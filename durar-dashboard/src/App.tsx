@@ -11,6 +11,7 @@ const Contracts = lazy(() => import("./pages/Contracts"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const InvoiceDetails = lazy(() => import("./pages/InvoiceDetails"));
 const Units = lazy(() => import("./pages/Units"));
+const UnitDetails = lazy(() => import("./pages/UnitDetails"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -25,6 +26,7 @@ const HotelInvoices = lazy(() => import("./pages/hotel/HotelInvoices"));
 const HotelMaintenance = lazy(() => import("./pages/hotel/HotelMaintenance"));
 const HotelReports = lazy(() => import("./pages/hotel/HotelReports"));
 const HotelTenants = lazy(() => import("./pages/hotel/HotelTenants"));
+const HotelTenantDetails = lazy(() => import("./pages/hotel/HotelTenantDetails"));
 
 function PrivateRoute({ children }: { children: ReactElement }) {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -52,6 +54,7 @@ export default function App() {
           <Route path="invoices/:id" element={<InvoiceDetails />} />
           <Route path="properties" element={<Properties />} />
           <Route path="units" element={<Units />} />
+          <Route path="units/:id" element={<UnitDetails />} />
           <Route path="maintenance" element={<Maintenance />} />
           <Route path="reports" element={<Reports />} />
           {/* Hotel scoped routes */}
@@ -64,6 +67,7 @@ export default function App() {
             <Route path="maintenance" element={<HotelMaintenance />} />
             <Route path="reports" element={<HotelReports />} />
             <Route path="tenants" element={<HotelTenants />} />
+            <Route path="tenants/:tenantId" element={<HotelTenantDetails />} />
           </Route>
           <Route path="settings" element={<Settings />} />
           <Route path="settings/users" element={<Users />} />

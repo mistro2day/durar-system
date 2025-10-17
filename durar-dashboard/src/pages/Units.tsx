@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Wrench, Plus, Edit, ChevronDown, ChevronRight } from "lucide-react";
+import SortHeader from "../components/SortHeader";
+import type { SortDirection } from "../hooks/useTableSort";
 
 type Unit = {
   id: number;
@@ -15,6 +17,8 @@ type Unit = {
   property?: { id: number; name: string } | null;
 };
 
+type UnitSortKey = "unit" | "status" | "type" | "rentalType" | "floor" | "rooms" | "baths";
+
 export default function Units() {
   const [items, setItems] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,7 @@ export default function Units() {
   const [modal, setModal] = useState<null | { mode: 'add' | 'edit'; data?: Partial<Unit> }>(null);
   const [openProps, setOpenProps] = useState<Record<string, boolean>>({});
   const [openFloors, setOpenFloors] = useState<Record<string, Record<number, boolean>>>({});
+  const [unitSort, setUnitSort] = useState<{ key: UnitSortKey; direction: SortDirection } | null>(null);
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
 
@@ -69,6 +74,7 @@ export default function Units() {
     if (!term) return items;
     return items.filter(u => ((u.unitNumber || (u as any).number || '') as string).toLowerCase().includes(term.toLowerCase()));
   }, [items, search]);
+  const collator = useMemo(() => new Intl.Collator("ar", { numeric: true, sensitivity: "base" }), []);
 
   // Grouping: property -> floor -> units
   const grouped = useMemo(() => {
@@ -82,14 +88,31 @@ export default function Units() {
       floors.get(floor)!.push(u);
     }
     // sort floors ascending
+    const compare = (a: Unit, b: Unit) => {
+      if (!unitSort) {
+        return collator.compare(unitLabel(a), unitLabel(b));
+      }
+      const dir = unitSort.direction === "asc" ? 1 : -1;
+      const valueA = getUnitSortValue(a, unitSort.key);
+      const valueB = getUnitSortValue(b, unitSort.key);
+      let result: number;
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        result = valueA - valueB;
+      } else {
+        result = collator.compare(String(valueA ?? ""), String(valueB ?? ""));
+      }
+      if (result === 0) {
+        result = collator.compare(unitLabel(a), unitLabel(b));
+      }
+      return result * dir;
+    };
     for (const [, floors] of byProp) {
       for (const [f, arr] of Array.from(floors.entries())) {
-        const label = (x: Unit) => (x.unitNumber || (x as any).number || '') as string;
-        floors.set(f, arr.sort((a,b)=> label(a).localeCompare(label(b))));
+        floors.set(f, [...arr].sort(compare));
       }
     }
     return byProp;
-  }, [rows, propertyId]);
+  }, [rows, propertyId, unitSort, collator]);
 
   // (تم إزالة التحرير داخل الجدول وإعادة العرض للقراءة فقط)
 
@@ -114,6 +137,18 @@ export default function Units() {
   }
   function toggleFloor(prop: string, floor: number) {
     setOpenFloors((s) => ({ ...s, [prop]: { ...(s[prop]||{}), [floor]: !(s[prop]?.[floor]) } }));
+  }
+
+  function toggleUnitSort(key: UnitSortKey) {
+    setUnitSort((prev) => {
+      if (!prev || prev.key !== key) {
+        return { key, direction: "asc" };
+      }
+      if (prev.direction === "asc") {
+        return { key, direction: "desc" };
+      }
+      return null;
+    });
   }
 
   // لا يوجد تعديل جماعي بعد الآن
@@ -263,18 +298,67 @@ export default function Units() {
                     <col style={{width:'8%'}} />
                     <col style={{width:'30%'}} />
                   </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="text-right p-3 font-semibold">الوحدة</th>
-                      <th className="text-right p-3 font-semibold">الحالة</th>
-                      <th className="text-right p-3 font-semibold">النوع</th>
-                      <th className="text-right p-3 font-semibold">الإيجار</th>
-                      <th className="text-right p-3 font-semibold">الدور</th>
-                      <th className="text-right p-3 font-semibold">الغرف</th>
-                      <th className="text-right p-3 font-semibold">الحمامات</th>
-                      <th className="text-right p-3 font-semibold">إجراءات</th>
-                    </tr>
-                  </thead>
+                   <thead>
+                     <tr>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الوحدة"
+                           active={unitSort?.key === "unit"}
+                           direction={unitSort?.key === "unit" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("unit")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الحالة"
+                           active={unitSort?.key === "status"}
+                           direction={unitSort?.key === "status" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("status")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="النوع"
+                           active={unitSort?.key === "type"}
+                           direction={unitSort?.key === "type" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("type")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الإيجار"
+                           active={unitSort?.key === "rentalType"}
+                           direction={unitSort?.key === "rentalType" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("rentalType")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الدور"
+                           active={unitSort?.key === "floor"}
+                           direction={unitSort?.key === "floor" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("floor")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الغرف"
+                           active={unitSort?.key === "rooms"}
+                           direction={unitSort?.key === "rooms" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("rooms")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">
+                         <SortHeader
+                           label="الحمامات"
+                           active={unitSort?.key === "baths"}
+                           direction={unitSort?.key === "baths" ? unitSort.direction : null}
+                           onToggle={() => toggleUnitSort("baths")}
+                         />
+                       </th>
+                       <th className="text-right p-3 font-semibold">إجراءات</th>
+                     </tr>
+                   </thead>
                   <tbody className="divide-y">
                     {Array.from(floors.keys()).sort((a,b)=>a-b).map((f) => (
                       <>
@@ -300,7 +384,11 @@ export default function Units() {
                         ) })()}
                         {openFloors[propName]?.[f] !== false && floors.get(f)!.map((u) => (
                           <tr key={u.id} className="odd:bg-white even:bg-gray-50">
-                            <td className="p-3">{u.unitNumber || (u as any).number}</td>
+                            <td className="p-3">
+                              <Link to={`/units/${u.id}`} className="text-primary hover:underline">
+                                {u.unitNumber || (u as any).number}
+                              </Link>
+                            </td>
                             <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${statusClass(u.status)}`}>{mapStatus(u.status)}</span></td>
                             <td className="p-3">{u.type || '-'}</td>
                             <td className="p-3">{mapRental(u.rentalType)}</td>
@@ -354,6 +442,31 @@ function statusClass(v?: string) {
       return "bg-slate-100 text-slate-700";
   }
 }
+function unitLabel(unit: Unit) {
+  return (unit.unitNumber || (unit as any).number || "") as string;
+}
+
+function getUnitSortValue(unit: Unit, key: UnitSortKey) {
+  switch (key) {
+    case "unit":
+      return unitLabel(unit);
+    case "status":
+      return unit.status || "";
+    case "type":
+      return unit.type || "";
+    case "rentalType":
+      return unit.rentalType || "";
+    case "floor":
+      return unit.floor ?? Number.NEGATIVE_INFINITY;
+    case "rooms":
+      return unit.rooms ?? Number.NEGATIVE_INFINITY;
+    case "baths":
+      return unit.baths ?? Number.NEGATIVE_INFINITY;
+    default:
+      return unitLabel(unit);
+  }
+}
+
 function mapStatus(v?: string) {
   switch (v) {
     case "AVAILABLE":

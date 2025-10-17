@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 
 const prisma = new PrismaClient();
@@ -26,7 +26,14 @@ export const getUnitById = async (req: Request, res: Response) => {
   const { id } = req.params;
   const unit = await prisma.unit.findUnique({
     where: { id: Number(id) },
-    include: { property: true, contracts: true },
+    include: {
+      property: true,
+      contracts: true,
+      maintenance: {
+        include: { actions: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
   if (!unit) return res.status(404).json({ message: "الوحدة غير موجودة" });
   res.json(unit);

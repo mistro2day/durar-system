@@ -7,41 +7,17 @@ export default function HotelLayout() {
   const { id } = useParams();
   const base = `/hotel/${id}`;
   const [name, setName] = useState<string>("");
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     api.get(`/api/properties/${id}`).then(r => setName(r.data?.name || `#${id}`)).catch(()=>setName(`#${id}`));
   }, [id]);
 
-  async function saveName(v: string) {
-    if (!id) return;
-    const nv = v.trim();
-    if (!nv || nv === name) return;
-    try {
-      setSaving(true);
-      setName(nv); // تحديث متفائل
-      await api.patch(`/api/properties/${id}`, { name: nv });
-    } catch (e) {
-      // تجاهل الخطأ مع تنبيه بسيط
-      alert('تعذر حفظ اسم الفندق');
-    } finally {
-      setSaving(false);
-    }
-  }
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800">فندق —</h2>
-          <input
-            className="form-input text-xl md:text-2xl font-bold w-[28ch]"
-            value={name}
-            onChange={(e)=>setName(e.target.value)}
-            onBlur={(e)=>saveName(e.target.value)}
-            onKeyDown={(e)=>{ if(e.key==='Enter'){ (e.target as HTMLInputElement).blur(); } }}
-          />
-          {saving ? <span className="text-xs text-gray-500">…حفظ</span> : null}
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800">{name || `#${id}`}</h2>
         </div>
       </div>
 
