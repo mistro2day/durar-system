@@ -1,0 +1,14 @@
+import express from "express";
+import {
+  getContractsReport,
+  getFinancialReport,
+  getMaintenanceReport
+} from "../controllers/reports.Controller.ts";
+
+const router = express.Router();
+
+router.get("/contracts", getContractsReport);
+router.get("/financial", getFinancialReport);
+router.get("/maintenance", getMaintenanceReport);
+
+export default router;
