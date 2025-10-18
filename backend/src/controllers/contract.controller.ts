@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { PrismaClient } from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
+import type { AuthedRequest } from "../middlewares/auth.ts";
+import { logActivity } from "../utils/activity-log.ts";
 
 const prisma = new PrismaClient();
 
@@ -12,7 +14,7 @@ function normalizeString(value: unknown): string | null | undefined {
 }
 
 // 📝 إنشاء عقد جديد + إنشاء المستأجر تلقائيًا + إصدار أول فاتورة
-export const createContract = async (req: Request, res: Response) => {
+export const createContract = async (req: AuthedRequest, res: Response) => {
   try {
     const {
       tenantName,
@@ -78,6 +80,12 @@ export const createContract = async (req: Request, res: Response) => {
         dueDate: new Date(startDate),
         status: "PENDING",
       },
+    });
+
+    await logActivity(prisma, req, {
+      action: "CONTRACT_CREATE",
+      description: `تم إنشاء عقد جديد للوحدة ${contract.unit?.number ?? contract.unitId} باسم ${contract.tenantName}`,
+      contractId: contract.id,
     });
 
     res.json({
@@ -250,7 +258,7 @@ export const endContract = async (req: Request, res: Response) => {
     // 🧾 إضافة سجل النشاط داخل نفس الدالة (بدون await خارجها)
     await prisma.activityLog.create({
       data: {
-        action: "End Contract",
+        action: "إنهاء العقد",
         description: refundDeposit
           ? `تم إنهاء العقد رقم ${contract.id} واسترداد التأمين للعميل ${contract.tenantName}`
           : `تم إنهاء العقد رقم ${contract.id} بعد خصم التأمين`,
