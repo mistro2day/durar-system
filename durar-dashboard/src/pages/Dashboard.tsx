@@ -38,6 +38,14 @@ type DashboardResponse = {
   lastUpdated: string | Date;
 };
 
+const ACTIVITY_ACTION_LABELS: Record<string, string> = {
+  "End Contract": "إنهاء العقد",
+};
+
+function translateActivityAction(action: string): string {
+  return ACTIVITY_ACTION_LABELS[action] || action;
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -355,11 +363,11 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500">لا توجد أنشطة حديثة.</p>
             ) : (
               <div className="scroll-area overflow-y-auto pr-1" style={{ maxHeight: '220px' }}>
-                <ul className="divide-y divide-gray-200">
+                <ul className="space-y-2">
                   {activities.slice(0,5).map((a) => (
                     <li key={a.id} className="py-2">
                       <div className="flex items-start justify-between">
-                        <p className="text-gray-800 text-sm font-medium">{a.action}</p>
+                        <p className="text-gray-800 text-sm font-medium">{translateActivityAction(a.action)}</p>
                         <span className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleString(localeTag)}</span>
                       </div>
                       <p className="text-xs text-gray-600 mt-1">{a.description}</p>
