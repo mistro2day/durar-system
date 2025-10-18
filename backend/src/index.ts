@@ -8,6 +8,7 @@ import { PrismaClient } from "./lib/prisma.ts";
 import compression from "compression";
 import bcrypt from "bcryptjs";
 
+
 dotenv.config();
 
 const app = express();
@@ -29,6 +30,8 @@ import userRoutes from "./routes/user.routes.ts";
 import propertyRoutes from "./routes/property.routes.ts";
 import tenantRoutes from "./routes/tenant.routes.ts";
 import searchRoutes from "./routes/search.routes.ts";
+import reportsRoutes from "./routes/reports.routes.ts";
+
 
 
 // ✅ ربط المسارات
@@ -44,6 +47,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/reports", reportsRoutes);
+
 
 // Healthcheck for quick connectivity tests
 app.get("/api/health", (_req, res) => {
@@ -70,7 +75,6 @@ async function ensureAdmin() {
     console.log("⚠️ Could not ensure admin user:", e?.message || e);
   }
 }
-
 
 // 🔁 المجدول الشهري للفواتير
 import { startInvoiceScheduler } from "./jobs/generateMonthlyInvoices.ts";
