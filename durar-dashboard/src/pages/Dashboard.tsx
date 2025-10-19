@@ -59,6 +59,15 @@ export default function Dashboard() {
   const [contracts, setContracts] = useState<any[]>([]);
   const [range, setRange] = useState<'week'|'month'>('week');
   const [rangeMonths, setRangeMonths] = useState<number>(6);
+  const visibleRevenue = useMemo(() => {
+    if (!monthlyRevenue.length) return [];
+    if (!rangeMonths) return monthlyRevenue;
+    return monthlyRevenue.slice(-rangeMonths);
+  }, [monthlyRevenue, rangeMonths]);
+  const visibleRevenueTotal = useMemo(
+    () => visibleRevenue.reduce((sum, item) => sum + Number(item.value || 0), 0),
+    [visibleRevenue]
+  );
   const [showOverlay, setShowOverlay] = useState(false);
   const overlayTimers = useRef<{ delay?: any; hide?: any; startedAt?: number }>({});
   const [firstLoad, setFirstLoad] = useState(true);
@@ -179,9 +188,9 @@ export default function Dashboard() {
     try {
       const res = await api.get<any[]>(`/api/invoices${propertyId ? `?propertyId=${propertyId}` : ""}`);
       const now = new Date();
-      // اجمع آخر 6 أشهر بما فيها الشهر الحالي
+      // اجمع آخر 12 شهرًا بما فيها الشهر الحالي
       const months: { key: string; date: Date }[] = [];
-      for (let i = 5; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         months.push({ key: `${d.getFullYear()}-${d.getMonth() + 1}`.padStart(7, "0"), date: d });
       }
@@ -466,10 +475,10 @@ export default function Dashboard() {
             <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
               <Line
                 data={{
-                  labels: monthlyRevenue.map((m) => m.label),
+                  labels: visibleRevenue.map((m) => m.label),
                   datasets: [
                     {
-                      data: monthlyRevenue.map((m) => m.value),
+                      data: visibleRevenue.map((m) => m.value),
                       borderColor: '#5C61F2',
                       backgroundColor: (ctx:any) => {
                         const { chart } = ctx;
@@ -504,7 +513,9 @@ export default function Dashboard() {
               />
             </Suspense>
           </div>
-          <div className="mt-3 text-right text-sm text-gray-500"><Currency amount={summary.revenue} locale={localeTag} /> هذا الشهر</div>
+          <div className="mt-3 text-right text-sm text-gray-500">
+            <Currency amount={visibleRevenueTotal} locale={localeTag} /> خلال آخر {rangeMonths} شهر
+          </div>
         </div>
 
         {/* (تم نقل عمود الترحيب + الأنشطة إلى بداية الصف أعلاه) */}
@@ -537,15 +548,15 @@ export default function Dashboard() {
             </div>
           ) : null}
         </div>
-        {monthlyRevenue.length > 0 ? (
+        {visibleRevenue.length > 0 ? (
           <div className="h-72 md:h-80">
             <Line
               data={{
-                labels: monthlyRevenue.slice(-rangeMonths).map((m) => m.label),
+                labels: visibleRevenue.map((m) => m.label),
                 datasets: [
                   {
                     label: 'الإيرادات (ر.س)',
-                    data: monthlyRevenue.slice(-rangeMonths).map((m) => m.value),
+                    data: visibleRevenue.map((m) => m.value),
                     borderColor: '#5C61F2',
                     backgroundColor: (ctx:any) => {
                       const { chart } = ctx; const { ctx: c, chartArea } = chart as any; if (!chartArea) return 'rgba(92,97,242,0.2)';
