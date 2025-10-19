@@ -544,9 +544,20 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
     area: data?.area ?? undefined,
     propertyId: data?.propertyId || defaultPropertyId,
   });
+  const [saving, setSaving] = useState(false);
 
   async function submit() {
+    if (saving) return;
+    if (!form.unitNumber || !String(form.unitNumber).trim()) {
+      alert("يرجى إدخال رقم/اسم الوحدة.");
+      return;
+    }
+    if (!form.propertyId && !defaultPropertyId) {
+      alert("يرجى اختيار العقار.");
+      return;
+    }
     try {
+      setSaving(true);
       if (mode === 'add') {
         const payload: any = {
           unitNumber: form.unitNumber,
@@ -569,6 +580,8 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
       onSaved();
     } catch (e: any) {
       alert(e?.response?.data?.message || 'تعذر حفظ الوحدة');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -601,8 +614,8 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
           <Field label="المساحة (م²)"><input className="form-input" type="number" step="0.1" value={String(form.area ?? '')} onChange={(e)=>setForm({...form, area: Number(e.target.value)})} /></Field>
         </div>
         <div className="mt-6 flex items-center justify-end gap-3">
-          <button className="btn-outline" onClick={onClose}>إلغاء</button>
-          <button className="btn-primary" onClick={submit}>حفظ</button>
+          <button className="btn-outline disabled:opacity-60" onClick={onClose} disabled={saving}>إلغاء</button>
+          <button className="btn-primary disabled:opacity-60" onClick={submit} disabled={saving}>حفظ</button>
         </div>
       </div>
     </div>

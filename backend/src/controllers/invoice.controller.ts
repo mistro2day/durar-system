@@ -11,12 +11,23 @@ export const getInvoices = async (req: Request, res: Response) => {
     where.contract = { is: { unit: { propertyId: Number(propertyId) } } };
   }
   const pg = getPagination(req);
+  const include = {
+    contract: {
+      include: {
+        unit: {
+          include: {
+            property: true,
+          },
+        },
+      },
+    },
+  } as const;
   if (!pg) {
-    const invoices = await prisma.invoice.findMany({ where, include: { contract: true }, orderBy: { dueDate: "asc" } });
+    const invoices = await prisma.invoice.findMany({ where, include, orderBy: { dueDate: "asc" } });
     return res.json(invoices);
   }
   const [items, total] = await Promise.all([
-    prisma.invoice.findMany({ where, include: { contract: true }, orderBy: { dueDate: "asc" }, skip: pg.skip, take: pg.take }),
+    prisma.invoice.findMany({ where, include, orderBy: { dueDate: "asc" }, skip: pg.skip, take: pg.take }),
     prisma.invoice.count({ where }),
   ]);
   res.json({ items, total, page: pg.page, pageSize: pg.pageSize });

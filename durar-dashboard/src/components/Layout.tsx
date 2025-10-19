@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, FileText, Building2, Wrench, BarChart3, LogOut, Receipt, Settings as SettingsIcon, Shield, Users as UsersIcon, Hotel, Menu, X } from "lucide-react";
+import { Home, FileText, Building2, Wrench, BarChart3, LogOut, Receipt, Settings as SettingsIcon, Shield, Users as UsersIcon, Hotel, Menu, X, ClipboardList } from "lucide-react";
 import { logout, getRole } from "../lib/auth";
 import { hasPermission, getSettings } from "../lib/settings";
 import Logo from "./Logo";
@@ -58,6 +58,9 @@ export default function Layout() {
               )}
               {hasPermission(role, "settings.edit", site) && (
                 <NavItem to="/settings/permissions" icon={<Shield />} text="الصلاحيات" />
+              )}
+              {hasPermission(role, "activity.view", site) && (
+                <NavItem to="/settings/activity" icon={<ClipboardList />} text="النشاطات" />
               )}
             </>
           )}
@@ -118,6 +121,9 @@ export default function Layout() {
                   )}
                   {hasPermission(role, "settings.edit", site) && (
                     <NavItem to="/settings/permissions" icon={<Shield />} text="الصلاحيات" />
+                  )}
+                  {hasPermission(role, "activity.view", site) && (
+                    <NavItem to="/settings/activity" icon={<ClipboardList />} text="النشاطات" />
                   )}
                 </>
               )}
