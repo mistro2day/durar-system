@@ -179,9 +179,9 @@ export default function Dashboard() {
     try {
       const res = await api.get<any[]>(`/api/invoices${propertyId ? `?propertyId=${propertyId}` : ""}`);
       const now = new Date();
-      // اجمع آخر 6 أشهر بما فيها الشهر الحالي
+      // اجمع آخر 12 شهرًا بما فيها الشهر الحالي
       const months: { key: string; date: Date }[] = [];
-      for (let i = 5; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         months.push({ key: `${d.getFullYear()}-${d.getMonth() + 1}`.padStart(7, "0"), date: d });
       }
