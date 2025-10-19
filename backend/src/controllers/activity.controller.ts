@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma.ts";
 import type { Request, Response } from "express";
 
-const prisma = new PrismaClient();
 
 type ActivityFilters = {
   page?: string;
@@ -85,7 +84,7 @@ export async function listActivityLogs(req: Request, res: Response) {
       }
     }
 
-    const [items, total, distinctActions] = await Promise.all([
+    const [items, total, distinctActions] = await prisma.$transaction([
       prisma.activityLog.findMany({
         where,
         orderBy: { createdAt: "desc" },

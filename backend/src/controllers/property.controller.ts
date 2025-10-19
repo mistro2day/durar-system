@@ -1,7 +1,10 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
+import prismaPkg from "@prisma/client";
+import { logActivity } from "../utils/activity-log.ts";
 
-const prisma = new PrismaClient();
+const { Prisma } = prismaPkg;
+
 
 export async function listProperties(req: Request, res: Response) {
   const { type } = req.query as { type?: string };
@@ -12,17 +15,46 @@ export async function listProperties(req: Request, res: Response) {
     orderBy: { name: "asc" },
     include: { _count: { select: { units: true } } },
   });
-  // أضف عدادات المستأجرين والفواتير لكل عقار
-  const results = [] as any[];
-  for (const p of properties) {
-    const tenantsCount = await prisma.tenant.count({
-      where: { contracts: { some: { unit: { propertyId: p.id } } } },
-    });
-    const invoicesCount = await prisma.invoice.count({
-      where: { contract: { is: { unit: { propertyId: p.id } } } },
-    });
-    results.push({ ...p, tenantsCount, invoicesCount });
+  if (properties.length === 0) {
+    return res.json([]);
   }
+
+  const propertyIds = properties.map((p) => p.id);
+
+  const tenantCountsRaw = await prisma.$queryRaw<
+    { propertyId: number; tenantsCount: bigint }[]
+  >(Prisma.sql`
+    SELECT u."propertyId" AS "propertyId", COUNT(DISTINCT c."tenantId") AS "tenantsCount"
+    FROM "Contract" c
+    JOIN "Unit" u ON u.id = c."unitId"
+    WHERE u."propertyId" IN (${Prisma.join(propertyIds)})
+    GROUP BY u."propertyId"
+  `);
+
+  const invoiceCountsRaw = await prisma.$queryRaw<
+    { propertyId: number; invoicesCount: bigint }[]
+  >(Prisma.sql`
+    SELECT u."propertyId" AS "propertyId", COUNT(i.id) AS "invoicesCount"
+    FROM "Invoice" i
+    JOIN "Contract" c ON c.id = i."contractId"
+    JOIN "Unit" u ON u.id = c."unitId"
+    WHERE u."propertyId" IN (${Prisma.join(propertyIds)})
+    GROUP BY u."propertyId"
+  `);
+
+  const tenantMap = new Map<number, number>(
+    tenantCountsRaw.map((row) => [row.propertyId, Number(row.tenantsCount || 0)])
+  );
+  const invoiceMap = new Map<number, number>(
+    invoiceCountsRaw.map((row) => [row.propertyId, Number(row.invoicesCount || 0)])
+  );
+
+  const results = properties.map((p) => ({
+    ...p,
+    tenantsCount: tenantMap.get(p.id) ?? 0,
+    invoicesCount: invoiceMap.get(p.id) ?? 0,
+  }));
+
   res.json(results);
 }
 
@@ -61,6 +93,12 @@ export async function createProperty(req: Request, res: Response) {
       data.units = { create: createUnits };
     }
     const created = await prisma.property.create({ data });
+
+    await logActivity(prisma, req, {
+      action: "PROPERTY_CREATE",
+      description: `إضافة عقار جديد (${name})`,
+    });
+
     res.json(created);
   } catch (e: any) {
     res.status(500).json({ message: e?.message || 'تعذر إنشاء العقار' });
@@ -77,6 +115,12 @@ export async function updateProperty(req: Request, res: Response) {
     if (type !== undefined) data.type = String(type).toUpperCase();
     if (address !== undefined) data.address = address;
     const updated = await prisma.property.update({ where: { id: Number(id) }, data });
+
+    await logActivity(prisma, req, {
+      action: "PROPERTY_UPDATE",
+      description: `تحديث بيانات العقار (${updated.name})`,
+    });
+
     res.json(updated);
   } catch (e: any) {
     res.status(500).json({ message: e?.message || 'تعذر تحديث العقار' });

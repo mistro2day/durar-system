@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 
-const prisma = new PrismaClient();
 
 type SearchResult = {
   id: string;
@@ -23,7 +22,7 @@ export async function globalSearch(req: Request, res: Response) {
 
     const contains = { contains: term, mode: "insensitive" as const };
 
-    const [tenants, contracts, units, properties] = await Promise.all([
+    const [tenants, contracts, units, properties] = await prisma.$transaction([
       prisma.tenant.findMany({
         where: {
           OR: [

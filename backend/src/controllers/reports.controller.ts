@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma.ts";
 
-const prisma = new PrismaClient();
 
 /** 🔹 تقرير العقود */
 export async function getContractsReport(req: Request, res: Response) {

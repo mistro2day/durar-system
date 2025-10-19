@@ -1,7 +1,6 @@
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import type { Request, Response } from "express";
 
-const prisma = new PrismaClient();
 const cache = new Map<string, { expire: number; payload: any }>();
 const TTL_MS = Number(process.env.DASHBOARD_CACHE_TTL_MS || 10_000);
 
@@ -23,24 +22,35 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const cached = getCache(cacheKey);
     if (cached) return res.json(cached);
     const unitScope = propertyId ? { propertyId: Number(propertyId) } : undefined;
-    // 🧾 الإحصائيات العامة
-    const [activeContracts, endedContracts, availableUnits, occupiedUnits] = await Promise.all([
-      prisma.contract.count({ where: { status: "ACTIVE", unit: unitScope } }),
-      prisma.contract.count({ where: { status: "ENDED", unit: unitScope } }),
-      prisma.unit.count({ where: { status: "AVAILABLE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) } }),
-      prisma.unit.count({ where: { status: "OCCUPIED", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) } }),
-    ]);
-
-    // 🧰 الصيانة
-    const [openTickets, inProgressTickets] = await Promise.all([
-      prisma.maintenanceTicket.count({ where: { status: "NEW", unit: unitScope } }),
-      prisma.maintenanceTicket.count({ where: { status: "IN_PROGRESS", unit: unitScope } }),
-    ]);
-
-    // 📆 بداية الشهر
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
+
+    const [
+      activeContracts,
+      endedContracts,
+      availableUnits,
+      occupiedUnits,
+      openTickets,
+      inProgressTickets,
+      newContractsThisMonth,
+    ] = await prisma.$transaction([
+      prisma.contract.count({ where: { status: "ACTIVE", unit: unitScope } }),
+      prisma.contract.count({ where: { status: "ENDED", unit: unitScope } }),
+      prisma.unit.count({
+        where: { status: "AVAILABLE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) },
+      }),
+      prisma.unit.count({
+        where: { status: "OCCUPIED", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) },
+      }),
+      prisma.maintenanceTicket.count({ where: { status: "NEW", unit: unitScope } }),
+      prisma.maintenanceTicket.count({
+        where: { status: "IN_PROGRESS", unit: unitScope },
+      }),
+      prisma.contract.count({
+        where: { createdAt: { gte: startOfMonth }, unit: unitScope },
+      }),
+    ]);
 
     // 💵 الإيرادات الشهرية
     const monthlyRevenue = await prisma.payment.aggregate({
@@ -51,11 +61,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           ? { invoice: { contract: { unit: { propertyId: Number(propertyId) } } } }
           : {}),
       },
-    });
-
-    // 🏢 العقود الجديدة هذا الشهر
-    const newContractsThisMonth = await prisma.contract.count({
-      where: { createdAt: { gte: startOfMonth }, unit: unitScope },
     });
 
     // 🕒 آخر 5 أنشطة من جدول ActivityLog
@@ -109,20 +114,8 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     if (cached) return res.json(cached);
     const unitScope = propertyId ? { propertyId: Number(propertyId) } : undefined;
 
-    // الإحصائيات العامة (كما في الدالة السابقة)
-    const [activeContracts, endedContracts, availableUnits, occupiedUnits, openTickets, inProgressTickets] = await Promise.all([
-      prisma.contract.count({ where: { status: "ACTIVE", unit: unitScope } }),
-      prisma.contract.count({ where: { status: "ENDED", unit: unitScope } }),
-      prisma.unit.count({ where: { status: "AVAILABLE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) } }),
-      prisma.unit.count({ where: { status: "OCCUPIED", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) } }),
-      prisma.maintenanceTicket.count({ where: { status: "NEW", unit: unitScope } }),
-      prisma.maintenanceTicket.count({ where: { status: "IN_PROGRESS", unit: unitScope } }),
-    ]);
-
-    // العقود الجديدة هذا الشهر
     const startOfMonth = new Date();
     startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
-    const newContractsThisMonth = await prisma.contract.count({ where: { createdAt: { gte: startOfMonth }, unit: unitScope } });
 
     // سلسلة الإيرادات لآخر 6 أشهر (حسب الفواتير)
     const now = new Date();
@@ -147,16 +140,43 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
     const revenueSeries = Array.from(buckets.entries()).map(([key, value]) => ({ key, value }));
 
     // إشغال الوحدات (توزيع الحالات)
-    const [maintUnits] = await Promise.all([
-      prisma.unit.count({ where: { status: "MAINTENANCE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) } }),
-    ]);
-
     // العقود القريبة الانتهاء (عدّاد أسبوع/شهر)
     const endWeek = new Date(now); endWeek.setDate(endWeek.getDate()+7);
     const endMonth = new Date(now.getFullYear(), now.getMonth()+1, 0); // نهاية الشهر
-    const [weekCount, monthCount] = await Promise.all([
-      prisma.contract.count({ where: { status: "ACTIVE", endDate: { gte: now, lte: endWeek }, unit: unitScope } }),
-      prisma.contract.count({ where: { status: "ACTIVE", endDate: { gte: now, lte: endMonth }, unit: unitScope } }),
+    const [
+      activeContracts,
+      endedContracts,
+      availableUnits,
+      occupiedUnits,
+      openTickets,
+      inProgressTickets,
+      newContractsThisMonth,
+      maintUnits,
+      weekCount,
+      monthCount,
+    ] = await prisma.$transaction([
+      prisma.contract.count({ where: { status: "ACTIVE", unit: unitScope } }),
+      prisma.contract.count({ where: { status: "ENDED", unit: unitScope } }),
+      prisma.unit.count({
+        where: { status: "AVAILABLE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) },
+      }),
+      prisma.unit.count({
+        where: { status: "OCCUPIED", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) },
+      }),
+      prisma.maintenanceTicket.count({ where: { status: "NEW", unit: unitScope } }),
+      prisma.maintenanceTicket.count({
+        where: { status: "IN_PROGRESS", unit: unitScope },
+      }),
+      prisma.contract.count({ where: { createdAt: { gte: startOfMonth }, unit: unitScope } }),
+      prisma.unit.count({
+        where: { status: "MAINTENANCE", ...(unitScope ? { propertyId: unitScope.propertyId } : {}) },
+      }),
+      prisma.contract.count({
+        where: { status: "ACTIVE", endDate: { gte: now, lte: endWeek }, unit: unitScope },
+      }),
+      prisma.contract.count({
+        where: { status: "ACTIVE", endDate: { gte: now, lte: endMonth }, unit: unitScope },
+      }),
     ]);
 
     // أحدث 5 أنشطة (للتوافق مع الواجهة)

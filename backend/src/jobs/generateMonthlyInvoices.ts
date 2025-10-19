@@ -1,7 +1,6 @@
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import cron from "node-cron";
 
-const prisma = new PrismaClient();
 
 export const startInvoiceScheduler = () => {
   cron.schedule("0 0 1 * *", async () => {
