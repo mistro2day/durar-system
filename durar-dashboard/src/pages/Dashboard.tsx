@@ -3,10 +3,10 @@ import { RefreshCw, FileText, Building2, Wrench, Coins, TrendingUp, CheckCircle2
 // حمّل مكونات الرسوم بشكل كسول لتقليل وزن حزمة التحميل الأولى
 const Line = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Line })));
 const Doughnut = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Doughnut })));
+const Bar = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Bar })));
 // سجّل فقط العناصر المطلوبة من Chart.js بدل "auto" لتقليل الحجم
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend } from "chart.js";
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
-import { getUser } from "../lib/auth";
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, BarElement, Tooltip, Legend } from "chart.js";
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, BarElement, Tooltip, Legend);
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
@@ -38,14 +38,6 @@ type DashboardResponse = {
   lastUpdated: string | Date;
 };
 
-const ACTIVITY_ACTION_LABELS: Record<string, string> = {
-  "End Contract": "إنهاء العقد",
-};
-
-function translateActivityAction(action: string): string {
-  return ACTIVITY_ACTION_LABELS[action] || action;
-}
-
 export default function Dashboard() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,7 +45,6 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [monthlyRevenue, setMonthlyRevenue] = useState<{ label: string; value: number }[]>([]);
   const [occupancy, setOccupancy] = useState<{ labels: string[]; values: number[] }>({ labels: [], values: [] });
-  const user = getUser();
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
   const [contracts, setContracts] = useState<any[]>([]);
@@ -67,6 +58,23 @@ export default function Dashboard() {
   const visibleRevenueTotal = useMemo(
     () => visibleRevenue.reduce((sum, item) => sum + Number(item.value || 0), 0),
     [visibleRevenue]
+  );
+  const yearlyRevenue = useMemo(() => {
+    if (!monthlyRevenue.length) return [] as Array<{ year: string; total: number }>;
+    const map = new Map<string, number>();
+    monthlyRevenue.forEach(({ label, value }) => {
+      const match = String(label ?? "").match(/(\d{4})/);
+      const year = match ? match[1] : "غير محدد";
+      map.set(year, (map.get(year) ?? 0) + Number(value || 0));
+    });
+    return Array.from(map.entries())
+      .map(([year, total]) => ({ year, total }))
+      .sort((a, b) => Number(a.year) - Number(b.year));
+  }, [monthlyRevenue]);
+
+  const yearlyRevenueTotal = useMemo(
+    () => yearlyRevenue.reduce((sum, item) => sum + Number(item.total || 0), 0),
+    [yearlyRevenue]
   );
   const [showOverlay, setShowOverlay] = useState(false);
   const overlayTimers = useRef<{ delay?: any; hide?: any; startedAt?: number }>({});
@@ -304,8 +312,6 @@ export default function Dashboard() {
   }
 
   const summary = data.summary;
-  const activities = data.activities || [];
-
   return (
     <div>
       <LoadingOverlay visible={showOverlay || (firstLoad && connecting)} text={connecting ? 'جارٍ الاتصال بالخادم...' : 'جارٍ تحميل البيانات...'} />
@@ -348,48 +354,8 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Welcome / Widgets Row */}
+      {/* المخططات المكملة */}
       <div className="grid grid-cols-12 gap-6 items-stretch">
-        {/* العمود الأيمن: مرحباً + آخر الأنشطة (مكدستان كما كان) */}
-        <div className="col-span-12 md:col-span-4 md:col-start-9 md:row-start-1 flex flex-col h-full min-h-[360px] gap-4">
-          {/* مرحباً بعودتك */}
-          <div className="card min-h-[120px]">
-            <div className="flex items-center gap-4">
-              <div className="relative w-20 h-20 rounded-full grid place-items-center bg-gradient-to-br from-indigo-500 to-purple-500 text-white ring-4 ring-indigo-100">
-                <span className="text-xl font-bold">{(user?.name || "J").slice(0,1)}</span>
-              </div>
-              <div>
-                <div className="text-sm text-indigo-600/80">مرحباً بعودتك</div>
-                <div className="text-xl font-extrabold text-gray-800">{user?.name || "John"}</div>
-                <div className="text-xs text-gray-500 mt-1">المهام قيد التنفيذ • <span className="badge-info">5</span></div>
-              </div>
-            </div>
-          </div>
-          {/* آخر الأنشطة داخل نفس المكان */}
-          <div className="card flex-1 min-h-0">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">آخر الأنشطة</h3>
-            {activities.length === 0 ? (
-              <p className="text-sm text-gray-500">لا توجد أنشطة حديثة.</p>
-            ) : (
-              <div className="scroll-area overflow-y-auto pr-1" style={{ maxHeight: '220px' }}>
-                <ul className="space-y-2">
-                  {activities.slice(0,5).map((a) => (
-                    <li key={a.id} className="py-2">
-                      <div className="flex items-start justify-between">
-                        <p className="text-gray-800 text-sm font-medium">{translateActivityAction(a.action)}</p>
-                        <span className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleString(localeTag)}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mt-1">{a.description}</p>
-                      <p className="text-[11px] text-gray-400 mt-1">بواسطة: {a.user}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* إشغال الوحدات (نسب) — العمود الأيسر */}
         <div className="col-span-12 md:col-span-4 md:col-start-1 md:row-start-1 card h-full min-h-[360px]">
           <div className="text-sm font-semibold text-indigo-600/80 mb-2">• نسب الإشغال</div>
           {(() => {
@@ -513,12 +479,78 @@ export default function Dashboard() {
               />
             </Suspense>
           </div>
-          <div className="mt-3 text-right text-sm text-gray-500">
-            <Currency amount={visibleRevenueTotal} locale={localeTag} /> خلال آخر {rangeMonths} شهر
+        <div className="mt-3 text-right text-sm text-gray-500">
+          <Currency amount={visibleRevenueTotal} locale={localeTag} /> خلال آخر {rangeMonths} شهر
+        </div>
+      </div>
+
+        {/* الإيرادات السنوية */}
+        <div className="col-span-12 md:col-span-4 md:col-start-9 md:row-start-1 card h-full min-h-[360px] flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-indigo-600/80 font-semibold">• الإيرادات السنوية</div>
+            <div className="text-xs text-gray-500">
+              <Currency amount={yearlyRevenueTotal} locale={localeTag} />
+            </div>
+          </div>
+          <div className="flex-1 min-h-[220px]">
+            {yearlyRevenue.length ? (
+              <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" />}>
+                <Bar
+                  data={{
+                    labels: yearlyRevenue.map((item) => item.year),
+                    datasets: [
+                      {
+                        label: "الإيراد",
+                        data: yearlyRevenue.map((item) => item.total),
+                        backgroundColor: "rgba(92,97,242,0.75)",
+                        borderRadius: 12,
+                        maxBarThickness: 36,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        backgroundColor: "rgba(17,24,39,0.9)",
+                        titleColor: "#fff",
+                        bodyColor: "#fff",
+                        callbacks: {
+                          label: (ctx: any) =>
+                            new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(
+                              Number(ctx.parsed?.y || 0)
+                            ),
+                        },
+                      },
+                    },
+                    scales: {
+                      x: {
+                        grid: { color: gridColor, drawBorder: true },
+                        ticks: { color: axisColor, font: { size: 12, weight: "600", family: fontStack } },
+                        border: { color: borderColor },
+                      },
+                      y: {
+                        grid: { color: gridColor, drawBorder: true },
+                        ticks: {
+                          color: axisColor,
+                          font: { size: 12, weight: "600", family: fontStack },
+                          callback: (value: any) => new Intl.NumberFormat("ar-SA", { notation: "compact" }).format(Number(value || 0)),
+                        },
+                        border: { color: borderColor },
+                      },
+                    },
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div className="h-full grid place-items-center text-sm text-gray-500">
+                لا تتوفر بيانات إيرادات سنوية كافية.
+              </div>
+            )}
           </div>
         </div>
-
-        {/* (تم نقل عمود الترحيب + الأنشطة إلى بداية الصف أعلاه) */}
       </div>
 
       
@@ -670,12 +702,13 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
     [horizon, items, now]
   );
 
-  type ExpiringSortKey = "tenant" | "unit" | "endDate" | "remaining";
+  type ExpiringSortKey = "tenant" | "unit" | "property" | "endDate" | "remaining";
 
   const expiringSortAccessors = useMemo<Record<ExpiringSortKey, (c: any) => unknown>>(
     () => ({
       tenant: (c) => c.tenantName || c.tenant?.name || "",
       unit: (c) => c.unit?.unitNumber || c.unit?.number || "",
+      property: (c) => c.unit?.property?.name || "",
       endDate: (c) => c.endDate || "",
       remaining: (c) => {
         const d = c.endDate ? new Date(c.endDate) : null;
@@ -717,6 +750,14 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
             </th>
             <th className="text-right p-3">
               <SortHeader
+                label="العقار"
+                active={expiringSort?.key === "property"}
+                direction={expiringSort?.key === "property" ? expiringSort.direction : null}
+                onToggle={() => toggleExpiringSort("property")}
+              />
+            </th>
+            <th className="text-right p-3">
+              <SortHeader
                 label="تاريخ النهاية"
                 active={expiringSort?.key === "endDate"}
                 direction={expiringSort?.key === "endDate" ? expiringSort.direction : null}
@@ -750,6 +791,7 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
                     c.unit?.unitNumber || c.unit?.number || '-'
                   )}
                 </td>
+                <td className="p-3 text-gray-800">{c.unit?.property?.name || '-'}</td>
                 <td className="p-3">{endDate.toLocaleDateString(localeTag)}</td>
                 <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft<=7? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
                 <td className="p-3">
@@ -884,3 +926,4 @@ function SkeletonDashboard() {
     </div>
   );
 }
+

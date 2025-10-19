@@ -17,6 +17,7 @@ const GROUPS: { title: string; keys: PermissionKey[] }[] = [
   { title: "الوحدات", keys: ["units.view", "units.edit"] },
   { title: "الصيانة", keys: ["maintenance.view", "maintenance.edit"] },
   { title: "الإعدادات", keys: ["settings.view", "settings.edit"] },
+  { title: "النشاطات", keys: ["activity.view"] },
 ];
 
 export default function Permissions() {
@@ -173,6 +174,8 @@ function mapPermLabel(p: PermissionKey) {
       return "عرض الإعدادات";
     case "settings.edit":
       return "تعديل الإعدادات";
+    case "activity.view":
+      return "عرض سجل النشاطات";
     default:
       return p;
   }
