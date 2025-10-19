@@ -1,8 +1,7 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 
-const prisma = new PrismaClient();
 
 // ✅ عرض جميع الوحدات
 export const getUnits = async (req: Request, res: Response) => {
@@ -14,8 +13,14 @@ export const getUnits = async (req: Request, res: Response) => {
     const units = await prisma.unit.findMany({ where, include: { property: true } });
     return res.json(units);
   }
-  const [items, total] = await Promise.all([
-    prisma.unit.findMany({ where, include: { property: true }, skip: pg.skip, take: pg.take, orderBy: { id: "desc" } }),
+  const [items, total] = await prisma.$transaction([
+    prisma.unit.findMany({
+      where,
+      include: { property: true },
+      skip: pg.skip,
+      take: pg.take,
+      orderBy: { id: "desc" },
+    }),
     prisma.unit.count({ where }),
   ]);
   res.json({ items, total, page: pg.page, pageSize: pg.pageSize });

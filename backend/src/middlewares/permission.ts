@@ -1,8 +1,7 @@
 import type { Response, NextFunction } from "express";
 import type { AuthedRequest } from "./auth.ts";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 
-const prisma = new PrismaClient();
 
 const DEFAULT = {
   roles: ["ADMIN", "MANAGER", "STAFF"],

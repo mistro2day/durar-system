@@ -1,8 +1,7 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
 
 export async function listUsers(_req: Request, res: Response) {
   const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, createdAt: true } });

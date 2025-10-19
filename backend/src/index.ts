@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PrismaClient } from "./lib/prisma.ts";
+import prisma from "./lib/prisma.ts";
 import compression from "compression";
 import bcrypt from "bcryptjs";
 
@@ -58,7 +58,6 @@ app.get("/api/health", (_req, res) => {
 });
 
 // 👤 التأكد من وجود مستخدم إداري للتطوير
-const prisma = new PrismaClient();
 async function ensureAdmin() {
   try {
     const email = process.env.ADMIN_EMAIL || "admin@durar.local";

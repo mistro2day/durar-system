@@ -1,10 +1,9 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 import type { AuthedRequest } from "../middlewares/auth.ts";
 import { logActivity } from "../utils/activity-log.ts";
 
-const prisma = new PrismaClient();
 
 function normalizeString(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -109,11 +108,21 @@ export const getContracts = async (req: Request, res: Response) => {
     }
     const pg = getPagination(req);
     if (!pg) {
-      const contracts = await prisma.contract.findMany({ where, include: { unit: true, tenant: true }, orderBy: { createdAt: "desc" } });
+      const contracts = await prisma.contract.findMany({
+        where,
+        include: { unit: { include: { property: true } }, tenant: true },
+        orderBy: { createdAt: "desc" },
+      });
       return res.json(contracts);
     }
-    const [items, total] = await Promise.all([
-      prisma.contract.findMany({ where, include: { unit: true, tenant: true }, orderBy: { createdAt: "desc" }, skip: pg.skip, take: pg.take }),
+    const [items, total] = await prisma.$transaction([
+      prisma.contract.findMany({
+        where,
+        include: { unit: { include: { property: true } }, tenant: true },
+        orderBy: { createdAt: "desc" },
+        skip: pg.skip,
+        take: pg.take,
+      }),
       prisma.contract.count({ where }),
     ]);
     res.json({ items, total, page: pg.page, pageSize: pg.pageSize });

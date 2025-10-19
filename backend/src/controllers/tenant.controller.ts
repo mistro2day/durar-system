@@ -1,9 +1,8 @@
 import type { Request, Response } from "express";
 import type { Contract, Unit, Property, Invoice } from "@prisma/client";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 import { getPagination } from "../utils/pagination.ts";
 
-const prisma = new PrismaClient();
 
 export async function listTenants(req: Request, res: Response) {
   const { propertyId } = req.query as { propertyId?: string };
@@ -42,7 +41,10 @@ export async function listTenants(req: Request, res: Response) {
   });
 
   if (pg) {
-    const [items, total] = await Promise.all([query, prisma.tenant.count({ where })]);
+    const [items, total] = await prisma.$transaction([
+      query,
+      prisma.tenant.count({ where }),
+    ]);
     return res.json({
       items: items.map((tenant) => enrichTenant(tenant)),
       total,

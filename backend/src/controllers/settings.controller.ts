@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
-import { PrismaClient } from "../lib/prisma.ts";
+import prisma from "../lib/prisma.ts";
 
-const prisma = new PrismaClient();
 
 // هيكل افتراضي لصلاحيات الواجهة (يتطابق مع الواجهة الأمامية)
 const DEFAULT_PERMISSIONS = {
