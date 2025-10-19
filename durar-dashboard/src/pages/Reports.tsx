@@ -69,11 +69,8 @@ const MAINTENANCE_STATUS_LABELS: Record<string, string> = {
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  CASH: "نقدي",
-  TRANSFER: "تحويل بنكي",
-  EFT: "تحويل إلكتروني",
-  CHEQUE: "شيك",
-  POS: "نقاط بيع",
+  CASH: "كاش",
+  BANK_TRANSFER: "تحويل بنكي",
   EJAR: "منصة إيجار",
 };
 

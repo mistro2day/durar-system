@@ -24,6 +24,7 @@ const DEFAULT = {
       "tenants.delete",
       "users.view",
       "settings.view",
+      "activity.view",
     ],
     STAFF: [
       "dashboard.view",
@@ -37,6 +38,30 @@ const DEFAULT = {
 } as const;
 
 type RoleKey = keyof typeof DEFAULT.permissions;
+type PermissionValue = string[] | "*";
+
+function mergePermissionMaps(
+  defaults: Record<string, PermissionValue>,
+  stored?: Record<string, PermissionValue>
+) {
+  if (!stored) return { ...defaults };
+  const result: Record<string, PermissionValue> = { ...defaults };
+  for (const [role, value] of Object.entries(stored)) {
+    if (value === "*") {
+      result[role] = "*";
+      continue;
+    }
+    const base = result[role];
+    if (base === "*") {
+      result[role] = "*";
+      continue;
+    }
+    const baseList = Array.isArray(base) ? base : [];
+    const incoming = Array.isArray(value) ? value : [];
+    result[role] = Array.from(new Set([...baseList, ...incoming]));
+  }
+  return result;
+}
 
 async function loadPermissions() {
   const row = await prisma.setting.findUnique({ where: { key: "permissions" } });
@@ -46,8 +71,7 @@ async function loadPermissions() {
     ...DEFAULT,
     ...value,
     permissions: {
-      ...DEFAULT.permissions,
-      ...(value?.permissions || {}),
+      ...mergePermissionMaps(DEFAULT.permissions, value?.permissions),
     },
   };
 }

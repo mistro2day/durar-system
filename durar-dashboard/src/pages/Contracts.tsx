@@ -38,12 +38,7 @@ type ContractSortKey =
   | "startDate"
   | "endDate";
 
-const PAYMENT_METHODS = [
-  "تحويل بنكي",
-  "نقدي",
-  "منصة إيجار",
-  "شيك",
-] as const;
+const PAYMENT_METHODS = ["كاش", "تحويل بنكي", "منصة إيجار"] as const;
 
 const PAYMENT_FREQUENCIES = [
   "شهري",
@@ -591,6 +586,7 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
   const [open, setOpen] = useState(false);
   const [units, setUnits] = useState<Array<{ id: number; unitNumber: string }>>([]);
   const [form, setForm] = useState<ContractFormState>({ tenantName: '', rentalType: 'MONTHLY' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -599,8 +595,28 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
       .catch(()=>{});
   }, [open, propertyId]);
 
+  function closeModal() {
+    setOpen(false);
+    setForm({ tenantName: '', rentalType: 'MONTHLY' });
+    setSaving(false);
+  }
+
   async function save() {
+    if (saving) return;
+    if (!form.tenantName.trim()) {
+      alert("يرجى إدخال اسم المستأجر.");
+      return;
+    }
+    if (!form.unitId) {
+      alert("يرجى اختيار الوحدة.");
+      return;
+    }
+    if (!form.startDate || !form.endDate) {
+      alert("يرجى تحديد تاريخ البداية والنهاية.");
+      return;
+    }
     try {
+      setSaving(true);
       const payload: any = {
         tenantName: form.tenantName,
         unitId: form.unitId,
@@ -617,11 +633,12 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
       if (form.servicesIncluded) payload.servicesIncluded = form.servicesIncluded.trim();
       if (form.notes) payload.notes = form.notes.trim();
       await api.post('/api/contracts', payload);
-      setOpen(false);
-      setForm({ tenantName: '', rentalType: 'MONTHLY' });
+      closeModal();
       onAdded();
     } catch (e:any) {
       alert(e?.response?.data?.message || 'تعذر إضافة العقد');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -704,8 +721,8 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
               </label>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
-              <button className="btn-outline" onClick={()=>setOpen(false)}>إلغاء</button>
-              <button className="btn-primary" onClick={save}>حفظ</button>
+              <button className="btn-outline disabled:opacity-60" onClick={closeModal} disabled={saving}>إلغاء</button>
+              <button className="btn-primary disabled:opacity-60" onClick={save} disabled={saving}>حفظ</button>
             </div>
           </div>
         </div>

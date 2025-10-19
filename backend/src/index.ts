@@ -31,6 +31,7 @@ import propertyRoutes from "./routes/property.routes.ts";
 import tenantRoutes from "./routes/tenant.routes.ts";
 import searchRoutes from "./routes/search.routes.ts";
 import reportsRoutes from "./routes/reports.routes.ts";
+import activityRoutes from "./routes/activity.routes.ts";
 
 
 
@@ -48,6 +49,7 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/activity", activityRoutes);
 
 
 // Healthcheck for quick connectivity tests

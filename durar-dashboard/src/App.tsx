@@ -16,6 +16,7 @@ const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Permissions = lazy(() => import("./pages/Permissions"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const Users = lazy(() => import("./pages/Users"));
 const Properties = lazy(() => import("./pages/Properties"));
 const HotelLayout = lazy(() => import("./pages/hotel/HotelLayout"));
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="settings/users" element={<Users />} />
           <Route path="settings/permissions" element={<Permissions />} />
+          <Route path="settings/activity" element={<ActivityLog />} />
         </Route>
 
         <Route path="*" element={<Navigate to={isAuthed() ? "/dashboard" : "/login"} replace />} />

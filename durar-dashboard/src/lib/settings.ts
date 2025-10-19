@@ -17,7 +17,8 @@ export type PermissionKey =
   | "users.view"
   | "users.edit"
   | "settings.view"
-  | "settings.edit";
+  | "settings.edit"
+  | "activity.view";
 
 export const ALL_PERMISSIONS: PermissionKey[] = [
   "dashboard.view",
@@ -38,6 +39,7 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
   "users.edit",
   "settings.view",
   "settings.edit",
+  "activity.view",
 ];
 
 export type SiteSettings = {
@@ -54,6 +56,31 @@ export type SiteSettings = {
 };
 
 const STORAGE_KEY = "siteSettings";
+
+function mergePermissionMaps(
+  defaults: Record<RoleKey, PermissionKey[] | "*">,
+  overrides?: Record<string, PermissionKey[] | "*">
+): Record<RoleKey, PermissionKey[] | "*"> {
+  if (!overrides) {
+    return { ...defaults };
+  }
+  const result: Record<string, PermissionKey[] | "*"> = { ...defaults };
+  for (const [role, perms] of Object.entries(overrides)) {
+    if (perms === "*") {
+      result[role] = "*";
+      continue;
+    }
+    const base = result[role];
+    if (base === "*") {
+      result[role] = "*";
+      continue;
+    }
+    const baseList = Array.isArray(base) ? base : [];
+    const overrideList = Array.isArray(perms) ? perms : [];
+    result[role] = Array.from(new Set([...baseList, ...overrideList])) as PermissionKey[];
+  }
+  return result as Record<RoleKey, PermissionKey[] | "*">;
+}
 
 export function getDefaultSettings(): SiteSettings {
   const env: any = (import.meta as any).env || {};
@@ -84,6 +111,7 @@ export function getDefaultSettings(): SiteSettings {
         "tenants.delete",
         "users.view",
         "settings.view",
+        "activity.view",
       ],
       STAFF: [
         "dashboard.view",
@@ -105,6 +133,7 @@ export function getSettings(): SiteSettings {
     if (!raw) return getDefaultSettings();
     const parsed = JSON.parse(raw);
     const def = getDefaultSettings();
+    const mergedPermissions = mergePermissionMaps(def.permissions, parsed.permissions);
     return {
       companyName: parsed.companyName ?? def.companyName,
       companyCR: parsed.companyCR ?? def.companyCR,
@@ -113,7 +142,7 @@ export function getSettings(): SiteSettings {
       companyAddress: parsed.companyAddress ?? def.companyAddress,
       vatPercent: Number.isFinite(Number(parsed.vatPercent)) ? Number(parsed.vatPercent) : def.vatPercent,
       roles: Array.isArray(parsed.roles) ? (parsed.roles as RoleKey[]) : def.roles,
-      permissions: parsed.permissions ?? def.permissions,
+      permissions: mergedPermissions,
       locale: parsed.locale === 'en' ? 'en' : 'ar',
       calendar: parsed.calendar === 'hijri' ? 'hijri' : 'gregorian',
     };
@@ -150,7 +179,11 @@ export async function fetchSettingsFromServer(): Promise<Partial<SiteSettings> |
   try {
     const res = await api.get("/api/settings/permissions");
     const current = getSettings();
-    const merged = { ...current, ...res.data } as SiteSettings;
+    const merged = {
+      ...current,
+      ...res.data,
+      permissions: mergePermissionMaps(current.permissions, res.data?.permissions),
+    } as SiteSettings;
     saveSettings(merged);
     return res.data as Partial<SiteSettings>;
   } catch {

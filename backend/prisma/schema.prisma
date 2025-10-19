@@ -264,8 +264,8 @@ enum InvoiceStatus {
 
 enum PaymentMethod {
   CASH
-  TRANSFER
-  CARD
+  BANK_TRANSFER
+  EJAR
 }
 
 enum Priority {
