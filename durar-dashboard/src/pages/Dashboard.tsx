@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { RefreshCw, FileText, Building2, Wrench, Coins, TrendingUp, CheckCircle2, Clock, Home, Phone, RotateCcw } from "lucide-react";
+import { RefreshCw, FileText, Building2, Wrench, Coins, Phone, RotateCcw } from "lucide-react";
 // حمّل مكونات الرسوم بشكل كسول لتقليل وزن حزمة التحميل الأولى
 const Line = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Line })));
 const Doughnut = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Doughnut })));
@@ -12,6 +12,7 @@ import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
 import SortHeader from "../components/SortHeader";
 import { useTableSort } from "../hooks/useTableSort";
+import useThemeMode from "../hooks/useThemeMode";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
@@ -44,6 +45,12 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [monthlyRevenue, setMonthlyRevenue] = useState<{ label: string; value: number }[]>([]);
+  const [invoiceStatusTotals, setInvoiceStatusTotals] = useState<{ paid: number; pending: number; overdue: number }>({
+    paid: 0,
+    pending: 0,
+    overdue: 0,
+  });
+  const [propertyRevenue, setPropertyRevenue] = useState<Array<{ label: string; value: number }>>([]);
   const [occupancy, setOccupancy] = useState<{ labels: string[]; values: number[] }>({ labels: [], values: [] });
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
@@ -59,71 +66,88 @@ export default function Dashboard() {
     () => visibleRevenue.reduce((sum, item) => sum + Number(item.value || 0), 0),
     [visibleRevenue]
   );
-  const yearlyRevenue = useMemo(() => {
-    if (!monthlyRevenue.length) return [] as Array<{ year: string; total: number }>;
-    const map = new Map<string, number>();
-    monthlyRevenue.forEach(({ label, value }) => {
-      const match = String(label ?? "").match(/(\d{4})/);
-      const year = match ? match[1] : "غير محدد";
-      map.set(year, (map.get(year) ?? 0) + Number(value || 0));
-    });
-    return Array.from(map.entries())
-      .map(([year, total]) => ({ year, total }))
-      .sort((a, b) => Number(a.year) - Number(b.year));
-  }, [monthlyRevenue]);
-
-  const yearlyRevenueTotal = useMemo(
-    () => yearlyRevenue.reduce((sum, item) => sum + Number(item.total || 0), 0),
-    [yearlyRevenue]
-  );
   const [showOverlay, setShowOverlay] = useState(false);
   const overlayTimers = useRef<{ delay?: any; hide?: any; startedAt?: number }>({});
   const [firstLoad, setFirstLoad] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const fontStack = 'Tajawal, Poppins, ui-sans-serif, system-ui, Segoe UI, Arial, sans-serif';
   // اقرأ ألوان التصميم من متغيرات CSS لضمان التناسق
+  const themeMode = useThemeMode();
+  const isDark = themeMode === "dark";
+
   const themeColors = useMemo(() => {
+    const fallback = {
+      success: "#54BA4A",
+      danger: "#E4606D",
+      warning: "#FFAA05",
+      text: isDark ? "#DEE4FF" : "#1F2937",
+      axis: isDark ? "#E7EAF3" : "#0F172A",
+      grid: isDark ? "rgba(231,234,243,0.18)" : "rgba(15,23,42,0.14)",
+      border: isDark ? "rgba(231,234,243,0.28)" : "rgba(15,23,42,0.18)",
+    };
     try {
       const css = getComputedStyle(document.documentElement);
-      const success = (css.getPropertyValue('--color-success') || '#54BA4A').trim();
-      const danger = (css.getPropertyValue('--color-danger') || '#E4606D').trim();
-      const warning = (css.getPropertyValue('--color-warning') || '#FFAA05').trim();
-      const text = (css.getPropertyValue('--text') || '#1f2937').trim();
-      return { success, danger, warning, text };
+      const read = (name: string, fb: string) => {
+        const value = css.getPropertyValue(name);
+        return value ? value.trim() : fb;
+      };
+      return {
+        success: read("--color-success", fallback.success),
+        danger: read("--color-danger", fallback.danger),
+        warning: read("--color-warning", fallback.warning),
+        text: read("--text-primary", fallback.text),
+        axis: read("--chart-axis", fallback.axis),
+        grid: read("--chart-grid", fallback.grid),
+        border: read("--chart-border", fallback.border),
+      };
     } catch {
-      return { success: '#54BA4A', danger: '#E4606D', warning: '#FFAA05', text: '#1f2937' } as const;
+      return fallback;
     }
-  }, []);
+  }, [isDark]);
 
-  const isDark = useMemo(() => {
-    try { return (document.documentElement.getAttribute('data-theme') === 'dark'); } catch { return false; }
-  }, [typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : '']);
-  // في النهاري أغمق قليلاً؛ في الداكن أبيض كما كان
-  const axisColor = isDark ? '#FFFFFF' : '#0F172A';
-  const gridColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)';
-  const borderColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.32)';
+  const axisColor = themeColors.axis;
+  const gridColor = themeColors.grid;
+  const borderColor = themeColors.border;
+  const tooltipBackground = isDark ? "rgba(8,12,32,0.92)" : "rgba(255,255,255,0.95)";
+  const tooltipTitleColor = isDark ? "#F6F7FF" : "#111827";
+  const tooltipBodyColor = isDark ? "#F6F7FF" : "#1F2937";
+  const invoiceStatusEntries = useMemo(
+    () => [
+      { label: "مدفوعة", value: invoiceStatusTotals.paid, color: themeColors.success },
+      { label: "مستحقة", value: invoiceStatusTotals.pending, color: themeColors.warning },
+      { label: "متأخرة", value: invoiceStatusTotals.overdue, color: themeColors.danger },
+    ],
+    [invoiceStatusTotals.overdue, invoiceStatusTotals.paid, invoiceStatusTotals.pending, themeColors.danger, themeColors.success, themeColors.warning]
+  );
+  const invoiceOutstanding = useMemo(
+    () => invoiceStatusTotals.pending + invoiceStatusTotals.overdue,
+    [invoiceStatusTotals.pending, invoiceStatusTotals.overdue]
+  );
+  const propertyRevenueTop = useMemo(() => {
+    const sorted = [...propertyRevenue].sort((a, b) => b.value - a.value);
+    const top = sorted.slice(0, 5);
+    const others = sorted.slice(5);
+    const othersTotal = others.reduce((sum, item) => sum + item.value, 0);
+    return othersTotal > 0
+      ? [...top, { label: "أخرى", value: othersTotal }]
+      : top;
+  }, [propertyRevenue]);
+  const propertyRevenueTotal = useMemo(
+    () => propertyRevenue.reduce((sum, item) => sum + item.value, 0),
+    [propertyRevenue]
+  );
+  const propertyRevenueColors = useMemo(() => {
+    const palette = [
+      themeColors.success,
+      themeColors.warning,
+      themeColors.danger,
+      "#38BDF8",
+      "#A855F7",
+      "#F97316",
+    ];
+    return propertyRevenueTop.map((_, idx) => palette[idx % palette.length]);
+  }, [propertyRevenueTop, themeColors.danger, themeColors.success, themeColors.warning]);
 
-  // مكوّن إضافي لرسم قيمة آخر نقطة على مخطط الإيرادات — لزيادة الوضوح
-  const lastPointPlugin: any = {
-    id: 'lastPointValue',
-    afterDatasetsDraw(chart: any) {
-      try {
-        const { ctx, data } = chart;
-        const ds = data?.datasets?.[0];
-        const meta = chart.getDatasetMeta(0);
-        const lastIndex = (ds?.data?.length || 0) - 1;
-        const pt = meta?.data?.[lastIndex];
-        if (!pt) return;
-        const val = Number(ds.data[lastIndex] || 0);
-        ctx.save();
-        ctx.fillStyle = '#111827';
-        ctx.font = `600 12px ${fontStack}`;
-        const label = new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(val);
-        ctx.fillText(label, pt.x + 8, pt.y - 8);
-        ctx.restore();
-      } catch {}
-    },
-  };
 
   const lastUpdatedText = useMemo(() => {
     if (!data?.lastUpdated) return "";
@@ -146,7 +170,7 @@ export default function Dashboard() {
     return formatSAR(n, { locale: localeTag });
   }
 
-  async function fetchSummary(): Promise<{ hasRevenue: boolean }> {
+  async function fetchSummary(): Promise<void> {
     setError(null);
     try {
       // المحاولة أولاً على endpoint المطلوب
@@ -158,10 +182,12 @@ export default function Dashboard() {
           const [y, mo] = m.key.split('-').map(Number);
           return { label: formatter.format(new Date(y, (mo||1)-1, 1)), value: m.value };
         }));
-        return { hasRevenue: true };
       }
       if (res.data?.charts?.occupancy) setOccupancy(res.data.charts.occupancy);
-    } catch (e: any) {
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[dashboard] summary fallback", error);
+      }
       // إن لم يتوفر (مثلاً 404) نرجع للمسار القديم /api/dashboard
       try {
         const res2 = await api.get<DashboardResponse>(`/api/dashboard${propertyId ? `?propertyId=${propertyId}` : ""}`);
@@ -174,7 +200,6 @@ export default function Dashboard() {
       setRefreshing(false);
       setFirstLoad(false);
     }
-    return { hasRevenue: false };
   }
 
   async function waitForServer(maxMs = 15000) {
@@ -183,9 +208,13 @@ export default function Dashboard() {
     let delay = 500;
     while (Date.now() - start < maxMs) {
       try {
-        const r = await api.get('/api/health');
-        if (r?.data?.status === 'ok') break;
-      } catch {}
+        const r = await api.get("/api/health");
+        if (r?.data?.status === "ok") break;
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("[dashboard] health check pending", err);
+        }
+      }
       await new Promise((res) => setTimeout(res, delay));
       delay = Math.min(2500, Math.floor(delay * 1.5));
     }
@@ -204,23 +233,57 @@ export default function Dashboard() {
       }
 
       const map = new Map<string, number>();
+      const propertyMap = new Map<string, number>();
       months.forEach((m) => map.set(m.key, 0));
+      const statusTotals = { paid: 0, pending: 0, overdue: 0 };
 
-      for (const inv of res.data || []) {
+      const invoices = Array.isArray(res.data) ? res.data : [];
+
+      for (const inv of invoices) {
+        const amount = Number(inv.amount || 0);
+        const status = String(inv.status || "").toUpperCase();
+        switch (status) {
+          case "PAID":
+            statusTotals.paid += amount;
+            break;
+          case "OVERDUE":
+            statusTotals.overdue += amount;
+            break;
+          case "PENDING":
+          default:
+            statusTotals.pending += amount;
+            break;
+        }
+
+        const propertyName =
+          inv.contract?.unit?.property?.name ||
+          inv.contract?.unit?.property?.id?.toString() ||
+          "غير محدد";
+        propertyMap.set(propertyName, (propertyMap.get(propertyName) || 0) + amount);
+
         const d = inv.dueDate ? new Date(inv.dueDate) : null;
         if (!d) continue;
         const key = `${d.getFullYear()}-${d.getMonth() + 1}`.padStart(7, "0");
         if (map.has(key)) {
           const prev = map.get(key) || 0;
-          map.set(key, prev + Number(inv.amount || 0));
+          map.set(key, prev + amount);
         }
       }
 
       const formatter = new Intl.DateTimeFormat("ar-u-ca-gregory", { month: "short" });
       const dataset = months.map((m) => ({ label: `${formatter.format(m.date)}`, value: map.get(m.key) || 0 }));
       setMonthlyRevenue(dataset);
-    } catch {
-      // تجاهل خطأ الإيرادات الشهرية ولا تمنع اللوحة من العرض
+      setInvoiceStatusTotals(statusTotals);
+      const propertyData = Array.from(propertyMap.entries())
+        .map(([label, value]) => ({ label, value }))
+        .filter((item) => item.value > 0)
+        .sort((a, b) => b.value - a.value);
+      setPropertyRevenue(propertyData);
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[dashboard] monthly revenue fetch failed", err);
+      }
+      setPropertyRevenue([]);
     }
   }
 
@@ -233,13 +296,17 @@ export default function Dashboard() {
       const root = getComputedStyle(document.documentElement);
       const textColor = root.getPropertyValue('--text') || '#1f2937';
       ChartJS.defaults.color = String(textColor).trim();
-    } catch {}
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[dashboard] chart defaults not applied", err);
+      }
+    }
     // انتظر جاهزية الخادم عند إعادة التشغيل ثم حمّل البيانات
     (async () => {
       setLoading(true);
       await waitForServer();
-      const { hasRevenue } = await fetchSummary();
-      if (!hasRevenue) fetchMonthlyRevenue();
+      await fetchSummary();
+      await fetchMonthlyRevenue();
     })();
     // جلب العقود لبطاقة "العقود القريبة الانتهاء"
     api.get(`/api/contracts${propertyId ? `?propertyId=${propertyId}` : ''}`)
@@ -250,7 +317,7 @@ export default function Dashboard() {
 
   function handleRefresh() {
     setRefreshing(true);
-    fetchSummary();
+    fetchSummary().then(() => fetchMonthlyRevenue());
   }
 
   // إدارة ظهور أداة التحميل لتفادي الوميض: تفعيلها فقط بعد أول تحميل
@@ -370,6 +437,7 @@ export default function Dashboard() {
           <div className="relative h-56">
             <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
                     <Doughnut
+                      key={`occupancy-${themeMode}`}
                       data={{ labels, datasets: [{
                         data: values as any,
                         backgroundColor: colors,
@@ -382,9 +450,11 @@ export default function Dashboard() {
                         plugins: {
                           legend: { display: false },
                           tooltip: {
-                            backgroundColor: 'rgba(17,24,39,0.9)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
+                            backgroundColor: tooltipBackground,
+                            titleColor: tooltipTitleColor,
+                            bodyColor: tooltipBodyColor,
+                            titleFont: { family: fontStack },
+                            bodyFont: { family: fontStack },
                             callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` },
                           },
                         },
@@ -440,6 +510,7 @@ export default function Dashboard() {
           <div className="flex-1 min-h-[180px]">
             <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
               <Line
+                key={`revenue-${themeMode}`}
                 data={{
                   labels: visibleRevenue.map((m) => m.label),
                   datasets: [
@@ -470,7 +541,16 @@ export default function Dashboard() {
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff' } },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: tooltipBackground,
+                      titleColor: tooltipTitleColor,
+                      bodyColor: tooltipBodyColor,
+                      titleFont: { family: fontStack },
+                      bodyFont: { family: fontStack },
+                    },
+                  },
                   scales: {
                     x: { display: true, grid: { color: gridColor, lineWidth: 1 }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
                     y: { display: true, grid: { color: gridColor, drawBorder: true, lineWidth: 1 }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
@@ -484,27 +564,28 @@ export default function Dashboard() {
         </div>
       </div>
 
-        {/* الإيرادات السنوية */}
+        {/* حالة الفواتير حسب الحالة */}
         <div className="col-span-12 md:col-span-4 md:col-start-9 md:row-start-1 card h-full min-h-[360px] flex flex-col">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-indigo-600/80 font-semibold">• الإيرادات السنوية</div>
+            <div className="text-xs text-indigo-600/80 font-semibold">• حالة الفواتير</div>
             <div className="text-xs text-gray-500">
-              <Currency amount={yearlyRevenueTotal} locale={localeTag} />
+              مستحق/متأخر: <strong><Currency amount={invoiceOutstanding} locale={localeTag} /></strong>
             </div>
           </div>
           <div className="flex-1 min-h-[220px]">
-            {yearlyRevenue.length ? (
+            {invoiceStatusEntries.some((entry) => entry.value > 0) ? (
               <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" />}>
                 <Bar
+                  key={`invoice-status-${themeMode}`}
                   data={{
-                    labels: yearlyRevenue.map((item) => item.year),
+                    labels: invoiceStatusEntries.map((entry) => entry.label),
                     datasets: [
                       {
-                        label: "الإيراد",
-                        data: yearlyRevenue.map((item) => item.total),
-                        backgroundColor: "rgba(92,97,242,0.75)",
-                        borderRadius: 12,
-                        maxBarThickness: 36,
+                        label: "المبالغ (ر.س)",
+                        data: invoiceStatusEntries.map((entry) => entry.value),
+                        backgroundColor: invoiceStatusEntries.map((entry) => entry.color),
+                        borderRadius: 14,
+                        maxBarThickness: 42,
                       },
                     ],
                   }}
@@ -514,20 +595,19 @@ export default function Dashboard() {
                     plugins: {
                       legend: { display: false },
                       tooltip: {
-                        backgroundColor: "rgba(17,24,39,0.9)",
-                        titleColor: "#fff",
-                        bodyColor: "#fff",
+                        backgroundColor: tooltipBackground,
+                        titleColor: tooltipTitleColor,
+                        bodyColor: tooltipBodyColor,
+                        titleFont: { family: fontStack },
+                        bodyFont: { family: fontStack },
                         callbacks: {
-                          label: (ctx: any) =>
-                            new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR", maximumFractionDigits: 0 }).format(
-                              Number(ctx.parsed?.y || 0)
-                            ),
+                          label: (ctx: any) => `المجموع: ${formatCurrency(Number(ctx.parsed?.y || 0))}`,
                         },
                       },
                     },
                     scales: {
                       x: {
-                        grid: { color: gridColor, drawBorder: true },
+                        grid: { display: false },
                         ticks: { color: axisColor, font: { size: 12, weight: "600", family: fontStack } },
                         border: { color: borderColor },
                       },
@@ -536,7 +616,7 @@ export default function Dashboard() {
                         ticks: {
                           color: axisColor,
                           font: { size: 12, weight: "600", family: fontStack },
-                          callback: (value: any) => new Intl.NumberFormat("ar-SA", { notation: "compact" }).format(Number(value || 0)),
+                          callback: (value: any) => formatCurrency(Number(value || 0)),
                         },
                         border: { color: borderColor },
                       },
@@ -546,7 +626,7 @@ export default function Dashboard() {
               </Suspense>
             ) : (
               <div className="h-full grid place-items-center text-sm text-gray-500">
-                لا تتوفر بيانات إيرادات سنوية كافية.
+                لا تتوفر بيانات فواتير كافية لعرض الإحصاء.
               </div>
             )}
           </div>
@@ -554,6 +634,135 @@ export default function Dashboard() {
       </div>
 
       
+      {/* مصادر الإيرادات حسب العقار */}
+      <div className="mt-8 card">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold">مصادر الإيرادات حسب العقار</h3>
+              <p className="text-sm text-gray-500">
+                إجمالي:{" "}
+                <span className="font-semibold text-gray-700 dark:text-slate-100">
+                  <Currency amount={propertyRevenueTotal} locale={localeTag} />
+                </span>
+              </p>
+              {data?.charts?.expiring ? (
+                <p className="mt-1 text-xs text-gray-400 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    ينتهي هذا الأسبوع:{" "}
+                    <span className="font-semibold text-amber-500">
+                      {formatNumber(data.charts.expiring.week)}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-sky-400" />
+                    هذا الشهر:{" "}
+                    <span className="font-semibold text-blue-500">
+                      {formatNumber(data.charts.expiring.month)}
+                    </span>
+                  </span>
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-slate-300">
+              <span className="inline-flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeColors.success }} />
+                مدفوعة:{" "}
+                <b className="font-semibold text-gray-700 dark:text-white">
+                  {formatCurrency(invoiceStatusTotals.paid)}
+                </b>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeColors.warning }} />
+                مستحقة:{" "}
+                <b className="font-semibold text-gray-700 dark:text-white">
+                  {formatCurrency(invoiceStatusTotals.pending)}
+                </b>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeColors.danger }} />
+                متأخرة:{" "}
+                <b className="font-semibold text-gray-700 dark:text-white">
+                  {formatCurrency(invoiceStatusTotals.overdue)}
+                </b>
+              </span>
+            </div>
+          </div>
+          {propertyRevenueTop.length ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div className="lg:col-span-5">
+                <div className="h-64">
+                  <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 dark:bg-white/10 rounded-3xl" />}>
+                    <Doughnut
+                      key={`property-revenue-${themeMode}`}
+                      data={{
+                        labels: propertyRevenueTop.map((entry) => entry.label),
+                        datasets: [
+                          {
+                            data: propertyRevenueTop.map((entry) => entry.value),
+                            backgroundColor: propertyRevenueColors,
+                            borderWidth: 2,
+                            borderColor: "#ffffff",
+                          },
+                        ],
+                      }}
+                      options={{
+                        plugins: {
+                          legend: { display: false },
+                          tooltip: {
+                            backgroundColor: tooltipBackground,
+                            titleColor: tooltipTitleColor,
+                            bodyColor: tooltipBodyColor,
+                            titleFont: { family: fontStack },
+                            bodyFont: { family: fontStack },
+                            callbacks: {
+                              label: (ctx: any) => `${ctx.label}: ${formatCurrency(Number(ctx.parsed || 0))}`,
+                            },
+                          },
+                        },
+                        cutout: "58%",
+                      }}
+                    />
+                  </Suspense>
+                </div>
+                <div className="mt-4 text-center text-xs text-gray-500 dark:text-slate-400">
+                  توزيع الإيرادات حسب العقارات الأكثر تحقيقاً
+                </div>
+              </div>
+              <div className="lg:col-span-7 flex flex-col gap-4">
+                {propertyRevenueTop.map((entry, idx) => {
+                  const percentage = propertyRevenueTotal ? Math.round((entry.value / propertyRevenueTotal) * 1000) / 10 : 0;
+                  const color = propertyRevenueColors[idx % propertyRevenueColors.length];
+                  return (
+                    <div
+                      key={`property-entry-${entry.label}`}
+                      className="flex flex-col gap-2 rounded-2xl border border-gray-100 dark:border-white/10 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-gray-800 dark:text-white">{entry.label}</span>
+                        <span className="text-sm text-gray-600 dark:text-slate-300">{formatCurrency(entry.value)}</span>
+                      </div>
+                      <div className="relative h-2.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
+                        <span
+                          className="absolute inset-y-0 rounded-full"
+                          style={{ width: `${Math.min(100, Math.max(0, percentage))}%`, backgroundColor: color }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-300">
+                        <span>نسبة من الإجمالي</span>
+                        <span className="font-semibold text-gray-700 dark:text-white">{percentage.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">لا تتوفر بيانات إيرادات للعقارات لعرضها.</p>
+          )}
+        </div>
+      </div>
 
       {/* (تم دمج تفاصيل العقود/الوحدات/الصيانة داخل البطاقات العلوية) */}
 
@@ -569,71 +778,6 @@ export default function Dashboard() {
         <ExpiringContractsTable items={contracts} range={range} localeTag={localeTag} />
       </div>
 
-      {/* مخطط الإيرادات الشهرية */}
-      <div className="mt-8 card">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">الإيرادات حسب الشهور</h3>
-          {data?.charts?.expiring ? (
-            <div className="text-xs text-gray-500 flex items-center gap-3">
-              <span>تنتهي هذا الأسبوع: <b className="text-amber-600">{formatNumber(data.charts.expiring.week)}</b></span>
-              <span>هذا الشهر: <b className="text-blue-600">{formatNumber(data.charts.expiring.month)}</b></span>
-            </div>
-          ) : null}
-        </div>
-        {visibleRevenue.length > 0 ? (
-          <div className="h-72 md:h-80">
-            <Line
-              data={{
-                labels: visibleRevenue.map((m) => m.label),
-                datasets: [
-                  {
-                    label: 'الإيرادات (ر.س)',
-                    data: visibleRevenue.map((m) => m.value),
-                    borderColor: '#5C61F2',
-                    backgroundColor: (ctx:any) => {
-                      const { chart } = ctx; const { ctx: c, chartArea } = chart as any; if (!chartArea) return 'rgba(92,97,242,0.2)';
-                      const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                      g.addColorStop(0, 'rgba(92,97,242,0.25)'); g.addColorStop(1, 'rgba(92,97,242,0.02)'); return g;
-                    },
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#5C61F2',
-                    pointBorderWidth: 2,
-                    cubicInterpolationMode: 'monotone',
-                    tension: 0.4,
-                    fill: true,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { display: false, labels: { font: { family: fontStack } } },
-                  tooltip: {
-                    backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff',
-                    titleFont: { family: fontStack }, bodyFont: { family: fontStack },
-                    callbacks: { label: (ctx:any) => formatSAR(Number(ctx.parsed.y || 0), { locale: 'ar-SA' }) }
-                  },
-                },
-                scales: {
-                  x: { grid: { color: gridColor }, ticks: { color: axisColor, font: { size: 12, weight: '600', family: fontStack } }, border: { color: borderColor } },
-                  y: {
-                    grid: { color: gridColor, drawBorder: false },
-                    ticks: { color: axisColor, callback: (v:any) => new Intl.NumberFormat('ar-SA', { notation: 'compact' }).format(Number(v)), font: { size: 12, weight: '600', family: fontStack } },
-                  },
-                },
-                animation: { duration: 900, easing: 'easeOutQuart' },
-              }}
-              plugins={[lastPointPlugin]}
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">لا تتوفر بيانات كافية لعرض المخطط.</p>
-        )}
-      </div>
 
       {/* تم نقل نسب الإشغال للأعلى + الأنشطة ضمن الصف العلوي */}
     </div>
@@ -656,10 +800,10 @@ function Header({
   return (
     <div className="mb-8 flex items-center justify-between">
       <div className="flex flex-col">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800" style={{ color: 'var(--text)' }}>لوحة التحكم</h2>
+        <h2 className="text-2xl md:text-3xl font-extrabold text-gray-800" style={{ color: 'var(--text-primary)' }}>لوحة التحكم</h2>
         {lastUpdated ? (
           <div className="mt-1 text-xs md:text-sm">
-            <span className="text-gray-600" style={{ color: 'var(--text)' }}>آخر تحديث:</span>{' '}
+            <span className="text-gray-600" style={{ color: 'var(--text-primary)' }}>آخر تحديث:</span>{' '}
             <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>{lastUpdated}</span>
           </div>
         ) : null}
@@ -672,7 +816,11 @@ function Header({
             <option value={12}>آخر 12 شهر</option>
           </select>
         ) : null}
-        <button onClick={onRefresh} className="btn-primary" aria-label="تحديث البيانات">
+        <button
+          onClick={onRefresh}
+          className="refresh-button"
+          aria-label="تحديث البيانات"
+        >
           <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           <span className="hidden sm:inline">تحديث</span>
         </button>
@@ -863,31 +1011,6 @@ function StatCard({
           <div className="text-[13px] md:text-sm text-gray-500 mt-3">{subtitle}</div>
         )
       ) : null}
-    </div>
-  );
-}
-
-function QuickList({
-  title,
-  items,
-}: {
-  title: string;
-  items: Array<{ label: string; value: string; icon?: React.ReactNode }>;
-}) {
-  return (
-    <div className="bg-white rounded-xl shadow p-5">
-      <h4 className="text-sm font-semibold text-gray-800 mb-3">{title}</h4>
-      <ul className="space-y-2">
-        {items.map((it, idx) => (
-          <li key={idx} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {it.icon ? <span className="w-4 h-4">{it.icon}</span> : null}
-              <span className="text-sm text-gray-600">{it.label}</span>
-            </div>
-            <span className="text-sm font-semibold text-gray-800">{it.value}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

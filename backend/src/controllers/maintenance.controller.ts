@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import prisma from "../lib/prisma.ts";
-import { logActivity } from "../utils/activity-log.ts";
-import { getPagination } from "../utils/pagination.ts";
+import prisma from "../lib/prisma.js";
+import { logActivity } from "../utils/activity-log.js";
+import { getPagination } from "../utils/pagination.js";
 
 
 // 🆕 إنشاء بلاغ صيانة

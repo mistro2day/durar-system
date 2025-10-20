@@ -123,7 +123,7 @@ export function getDefaultSettings(): SiteSettings {
       ],
     },
     locale: (env.VITE_DEFAULT_LOCALE === 'en' ? 'en' : 'ar') as any,
-    calendar: (env.VITE_DEFAULT_CALENDAR === 'hijri' ? 'hijri' : 'gregorian') as any,
+    calendar: 'gregorian',
   };
 }
 
@@ -144,7 +144,7 @@ export function getSettings(): SiteSettings {
       roles: Array.isArray(parsed.roles) ? (parsed.roles as RoleKey[]) : def.roles,
       permissions: mergedPermissions,
       locale: parsed.locale === 'en' ? 'en' : 'ar',
-      calendar: parsed.calendar === 'hijri' ? 'hijri' : 'gregorian',
+      calendar: 'gregorian',
     };
   } catch {
     return getDefaultSettings();
@@ -156,6 +156,7 @@ export function saveSettings(s: SiteSettings) {
     ...getDefaultSettings(),
     ...s,
     vatPercent: Number.isFinite(Number(s.vatPercent)) ? Number(s.vatPercent) : 0,
+    calendar: 'gregorian',
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   if (typeof window !== 'undefined') {

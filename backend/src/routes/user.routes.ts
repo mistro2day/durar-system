@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { listUsers, createUser, updateUser, resetUserPassword } from "../controllers/user.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { listUsers, createUser, updateUser, resetUserPassword } from "../controllers/user.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

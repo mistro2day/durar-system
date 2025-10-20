@@ -5,9 +5,9 @@ import {
   updateTicketStatus,
   addAction,
   deleteTicket,
-} from "../controllers/maintenance.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+} from "../controllers/maintenance.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

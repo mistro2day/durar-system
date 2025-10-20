@@ -78,6 +78,7 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const propertiesHoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canViewActivities = hasPermission(role, "activity.view", site);
 
   useEffect(() => {
@@ -123,6 +124,32 @@ export default function Layout() {
       loadActivities();
     }
   }, [notificationsOpen, loadActivities]);
+
+  const clearPropertiesHoverTimeout = useCallback(() => {
+    if (propertiesHoverTimeout.current !== null) {
+      clearTimeout(propertiesHoverTimeout.current);
+      propertiesHoverTimeout.current = null;
+    }
+  }, []);
+
+  const openPropertiesMenu = useCallback(() => {
+    clearPropertiesHoverTimeout();
+    setPropertiesOpen(true);
+  }, [clearPropertiesHoverTimeout]);
+
+  const scheduleClosePropertiesMenu = useCallback(() => {
+    clearPropertiesHoverTimeout();
+    propertiesHoverTimeout.current = setTimeout(() => {
+      setPropertiesOpen(false);
+      propertiesHoverTimeout.current = null;
+    }, 150);
+  }, [clearPropertiesHoverTimeout]);
+
+  useEffect(() => {
+    return () => {
+      clearPropertiesHoverTimeout();
+    };
+  }, [clearPropertiesHoverTimeout]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -178,11 +205,23 @@ export default function Layout() {
             <NavItem to="/invoices" icon={<Receipt />} text="الفواتير" />
           )}
           {hasPermission(role, "units.view", site) && (
-            <>
+            <div
+              className="relative"
+              onMouseEnter={openPropertiesMenu}
+              onMouseLeave={scheduleClosePropertiesMenu}
+            >
               <button
                 type="button"
                 className="tivo-link w-full justify-between"
-                onClick={() => setPropertiesOpen((prev) => !prev)}
+                onClick={() => {
+                  clearPropertiesHoverTimeout();
+                  setPropertiesOpen(false);
+                  navigate("/properties");
+                }}
+                onFocus={openPropertiesMenu}
+                onBlur={scheduleClosePropertiesMenu}
+                aria-haspopup="true"
+                aria-expanded={propertiesOpen}
               >
                 <span className="flex items-center gap-3">
                   <span className="w-5 h-5">
@@ -193,28 +232,39 @@ export default function Layout() {
                 <ChevronDown className={`w-4 h-4 transition-transform ${propertiesOpen ? "rotate-180" : ""}`} />
               </button>
               {propertiesOpen && (
-                <div className="flex flex-col gap-1 ms-6 mt-2">
+                <div
+                  className="sidebar-submenu absolute top-0 max-h-[70vh] overflow-y-auto backdrop-blur-lg min-w-[13rem]"
+                  style={{ right: "calc(100% + 8px)" }}
+                  onMouseEnter={openPropertiesMenu}
+                  onMouseLeave={scheduleClosePropertiesMenu}
+                >
                   {properties.length ? (
-                    properties.map((property) => (
-                      <NavLink
-                        key={property.id}
-                        to={`/hotel/${property.id}/dashboard`}
-                        className={({ isActive }) =>
-                          (isActive ? "tivo-link-active" : "tivo-link") + " text-[13px]"
-                        }
-                      >
-                        <span className="w-5 h-5">
-                          <Hotel />
-                        </span>
-                        <span className="text-sm">{property.name || `#${property.id}`}</span>
-                      </NavLink>
-                    ))
+                    <div className="flex flex-col gap-1">
+                      {properties.map((property) => (
+                        <NavLink
+                          key={property.id}
+                          to={`/hotel/${property.id}/dashboard`}
+                          onClick={() => {
+                            clearPropertiesHoverTimeout();
+                            setPropertiesOpen(false);
+                          }}
+                          className={({ isActive }) =>
+                            `sidebar-submenu-item ${isActive ? "sidebar-submenu-item-active" : ""}`
+                          }
+                        >
+                          <span className="inline-flex items-center justify-center w-5 h-5">
+                            <Hotel />
+                          </span>
+                          <span className="flex-1 text-sm">{property.name || `#${property.id}`}</span>
+                        </NavLink>
+                      ))}
+                    </div>
                   ) : (
-                    <span className="text-xs text-white/60 px-3 py-1">لا توجد عقارات مسجلة</span>
+                    <span className="sidebar-submenu-empty text-xs">لا توجد عقارات مسجلة</span>
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
           {hasPermission(role, "maintenance.view", site) && (
             <NavItem to="/maintenance" icon={<Wrench />} text="الصيانة" />
@@ -354,7 +404,7 @@ export default function Layout() {
               </button>
               <GlobalSearch />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative z-20">
               <div className="relative" ref={notificationsRef}>
                 <button
                   type="button"
@@ -365,7 +415,7 @@ export default function Layout() {
                   <Bell className="w-5 h-5 text-gray-600" />
                 </button>
                 {notificationsOpen ? (
-                  <div className="absolute right-0 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                  <div className="absolute top-full left-1/2 mt-2 w-[calc(100vw-32px)] max-w-sm -translate-x-1/2 translate-y-2 rounded-xl border border-gray-200 bg-white shadow-xl z-[60] md:left-auto md:right-0 md:top-auto md:mt-2 md:w-72 md:translate-x-0 md:translate-y-0">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <h4 className="text-sm font-semibold text-gray-800">آخر الأنشطة</h4>
                     </div>
@@ -412,7 +462,7 @@ export default function Layout() {
                   <ChevronDown className={`hidden sm:block w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
                 </button>
                 {userMenuOpen ? (
-                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                  <div className="absolute top-full left-1/2 mt-2 w-[calc(100vw-32px)] max-w-sm -translate-x-1/2 translate-y-2 rounded-xl border border-gray-200 bg-white shadow-xl z-[60] md:left-auto md:right-0 md:w-64 md:translate-x-0 md:translate-y-0 md:top-auto md:mt-2">
                     <button
                       type="button"
                       onClick={goToProfile}

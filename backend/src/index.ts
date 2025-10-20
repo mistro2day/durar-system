@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import prisma from "./lib/prisma.ts";
+import prisma from "./lib/prisma.js";
 import compression from "compression";
 import bcrypt from "bcryptjs";
 
@@ -18,20 +18,20 @@ app.use(express.json());
 app.use(compression());
 
 // ✨ المسارات
-import authRoutes from "./routes/auth.routes.ts";
-import unitRoutes from "./routes/unit.routes.ts";
-import contractRoutes from "./routes/contract.routes.ts";
-import maintenanceRoutes from "./routes/maintenance.routes.ts";
-import shopRoutes from "./routes/shop.routes.ts";
-import invoiceRoutes from "./routes/invoice.routes.ts";
-import dashboardRoutes from "./routes/dashboard.routes.ts";
-import settingsRoutes from "./routes/settings.routes.ts";
-import userRoutes from "./routes/user.routes.ts";
-import propertyRoutes from "./routes/property.routes.ts";
-import tenantRoutes from "./routes/tenant.routes.ts";
-import searchRoutes from "./routes/search.routes.ts";
-import reportsRoutes from "./routes/reports.routes.ts";
-import activityRoutes from "./routes/activity.routes.ts";
+import authRoutes from "./routes/auth.routes.js";
+import unitRoutes from "./routes/unit.routes.js";
+import contractRoutes from "./routes/contract.routes.js";
+import maintenanceRoutes from "./routes/maintenance.routes.js";
+import shopRoutes from "./routes/shop.routes.js";
+import invoiceRoutes from "./routes/invoice.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import settingsRoutes from "./routes/settings.routes.js";
+import userRoutes from "./routes/user.routes.js";
+import propertyRoutes from "./routes/property.routes.js";
+import tenantRoutes from "./routes/tenant.routes.js";
+import searchRoutes from "./routes/search.routes.js";
+import reportsRoutes from "./routes/reports.routes.js";
+import activityRoutes from "./routes/activity.routes.js";
 
 
 
@@ -78,7 +78,7 @@ async function ensureAdmin() {
 }
 
 // 🔁 المجدول الشهري للفواتير
-import { startInvoiceScheduler } from "./jobs/generateMonthlyInvoices.ts";
+import { startInvoiceScheduler } from "./jobs/generateMonthlyInvoices.js";
 startInvoiceScheduler();
 // حاول إنشاء مستخدم إداري للتطوير
 ensureAdmin();

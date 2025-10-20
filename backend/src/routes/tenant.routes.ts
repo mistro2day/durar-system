@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { listTenants, getTenantById, updateTenant, deleteTenant } from "../controllers/tenant.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { listTenants, getTenantById, updateTenant, deleteTenant } from "../controllers/tenant.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 router.get("/", authGuard, requirePermission("tenants.view"), listTenants);

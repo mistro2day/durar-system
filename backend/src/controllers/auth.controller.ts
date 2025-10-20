@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import prisma from "../lib/prisma.ts";
+import prisma from "../lib/prisma.js";
 import bcrypt from "bcryptjs";
-import { signJwt } from "../utils/jwt.ts";
+import { signJwt } from "../utils/jwt.js";
 import crypto from "node:crypto";
 
 

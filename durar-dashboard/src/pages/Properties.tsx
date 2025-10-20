@@ -180,7 +180,7 @@ function PropertyModal({ onClose, onSaved }: { onClose: ()=>void; onSaved: ()=>v
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+    <div className="modal-backdrop">
       <div className="card w-full max-w-2xl">
         <h3 className="text-lg font-semibold mb-4">إضافة عقار</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

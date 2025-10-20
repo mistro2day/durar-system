@@ -1,6 +1,6 @@
 import type { Response, NextFunction } from "express";
-import type { AuthedRequest } from "./auth.ts";
-import prisma from "../lib/prisma.ts";
+import type { AuthedRequest } from "./auth.js";
+import prisma from "../lib/prisma.js";
 
 
 const DEFAULT = {
@@ -37,14 +37,23 @@ const DEFAULT = {
 } as const;
 
 type RoleKey = keyof typeof DEFAULT.permissions;
-type PermissionValue = string[] | "*";
+type PermissionValue = readonly string[] | "*";
+type MutablePermissionValue = string[] | "*";
+
+function clonePermissionValue(value: PermissionValue): MutablePermissionValue {
+  return value === "*" ? "*" : [...value];
+}
 
 function mergePermissionMaps(
   defaults: Record<string, PermissionValue>,
   stored?: Record<string, PermissionValue>
-) {
-  if (!stored) return { ...defaults };
-  const result: Record<string, PermissionValue> = { ...defaults };
+): Record<string, MutablePermissionValue> {
+  if (!stored) {
+    return Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key, clonePermissionValue(value)]));
+  }
+  const result: Record<string, MutablePermissionValue> = Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [key, clonePermissionValue(value)])
+  );
   for (const [role, value] of Object.entries(stored)) {
     if (value === "*") {
       result[role] = "*";
@@ -56,7 +65,7 @@ function mergePermissionMaps(
       continue;
     }
     const baseList = Array.isArray(base) ? base : [];
-    const incoming = Array.isArray(value) ? value : [];
+    const incoming = Array.isArray(value) ? [...value] : [];
     result[role] = Array.from(new Set([...baseList, ...incoming]));
   }
   return result;

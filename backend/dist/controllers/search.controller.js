@@ -1,5 +1,4 @@
-import { PrismaClient } from "../lib/prisma.js";
-const prisma = new PrismaClient();
+import prisma from "../lib/prisma.js";
 const PER_SECTION_LIMIT = 5;
 export async function globalSearch(req, res) {
     try {
@@ -9,7 +8,7 @@ export async function globalSearch(req, res) {
             return res.json([]);
         }
         const contains = { contains: term, mode: "insensitive" };
-        const [tenants, contracts, units, properties] = await Promise.all([
+        const [tenants, contracts, units, properties] = await prisma.$transaction([
             prisma.tenant.findMany({
                 where: {
                     OR: [

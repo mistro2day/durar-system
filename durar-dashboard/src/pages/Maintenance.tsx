@@ -260,7 +260,7 @@ function AddMaintenanceButton({ onAdded, propertyId }: { onAdded: () => void; pr
         إضافة بلاغ صيانة
       </button>
       {open ? (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+        <div className="modal-backdrop items-start md:items-center">
           <div className="card w-full max-w-xl">
             <h3 className="text-lg font-semibold mb-4">بلاغ صيانة جديد</h3>
             <div className="grid grid-cols-1 gap-4">

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import prisma from "../lib/prisma.ts";
-import { getPagination } from "../utils/pagination.ts";
+import type { Prisma, UnitStatus, UnitType } from "@prisma/client";
+import prisma from "../lib/prisma.js";
+import { getPagination } from "../utils/pagination.js";
 
 
 // ✅ عرض جميع الوحدات
@@ -138,24 +139,32 @@ export const importUnitsCsv = async (req: Request, res: Response) => {
     let imported = 0, updated = 0;
     const errors: string[] = [];
 
-    function normStatus(s?: string) {
+    function normStatus(s?: string): UnitStatus | undefined {
       if (!s) return undefined;
       const v = s.trim().toUpperCase();
-      const map: Record<string,string> = {
-        'AVAILABLE': 'AVAILABLE', 'متاحة': 'AVAILABLE',
-        'OCCUPIED': 'OCCUPIED', 'مشغولة': 'OCCUPIED',
-        'MAINTENANCE': 'MAINTENANCE', 'صيانة': 'MAINTENANCE',
+      const map: Record<string, UnitStatus> = {
+        AVAILABLE: "AVAILABLE",
+        "مُتَاحَة": "AVAILABLE",
+        متاحة: "AVAILABLE",
+        OCCUPIED: "OCCUPIED",
+        مشغولة: "OCCUPIED",
+        MAINTENANCE: "MAINTENANCE",
+        صيانة: "MAINTENANCE",
       };
-      return map[v] as any;
+      return map[v];
     }
-    function normType(s?: string) {
+    function normType(s?: string): UnitType | undefined {
       if (!s) return undefined;
       const v = s.trim().toUpperCase();
-      const map: Record<string,string> = {
-        'DAILY': 'DAILY', 'يومي': 'DAILY',
-        'MONTHLY': 'MONTHLY', 'شهري': 'MONTHLY',
+      const map: Record<string, UnitType> = {
+        DAILY: "DAILY",
+        يومي: "DAILY",
+        MONTHLY: "MONTHLY",
+        شهري: "MONTHLY",
+        YEARLY: "YEARLY",
+        سنوي: "YEARLY",
       };
-      return map[v] as any;
+      return map[v];
     }
 
     for (const r of rows) {
@@ -171,7 +180,7 @@ export const importUnitsCsv = async (req: Request, res: Response) => {
         }
 
         const status = normStatus(iStatus>=0 ? r[iStatus] : undefined);
-        const type = normType(iType>=0 ? r[iType] : (iType<0 && iFloor<0 && iRooms<0 && iBaths<0 && iArea<0 && (iStatus<0) ? undefined : undefined));
+        const type = normType(iType>=0 ? r[iType] : undefined);
         const floor = iFloor>=0 && r[iFloor]!=='' ? Number(r[iFloor]) : undefined;
         const rooms = iRooms>=0 && r[iRooms]!=='' ? Number(r[iRooms]) : undefined;
         const baths = iBaths>=0 && r[iBaths]!=='' ? Number(r[iBaths]) : undefined;
@@ -182,14 +191,23 @@ export const importUnitsCsv = async (req: Request, res: Response) => {
         const existing = await prisma.unit.findFirst({ where });
         if (!existing) {
           if (!propertyId) { errors.push(`لا يمكن إنشاء وحدة ${unitNumber} بدون عمود العقار`); continue; }
+          const finalType: UnitType = type ?? "MONTHLY";
+          const finalStatus: UnitStatus = status ?? "AVAILABLE";
           await prisma.unit.create({
-            data: { number: unitNumber, propertyId, ...(status?{status}:{}), ...(type?{type}:{}), floor, rooms, baths, area }
+            data: { number: unitNumber, propertyId, type: finalType, status: finalStatus, floor, rooms, baths, area }
           });
           imported++;
         } else {
-          const data: any = { floor, rooms, baths, area };
+          const data: Prisma.UnitUpdateInput = {};
+          if (floor !== undefined) data.floor = floor;
+          if (rooms !== undefined) data.rooms = rooms;
+          if (baths !== undefined) data.baths = baths;
+          if (area !== undefined) data.area = area;
           if (status) data.status = status;
           if (type) data.type = type;
+          if (Object.keys(data).length === 0) {
+            continue;
+          }
           await prisma.unit.update({ where: { id: existing.id }, data });
           updated++;
         }

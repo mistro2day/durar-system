@@ -1,7 +1,6 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import { logActivity } from "../utils/activity-log.js";
 import { getPagination } from "../utils/pagination.js";
-const prisma = new PrismaClient();
 export const getInvoices = async (req, res) => {
     const { propertyId } = req.query;
     const where = {};
@@ -24,8 +23,14 @@ export const getInvoices = async (req, res) => {
         const invoices = await prisma.invoice.findMany({ where, include, orderBy: { dueDate: "asc" } });
         return res.json(invoices);
     }
-    const [items, total] = await Promise.all([
-        prisma.invoice.findMany({ where, include, orderBy: { dueDate: "asc" }, skip: pg.skip, take: pg.take }),
+    const [items, total] = await prisma.$transaction([
+        prisma.invoice.findMany({
+            where,
+            include,
+            orderBy: { dueDate: "asc" },
+            skip: pg.skip,
+            take: pg.take,
+        }),
         prisma.invoice.count({ where }),
     ]);
     res.json({ items, total, page: pg.page, pageSize: pg.pageSize });

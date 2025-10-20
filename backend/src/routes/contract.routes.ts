@@ -7,9 +7,9 @@ import {
   deleteContract,
   endContract,
   importContractsCsv
-} from "../controllers/contract.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+} from "../controllers/contract.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });

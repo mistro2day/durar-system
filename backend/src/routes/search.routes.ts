@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { globalSearch } from "../controllers/search.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { globalSearch } from "../controllers/search.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

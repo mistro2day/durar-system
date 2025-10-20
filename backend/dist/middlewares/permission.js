@@ -1,5 +1,4 @@
-import { PrismaClient } from "../lib/prisma.js";
-const prisma = new PrismaClient();
+import prisma from "../lib/prisma.js";
 const DEFAULT = {
     roles: ["ADMIN", "MANAGER", "STAFF"],
     permissions: {
@@ -32,10 +31,14 @@ const DEFAULT = {
         ],
     },
 };
+function clonePermissionValue(value) {
+    return value === "*" ? "*" : [...value];
+}
 function mergePermissionMaps(defaults, stored) {
-    if (!stored)
-        return { ...defaults };
-    const result = { ...defaults };
+    if (!stored) {
+        return Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key, clonePermissionValue(value)]));
+    }
+    const result = Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key, clonePermissionValue(value)]));
     for (const [role, value] of Object.entries(stored)) {
         if (value === "*") {
             result[role] = "*";
@@ -47,7 +50,7 @@ function mergePermissionMaps(defaults, stored) {
             continue;
         }
         const baseList = Array.isArray(base) ? base : [];
-        const incoming = Array.isArray(value) ? value : [];
+        const incoming = Array.isArray(value) ? [...value] : [];
         result[role] = Array.from(new Set([...baseList, ...incoming]));
     }
     return result;

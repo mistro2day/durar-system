@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getInvoices, updateInvoiceStatus, createInvoice } from "../controllers/invoice.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { getInvoices, updateInvoiceStatus, createInvoice } from "../controllers/invoice.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

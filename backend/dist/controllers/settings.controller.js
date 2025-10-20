@@ -1,5 +1,4 @@
-import { PrismaClient } from "../lib/prisma.js";
-const prisma = new PrismaClient();
+import prisma from "../lib/prisma.js";
 // هيكل افتراضي لصلاحيات الواجهة (يتطابق مع الواجهة الأمامية)
 const DEFAULT_PERMISSIONS = {
     roles: ["ADMIN", "MANAGER", "STAFF"],

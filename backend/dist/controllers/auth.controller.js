@@ -1,8 +1,7 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import bcrypt from "bcryptjs";
 import { signJwt } from "../utils/jwt.js";
 import crypto from "node:crypto";
-const prisma = new PrismaClient();
 export const register = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;

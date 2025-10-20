@@ -1,7 +1,6 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import { logActivity } from "../utils/activity-log.js";
 import { getPagination } from "../utils/pagination.js";
-const prisma = new PrismaClient();
 // 🆕 إنشاء بلاغ صيانة
 export const createTicket = async (req, res) => {
     try {
@@ -35,8 +34,14 @@ export const getTickets = async (req, res) => {
         const tickets = await prisma.maintenanceTicket.findMany({ where, include: { unit: true }, orderBy: { createdAt: "desc" } });
         return res.json(tickets);
     }
-    const [items, total] = await Promise.all([
-        prisma.maintenanceTicket.findMany({ where, include: { unit: true }, orderBy: { createdAt: "desc" }, skip: pg.skip, take: pg.take }),
+    const [items, total] = await prisma.$transaction([
+        prisma.maintenanceTicket.findMany({
+            where,
+            include: { unit: true },
+            orderBy: { createdAt: "desc" },
+            skip: pg.skip,
+            take: pg.take,
+        }),
         prisma.maintenanceTicket.count({ where }),
     ]);
     res.json({ items, total, page: pg.page, pageSize: pg.pageSize });
