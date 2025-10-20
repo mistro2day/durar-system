@@ -17,7 +17,8 @@ model User {
   createdAt    DateTime        @default(now())
   activityLogs ActivityLog[]
   resets       PasswordReset[]
-  @@index([createdAt])
+
+  @@index([createdAt], map: "idx_User_createdAt")
 }
 
 model Property {
@@ -27,7 +28,8 @@ model Property {
   address   String?
   createdAt DateTime     @default(now())
   units     Unit[]
-  @@index([type])
+
+  @@index([type], map: "idx_Property_type")
 }
 
 model Unit {
@@ -45,33 +47,35 @@ model Unit {
   contracts   Contract[]
   maintenance MaintenanceTicket[]
   property    Property            @relation(fields: [propertyId], references: [id])
-  @@index([propertyId])
-  @@index([status])
-  @@index([type])
-  @@index([number, propertyId])
+
+  @@index([number, propertyId], map: "idx_Unit_number_propertyId")
+  @@index([propertyId], map: "idx_Unit_propertyId")
+  @@index([status], map: "idx_Unit_status")
+  @@index([type], map: "idx_Unit_type")
 }
 
 model Tenant {
-  id        Int        @id @default(autoincrement())
-  name      String
-  phone     String
-  email     String?
-  nationalId String? @unique
-  birthDate DateTime?
-  gender    String?
-  nationality String?
-  address   String?
-  city      String?
-  country   String?
-  employer  String?
-  emergencyContactName String?
+  id                    Int        @id @default(autoincrement())
+  name                  String
+  phone                 String
+  email                 String?
+  createdAt             DateTime   @default(now())
+  nationalId            String?    @unique
+  birthDate             DateTime?
+  gender                String?
+  nationality           String?
+  address               String?
+  city                  String?
+  country               String?
+  employer              String?
+  emergencyContactName  String?
   emergencyContactPhone String?
-  notes     String?
-  createdAt DateTime   @default(now())
-  bookings  Booking[]
-  contracts Contract[]
-  invoices  Invoice[]
-  @@index([name])
+  notes                 String?
+  bookings              Booking[]
+  contracts             Contract[]
+  invoices              Invoice[]
+
+  @@index([name], map: "idx_Tenant_name")
 }
 
 model Booking {
@@ -86,11 +90,12 @@ model Booking {
   tenant    Tenant        @relation(fields: [tenantId], references: [id])
   unit      Unit          @relation(fields: [unitId], references: [id])
   invoices  Invoice[]
-  @@index([tenantId])
-  @@index([unitId])
-  @@index([status])
-  @@index([startDate])
-  @@index([unitId, startDate])
+
+  @@index([startDate], map: "idx_Booking_startDate")
+  @@index([status], map: "idx_Booking_status")
+  @@index([tenantId], map: "idx_Booking_tenantId")
+  @@index([unitId], map: "idx_Booking_unitId")
+  @@index([unitId, startDate], map: "idx_Booking_unitId_startDate")
 }
 
 model Invoice {
@@ -106,11 +111,12 @@ model Invoice {
   contract   Contract?     @relation(fields: [contractId], references: [id])
   tenant     Tenant?       @relation(fields: [tenantId], references: [id])
   payments   Payment[]
-  @@index([tenantId])
-  @@index([contractId])
-  @@index([bookingId])
-  @@index([status])
-  @@index([dueDate])
+
+  @@index([bookingId], map: "idx_Invoice_bookingId")
+  @@index([contractId], map: "idx_Invoice_contractId")
+  @@index([dueDate], map: "idx_Invoice_dueDate")
+  @@index([status], map: "idx_Invoice_status")
+  @@index([tenantId], map: "idx_Invoice_tenantId")
 }
 
 model Payment {
@@ -120,7 +126,8 @@ model Payment {
   method    PaymentMethod
   paidAt    DateTime      @default(now())
   invoice   Invoice       @relation(fields: [invoiceId], references: [id])
-  @@index([invoiceId])
+
+  @@index([invoiceId], map: "idx_Payment_invoiceId")
 }
 
 model Shop {
@@ -130,7 +137,8 @@ model Shop {
   phone     String?
   ownerId   Int?
   createdAt DateTime @default(now())
-  @@index([ownerId])
+
+  @@index([ownerId], map: "idx_Shop_ownerId")
 }
 
 model MaintenanceTicket {
@@ -142,9 +150,9 @@ model MaintenanceTicket {
   createdAt   DateTime            @default(now())
   actions     MaintenanceAction[]
   unit        Unit                @relation(fields: [unitId], references: [id])
-  @@index([unitId])
-  @@index([status])
-  @@index([createdAt])
+
+  @@index([status], map: "idx_MaintenanceTicket_status")
+  @@index([unitId], map: "idx_MaintenanceTicket_unitId")
 }
 
 model MaintenanceAction {
@@ -154,38 +162,39 @@ model MaintenanceAction {
   performedBy String
   performedAt DateTime          @default(now())
   ticket      MaintenanceTicket @relation(fields: [ticketId], references: [id])
-  @@index([ticketId])
+
+  @@index([ticketId], map: "idx_MaintenanceAction_ticketId")
 }
 
 model Contract {
-  id           Int            @id @default(autoincrement())
-  tenantId     Int?
-  unitId       Int
-  startDate    DateTime
-  endDate      DateTime
-  rentAmount   Float
-  status       ContractStatus @default(ACTIVE)
-  autoInvoice  Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  amount       Float
-  rentalType   String
-  tenantName   String
-  deposit      Float?         @default(0)
+  id                 Int            @id @default(autoincrement())
+  tenantId           Int?
+  unitId             Int
+  startDate          DateTime
+  endDate            DateTime
+  rentAmount         Float
+  status             ContractStatus @default(ACTIVE)
+  autoInvoice        Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  amount             Float
+  rentalType         String
+  tenantName         String
+  deposit            Float?         @default(0)
   ejarContractNumber String?
-  paymentMethod String?
-  paymentFrequency String?
-  servicesIncluded String?
-  notes       String?
-  activityLogs ActivityLog[]
-  tenant       Tenant?        @relation(fields: [tenantId], references: [id])
-  unit         Unit           @relation(fields: [unitId], references: [id])
-  invoices     Invoice[]
-  @@index([tenantId])
-  @@index([unitId])
-  @@index([status])
-  @@index([startDate])
-  @@index([endDate])
-  @@index([createdAt])
+  paymentMethod      String?
+  paymentFrequency   String?
+  servicesIncluded   String?
+  notes              String?
+  activityLogs       ActivityLog[]
+  tenant             Tenant?        @relation(fields: [tenantId], references: [id])
+  unit               Unit           @relation(fields: [unitId], references: [id])
+  invoices           Invoice[]
+
+  @@index([endDate], map: "idx_Contract_endDate")
+  @@index([startDate], map: "idx_Contract_startDate")
+  @@index([status], map: "idx_Contract_status")
+  @@index([tenantId], map: "idx_Contract_tenantId")
+  @@index([unitId], map: "idx_Contract_unitId")
 }
 
 model ActivityLog {
@@ -197,9 +206,10 @@ model ActivityLog {
   createdAt   DateTime  @default(now())
   contract    Contract? @relation(fields: [contractId], references: [id])
   user        User?     @relation(fields: [userId], references: [id])
-  @@index([contractId])
-  @@index([userId])
-  @@index([createdAt])
+
+  @@index([contractId], map: "idx_ActivityLog_contractId")
+  @@index([createdAt], map: "idx_ActivityLog_createdAt")
+  @@index([userId], map: "idx_ActivityLog_userId")
 }
 
 model Setting {
@@ -218,7 +228,8 @@ model PasswordReset {
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
-  @@index([userId])
+
+  @@index([userId], map: "idx_PasswordReset_userId")
 }
 
 enum Role {

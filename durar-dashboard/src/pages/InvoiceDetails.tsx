@@ -4,7 +4,7 @@ import { Printer, ArrowRight, Download } from "lucide-react";
 import api from "../lib/api";
 import Logo from "../components/Logo";
 import QRCode from "qrcode";
-import { getSettings } from "../lib/settings";
+import { getSettings, DEFAULT_DATE_LOCALE } from "../lib/settings";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR, CURRENCY_SYMBOL } from "../lib/currency";
 import Currency from "../components/Currency";
@@ -325,7 +325,7 @@ export default function InvoiceDetails() {
 function formatDate(d?: string, lt?: string) {
   if (!d) return "-";
   try {
-    return new Date(d).toLocaleDateString(lt || "ar-SA");
+    return new Date(d).toLocaleDateString(lt || DEFAULT_DATE_LOCALE);
   } catch {
     return "-";
   }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../lib/api";
+import { DEFAULT_DATE_LOCALE } from "../lib/settings";
 import SortHeader from "../components/SortHeader";
 import { useTableSort } from "../hooks/useTableSort";
 
@@ -401,7 +402,7 @@ function Detail({ label, value, valueClass }: { label: string; value: any; value
 function formatDate(v?: string) {
   if (!v) return "-";
   try {
-    return new Date(v).toLocaleDateString("ar-SA");
+    return new Date(v).toLocaleDateString(DEFAULT_DATE_LOCALE);
   } catch {
     return v;
   }

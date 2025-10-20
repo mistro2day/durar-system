@@ -56,6 +56,7 @@ export type SiteSettings = {
 };
 
 const STORAGE_KEY = "siteSettings";
+export const DEFAULT_DATE_LOCALE = "ar-u-ca-gregory";
 
 function mergePermissionMaps(
   defaults: Record<RoleKey, PermissionKey[] | "*">,
@@ -214,5 +215,5 @@ export function getLocaleTag(): string {
   const s = getSettings();
   if (s.locale === 'en') return 'en-US';
   // تقويم ميلادي مع عرض عربي للأشهر والأرقام
-  return 'ar-u-ca-gregory';
+  return DEFAULT_DATE_LOCALE;
 }
