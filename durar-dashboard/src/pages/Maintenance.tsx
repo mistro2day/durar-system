@@ -10,7 +10,7 @@ type Ticket = {
   description: string;
   status: string; // NEW | IN_PROGRESS | DONE
   priority?: string; // LOW | MEDIUM | HIGH
-  unit?: { id: number; unitNumber: string } | null;
+  unit?: { id: number; number?: string | null; unitNumber?: string | null } | null;
 };
 
 type MaintenanceSortKey = "id" | "unit" | "description" | "priority" | "status";
@@ -44,7 +44,7 @@ export default function Maintenance() {
   const maintenanceSortAccessors = useMemo<Record<MaintenanceSortKey, (ticket: Ticket) => unknown>>(
     () => ({
       id: (ticket) => ticket.id,
-      unit: (ticket) => ticket.unit?.unitNumber || ticket.unitId,
+      unit: (ticket) => ticket.unit?.number || ticket.unit?.unitNumber || ticket.unitId,
       description: (ticket) => ticket.description || "",
       priority: (ticket) => ticket.priority || "",
       status: (ticket) => ticket.status || "",
@@ -61,19 +61,28 @@ export default function Maintenance() {
   async function updateStatus(id: number, status: string) {
     try {
       await api.patch(`/api/maintenance/${id}/status`, { status });
-      await load();
+      setItems((prev) => prev.map((ticket) => (ticket.id === id ? { ...ticket, status } : ticket)));
     } catch (e: any) {
       alert(e?.response?.data?.message || "تعذر تحديث الحالة");
     }
   }
 
-  function handleDelete() {
-    alert("حذف البلاغ غير متوفر في الواجهة الخلفية حالياً.");
+  async function handleDelete(id: number) {
+    if (!confirm("هل أنت متأكد من حذف بلاغ الصيانة؟")) return;
+    try {
+      await api.delete(`/api/maintenance/${id}`);
+      setItems((prev) => prev.filter((ticket) => ticket.id !== id));
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر حذف البلاغ");
+    }
   }
 
   return (
     <div>
-      <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">بلاغات الصيانة</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-800">بلاغات الصيانة</h2>
+        <AddMaintenanceButton onAdded={load} propertyId={propertyId} />
+      </div>
 
       {loading ? (
         <div className="card text-center text-gray-500">جاري التحميل...</div>
@@ -134,10 +143,10 @@ export default function Maintenance() {
                   <Td>
                     {t.unit?.id ? (
                       <Link to={`/units/${t.unit.id}`} className="text-primary hover:underline">
-                        {t.unit?.unitNumber || t.unitId}
+                        {t.unit?.number || t.unit?.unitNumber || t.unitId}
                       </Link>
                     ) : (
-                      t.unit?.unitNumber || t.unitId
+                      t.unit?.number || t.unit?.unitNumber || t.unitId
                     )}
                   </Td>
                   <Td>{t.description}</Td>
@@ -158,7 +167,7 @@ export default function Maintenance() {
                     </div>
                   </Td>
                   <Td>
-                    <button onClick={handleDelete} className="btn-soft btn-soft-danger">
+                    <button onClick={() => handleDelete(t.id)} className="btn-soft btn-soft-danger">
                       حذف
                     </button>
                   </Td>
@@ -175,6 +184,152 @@ export default function Maintenance() {
 function Td({ children }: { children: React.ReactNode }) {
   return <td className="p-3 text-gray-800">{children}</td>;
 }
+
+type MaintenanceForm = {
+  unitId?: number;
+  description: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+};
+
+const PRIORITY_OPTIONS: Array<{ value: MaintenanceForm["priority"]; label: string }> = [
+  { value: "LOW", label: "منخفضة" },
+  { value: "MEDIUM", label: "متوسطة" },
+  { value: "HIGH", label: "مرتفعة" },
+];
+
+function AddMaintenanceButton({ onAdded, propertyId }: { onAdded: () => void; propertyId?: string }) {
+  const [open, setOpen] = useState(false);
+  const [units, setUnits] = useState<Array<{ id: number; label: string }>>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [form, setForm] = useState<MaintenanceForm>({ description: "", priority: "MEDIUM" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingUnits(true);
+    const qp = propertyId ? `?propertyId=${propertyId}` : "";
+    api
+      .get(`/api/units${qp}`)
+      .then((res) =>
+        setUnits(
+          (res.data || []).map((u: any) => ({
+            id: u.id,
+            label: u.unitNumber || u.number || `وحدة #${u.id}`,
+          }))
+        )
+      )
+      .catch(() => setUnits([]))
+      .finally(() => setLoadingUnits(false));
+  }, [open, propertyId]);
+
+  function closeModal() {
+    setOpen(false);
+    setSaving(false);
+    setForm({ description: "", priority: "MEDIUM" });
+  }
+
+  async function save() {
+    if (saving) return;
+    if (!form.unitId) {
+      alert("يرجى اختيار الوحدة.");
+      return;
+    }
+    if (!form.description.trim()) {
+      alert("يرجى إدخال وصف البلاغ.");
+      return;
+    }
+    try {
+      setSaving(true);
+      await api.post("/api/maintenance", {
+        unitId: form.unitId,
+        description: form.description.trim(),
+        priority: form.priority,
+      });
+      closeModal();
+      onAdded();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إضافة البلاغ");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button className="btn-soft btn-soft-primary" onClick={() => setOpen(true)}>
+        إضافة بلاغ صيانة
+      </button>
+      {open ? (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+          <div className="card w-full max-w-xl">
+            <h3 className="text-lg font-semibold mb-4">بلاغ صيانة جديد</h3>
+            <div className="grid grid-cols-1 gap-4">
+              <Field label="الوحدة">
+                {loadingUnits ? (
+                  <div className="text-sm text-gray-500">جاري تحميل الوحدات...</div>
+                ) : units.length ? (
+                  <select
+                    className="form-select"
+                    value={form.unitId ?? ""}
+                    onChange={(e) => setForm((prev) => ({ ...prev, unitId: e.target.value ? Number(e.target.value) : undefined }))}
+                  >
+                    <option value="">— اختر الوحدة —</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-sm text-red-500">لا توجد وحدات متاحة، يرجى التحقق.</div>
+                )}
+              </Field>
+              <Field label="الوصف">
+                <textarea
+                  className="form-input h-28 resize-none"
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="اشرح المشكلة أو الطلب بوضوح..."
+                />
+              </Field>
+              <Field label="الأولوية">
+                <select
+                  className="form-select"
+                  value={form.priority}
+                  onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value as MaintenanceForm["priority"] }))}
+                >
+                  {PRIORITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button className="btn-outline disabled:opacity-60" onClick={closeModal} disabled={saving}>
+                إلغاء
+              </button>
+              <button className="btn-primary disabled:opacity-60" onClick={save} disabled={saving || loadingUnits || !units.length}>
+                {saving ? "جارٍ الحفظ..." : "حفظ"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="text-gray-600">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function mapPriority(v?: string) {
   switch (v) {
     case "LOW":

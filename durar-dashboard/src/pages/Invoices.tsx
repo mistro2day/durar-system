@@ -5,7 +5,6 @@ import { Eye } from "lucide-react";
 import api from "../lib/api";
 import DateInput from "../components/DateInput";
 import { useLocaleTag } from "../lib/settings-react";
-import { formatSAR } from "../lib/currency";
 import Currency from "../components/Currency";
 import SortHeader from "../components/SortHeader";
 import { useTableSort } from "../hooks/useTableSort";
@@ -31,6 +30,8 @@ type Invoice = {
 
 type InvoiceSortKey = "id" | "tenant" | "unit" | "property" | "amount" | "status" | "dueDate";
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export default function Invoices() {
   const [items, setItems] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,8 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
 
@@ -98,6 +101,30 @@ export default function Invoices() {
 
   const total = useMemo(() => filteredItems.reduce((s, i) => s + Number(i.amount || 0), 0), [filteredItems]);
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(sortedInvoices.length / pageSize)),
+    [sortedInvoices.length, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [tenantSearch, statusFilter, from, to, pageSize, items.length]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedInvoices = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedInvoices.slice(start, start + pageSize);
+  }, [sortedInvoices, page, pageSize]);
+
+  const rangeStart = sortedInvoices.length ? (page - 1) * pageSize + 1 : 0;
+  const rangeEnd = sortedInvoices.length ? Math.min(page * pageSize, sortedInvoices.length) : 0;
+  const hasResults = sortedInvoices.length > 0;
+
   async function updateStatus(id: number, status: string) {
     setSavingId(id);
     try {
@@ -147,6 +174,20 @@ export default function Invoices() {
           <label className="text-gray-600 mb-1">إلى تاريخ</label>
           <DateInput value={to} onChange={setTo} />
         </div>
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 mb-1">عدد النتائج</label>
+          <select
+            className="form-select"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="ml-auto text-sm text-gray-700">
           الإجمالي: <strong><Currency amount={total} locale={localeTag} /></strong>
         </div>
@@ -159,6 +200,8 @@ export default function Invoices() {
         <div className="card text-center text-gray-500">جاري التحميل...</div>
       ) : error ? (
         <div className="card text-center text-red-600">{error}</div>
+      ) : !hasResults ? (
+        <div className="card text-center text-gray-500">لا توجد فواتير مطابقة للمعايير الحالية.</div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="table sticky">
@@ -224,7 +267,7 @@ export default function Invoices() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {sortedInvoices.map((inv) => (
+              {pagedInvoices.map((inv) => (
                 <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
                   <Td>{inv.id}</Td>
                   <Td>{inv.contract?.tenantName || "-"}</Td>
@@ -254,6 +297,30 @@ export default function Invoices() {
               ))}
             </tbody>
           </table>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-600">
+            <div>
+              عرض {rangeStart}-{rangeEnd} من {sortedInvoices.length} فاتورة
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                السابق
+              </button>
+              <span>
+                صفحة {page} من {totalPages}
+              </span>
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                التالي
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

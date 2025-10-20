@@ -1,22 +1,156 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, FileText, Building2, Wrench, BarChart3, LogOut, Receipt, Settings as SettingsIcon, Shield, Users as UsersIcon, Hotel, Menu, X, ClipboardList } from "lucide-react";
-import { logout, getRole } from "../lib/auth";
+import {
+  Home,
+  FileText,
+  Building2,
+  Wrench,
+  BarChart3,
+  LogOut,
+  Receipt,
+  Settings as SettingsIcon,
+  Shield,
+  Users as UsersIcon,
+  Hotel,
+  Menu,
+  X,
+  ClipboardList,
+  ChevronDown,
+  Bell,
+  User,
+  LogOut as LogOutIcon,
+} from "lucide-react";
+import { logout, getRole, getUser } from "../lib/auth";
 import { hasPermission, getSettings } from "../lib/settings";
+import api from "../lib/api";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import BottomNav from "./BottomNav";
 import GlobalSearch from "./GlobalSearch";
+
+type PropertySummary = { id: number; name: string };
+type RawActivityUser = { name?: string | null } | string | null;
+type RawActivityItem = {
+  id?: number;
+  action?: string;
+  description?: string | null;
+  createdAt?: string;
+  user?: RawActivityUser;
+};
+
+type ActivityItem = {
+  id: number;
+  action: string;
+  description?: string | null;
+  createdAt: string;
+  userName?: string | null;
+};
+
+const ACTIVITY_ACTION_LABELS: Record<string, string> = {
+  "End Contract": "إنهاء العقد",
+  "PROPERTY_CREATE": "إضافة عقار",
+  "PROPERTY_UPDATE": "تحديث عقار",
+  "MAINTENANCE_CREATE": "إضافة بلاغ صيانة",
+  "MAINTENANCE_STATUS_UPDATE": "تحديث حالة بلاغ صيانة",
+  "MAINTENANCE_ACTION_ADD": "إضافة إجراء لصيانة",
+  "MAINTENANCE_DELETE": "حذف بلاغ صيانة",
+  "INVOICE_CREATE": "إصدار فاتورة",
+  "INVOICE_STATUS_UPDATE": "تحديث حالة فاتورة"
+};
+
+function translateActivityAction(action: string) {
+  return ACTIVITY_ACTION_LABELS[action] || action;
+}
 
 export default function Layout() {
   const navigate = useNavigate();
   const role = getRole();
   const site = getSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [properties, setProperties] = useState<PropertySummary[]>([]);
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [mobilePropertiesOpen, setMobilePropertiesOpen] = useState(false);
+  const user = getUser();
+  const userName = user?.name || (site as any)?.userName || "مستخدم";
+  const userInitial = userName.trim().charAt(0).toUpperCase() || "م";
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const canViewActivities = hasPermission(role, "activity.view", site);
+
+  useEffect(() => {
+    if (!hasPermission(role, "units.view", site)) return;
+    api
+      .get<PropertySummary[]>("/api/properties")
+      .then((res) => setProperties(res.data ?? []))
+      .catch(() => setProperties([]));
+  }, [role, site]);
+
+  const loadActivities = useCallback(() => {
+    if (!canViewActivities) {
+      setActivities([]);
+      return;
+    }
+    api
+      .get("/api/activity?limit=10")
+      .then((res) => {
+        const body = res.data;
+        const items = Array.isArray(body) ? body : body?.items;
+        const rawItems = (Array.isArray(items) ? items : []) as RawActivityItem[];
+        const normalized: ActivityItem[] = rawItems.map((item) => ({
+          id: item.id ?? 0,
+          action: item.action ?? "",
+          description: item.description ?? null,
+          createdAt: item.createdAt ?? "",
+          userName:
+            typeof item.user === "string"
+              ? item.user
+              : item.user?.name ?? null,
+        }));
+        setActivities(normalized);
+      })
+      .catch(() => setActivities([]));
+  }, [canViewActivities]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [canViewActivities, loadActivities]);
+
+  useEffect(() => {
+    if (notificationsOpen) {
+      loadActivities();
+    }
+  }, [notificationsOpen, loadActivities]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setNotificationsOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function handleLogout() {
     logout();
     navigate("/login", { replace: true });
+  }
+
+  function goToProfile() {
+    setUserMenuOpen(false);
+    navigate("/settings");
+  }
+
+  function logoutAndClose() {
+    setUserMenuOpen(false);
+    handleLogout();
   }
 
   return (
@@ -44,7 +178,43 @@ export default function Layout() {
             <NavItem to="/invoices" icon={<Receipt />} text="الفواتير" />
           )}
           {hasPermission(role, "units.view", site) && (
-            <NavItem to="/properties" icon={<Building2 />} text="العقارات" />
+            <>
+              <button
+                type="button"
+                className="tivo-link w-full justify-between"
+                onClick={() => setPropertiesOpen((prev) => !prev)}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="w-5 h-5">
+                    <Building2 />
+                  </span>
+                  <span className="text-sm">العقارات</span>
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${propertiesOpen ? "rotate-180" : ""}`} />
+              </button>
+              {propertiesOpen && (
+                <div className="flex flex-col gap-1 ms-6 mt-2">
+                  {properties.length ? (
+                    properties.map((property) => (
+                      <NavLink
+                        key={property.id}
+                        to={`/hotel/${property.id}/dashboard`}
+                        className={({ isActive }) =>
+                          (isActive ? "tivo-link-active" : "tivo-link") + " text-[13px]"
+                        }
+                      >
+                        <span className="w-5 h-5">
+                          <Hotel />
+                        </span>
+                        <span className="text-sm">{property.name || `#${property.id}`}</span>
+                      </NavLink>
+                    ))
+                  ) : (
+                    <span className="text-xs text-white/60 px-3 py-1">لا توجد عقارات مسجلة</span>
+                  )}
+                </div>
+              )}
+            </>
           )}
           {hasPermission(role, "maintenance.view", site) && (
             <NavItem to="/maintenance" icon={<Wrench />} text="الصيانة" />
@@ -65,10 +235,6 @@ export default function Layout() {
             </>
           )}
 
-          {/* رابط تجريبي لفندق محدد (يمكن لاحقاً جعل اختيار الفندق ديناميكياً) */}
-          <div className="mt-4 border-t border-white/10 pt-4">
-            <NavItem to="/hotel/1/dashboard" icon={<Hotel />} text="الفندق" />
-          </div>
         </nav>
 
         <div className="p-4 border-t border-white/10">
@@ -107,7 +273,44 @@ export default function Layout() {
                 <NavItem to="/invoices" icon={<Receipt />} text="الفواتير" />
               )}
               {hasPermission(role, "units.view", site) && (
-                <NavItem to="/properties" icon={<Building2 />} text="العقارات" />
+                <>
+                  <button
+                    type="button"
+                    className="tivo-link w-full justify-between"
+                    onClick={() => setMobilePropertiesOpen((prev) => !prev)}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="w-5 h-5">
+                        <Building2 />
+                      </span>
+                      <span className="text-sm">العقارات</span>
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${mobilePropertiesOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {mobilePropertiesOpen && (
+                    <div className="flex flex-col gap-1 ms-6 mt-2">
+                      {properties.length ? (
+                        properties.map((property) => (
+                          <NavLink
+                            key={property.id}
+                            to={`/hotel/${property.id}/dashboard`}
+                            onClick={() => setMobileOpen(false)}
+                            className={({ isActive }) =>
+                              (isActive ? "tivo-link-active" : "tivo-link") + " text-[13px]"
+                            }
+                          >
+                            <span className="w-5 h-5">
+                              <Hotel />
+                            </span>
+                            <span className="text-sm">{property.name || `#${property.id}`}</span>
+                          </NavLink>
+                        ))
+                      ) : (
+                        <span className="text-xs text-white/60 px-3 py-1">لا توجد عقارات مسجلة</span>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               {hasPermission(role, "maintenance.view", site) && (
                 <NavItem to="/maintenance" icon={<Wrench />} text="الصيانة" />
@@ -127,9 +330,6 @@ export default function Layout() {
                   )}
                 </>
               )}
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <NavItem to="/hotel/1/dashboard" icon={<Hotel />} text="الفندق" />
-              </div>
             </nav>
             <div className="p-4 border-t border-white/10">
               <button
@@ -154,10 +354,84 @@ export default function Layout() {
               </button>
               <GlobalSearch />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  type="button"
+                  className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  aria-label="الإشعارات"
+                >
+                  <Bell className="w-5 h-5 text-gray-600" />
+                </button>
+                {notificationsOpen ? (
+                  <div className="absolute right-0 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <h4 className="text-sm font-semibold text-gray-800">آخر الأنشطة</h4>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {!canViewActivities ? (
+                        <div className="px-4 py-6 text-center text-sm text-gray-500">
+                          لا تملك صلاحية عرض سجل النشاطات.
+                        </div>
+                      ) : activities.length ? (
+                        <ul className="flex flex-col gap-2">
+                          {activities.map((a) => (
+                            <li key={a.id} className="px-4 py-3 text-sm">
+                              <p className="font-medium text-gray-800">{translateActivityAction(a.action)}</p>
+                              {a.description ? <p className="text-xs text-gray-500 mt-1">{a.description}</p> : null}
+                              <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
+                                <span>{new Date(a.createdAt).toLocaleString("ar-SA")}</span>
+                                {a.userName ? <span>بواسطة: {a.userName}</span> : null}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="px-4 py-6 text-center text-sm text-gray-500">لا توجد أنشطة حديثة.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <ThemeToggle />
-              <div className="hidden sm:block text-sm text-gray-600">مرحبا!</div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500" />
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  aria-label="قائمة المستخدم"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 grid place-items-center text-white font-semibold">
+                    {userInitial}
+                  </div>
+                  <div className="hidden sm:flex flex-col items-start">
+                    <span className="text-sm font-medium text-gray-700">مرحباً، {userName}</span>
+                    <span className="text-xs text-gray-500">إدارة الملف الشخصي</span>
+                  </div>
+                  <ChevronDown className={`hidden sm:block w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {userMenuOpen ? (
+                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                    <button
+                      type="button"
+                      onClick={goToProfile}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      <User className="w-4 h-4" />
+                      <span>تعديل الملف الشخصي</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={logoutAndClose}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOutIcon className="w-4 h-4" />
+                      <span>تسجيل الخروج</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </header>
@@ -182,3 +456,4 @@ function NavItem({ to, icon, text }: { to: string; icon: React.ReactNode; text: 
     </NavLink>
   );
 }
+

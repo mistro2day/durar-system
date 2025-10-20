@@ -6,6 +6,8 @@ import SortHeader from "../../components/SortHeader";
 import { useTableSort } from "../../hooks/useTableSort";
 import { TenantSummary, EMPTY_STATS, formatValue } from "./tenantShared";
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export default function HotelTenants() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -13,6 +15,8 @@ export default function HotelTenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
 
   useEffect(() => {
     if (!id) return;
@@ -55,6 +59,30 @@ export default function HotelTenants() {
     toggleSort: toggleTenantSort,
   } = useTableSort<TenantSummary, TenantSortKey>(rows, tenantSortAccessors, { key: "name", direction: "asc" });
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(sortedTenants.length / pageSize)),
+    [sortedTenants.length, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize, items.length]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedTenants = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedTenants.slice(start, start + pageSize);
+  }, [sortedTenants, page, pageSize]);
+
+  const rangeStart = sortedTenants.length ? (page - 1) * pageSize + 1 : 0;
+  const rangeEnd = sortedTenants.length ? Math.min(page * pageSize, sortedTenants.length) : 0;
+  const hasResults = sortedTenants.length > 0;
+
   function openTenant(tenantId: number) {
     navigate(`/hotel/${id}/tenants/${tenantId}`);
   }
@@ -63,7 +91,22 @@ export default function HotelTenants() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">المستأجرون</h3>
-        <div className="w-full sm:w-72">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-48">
+            <label className="block text-xs text-indigo-100/80 mb-1">عدد النتائج</label>
+            <select
+              className="form-select"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full sm:w-72">
           <input
             className="form-input"
             placeholder="بحث باسم المستأجر أو الهوية..."
@@ -71,13 +114,14 @@ export default function HotelTenants() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        </div>
       </div>
 
       {loading ? (
         <div className="card text-center text-gray-500 dark:text-slate-300">جاري التحميل...</div>
       ) : error ? (
         <div className="card text-center text-red-600">{error}</div>
-      ) : !rows.length ? (
+      ) : !hasResults ? (
         <div className="card text-center text-gray-500 dark:text-slate-300">لا توجد نتائج مطابقة.</div>
       ) : (
         <div className="card overflow-x-auto">
@@ -119,7 +163,7 @@ export default function HotelTenants() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {sortedTenants.map((tenant) => {
+              {pagedTenants.map((tenant) => {
                 const stats = tenant.stats ?? EMPTY_STATS;
                 const unitNumber = stats.latestContract?.unitNumber ?? "—";
                 return (
@@ -143,6 +187,30 @@ export default function HotelTenants() {
               })}
             </tbody>
           </table>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-indigo-100/80">
+            <div>
+              عرض {rangeStart}-{rangeEnd} من {sortedTenants.length} مستأجر
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                السابق
+              </button>
+              <span>
+                صفحة {page} من {totalPages}
+              </span>
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                التالي
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

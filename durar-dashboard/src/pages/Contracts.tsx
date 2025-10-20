@@ -15,7 +15,14 @@ type Contract = {
   status: string;
   startDate: string;
   endDate: string;
-  unit?: { id: number; unitNumber?: string; number?: string } | null;
+  unit?: {
+    id: number;
+    unitNumber?: string;
+    number?: string;
+    propertyId?: number;
+    property?: { id: number; name?: string | null } | null;
+  } | null;
+  tenant?: { id: number; name: string } | null;
   rentAmount?: number | null;
   amount?: number | null;
   deposit?: number | null;
@@ -29,6 +36,7 @@ type Contract = {
 type ContractSortKey =
   | "tenant"
   | "unit"
+  | "property"
   | "rentalType"
   | "status"
   | "rentAmount"
@@ -51,6 +59,8 @@ const PAYMENT_FREQUENCIES = [
 const PAYMENT_METHODS_LIST_ID = "payment-methods-options";
 const PAYMENT_FREQUENCIES_LIST_ID = "payment-frequencies-options";
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export default function Contracts() {
   const [items, setItems] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +69,8 @@ export default function Contracts() {
   const [editing, setEditing] = useState<Contract | null>(null);
   const [viewing, setViewing] = useState<Contract | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
   const location = useLocation();
@@ -97,10 +109,12 @@ export default function Contracts() {
       const tenant = (c.tenantName || "").toLowerCase();
       const ejar = (c.ejarContractNumber || "").toLowerCase();
       const unitNumber = (c.unit?.unitNumber || c.unit?.number || "").toLowerCase();
+      const propertyName = (c.unit?.property?.name || "").toLowerCase();
       return (
         tenant.includes(term) ||
         (unitNumber && unitNumber.includes(term)) ||
-        (ejar && ejar.includes(term))
+        (ejar && ejar.includes(term)) ||
+        (propertyName && propertyName.includes(term))
       );
     });
   }, [items, search]);
@@ -109,6 +123,7 @@ export default function Contracts() {
     () => ({
       tenant: (c) => c.tenantName || "",
       unit: (c) => c.unit?.unitNumber || c.unit?.number || "",
+      property: (c) => c.unit?.property?.name || "",
       rentalType: (c) => c.rentalType || "",
       status: (c) => c.status || "",
       rentAmount: (c) => c.rentAmount ?? Number.NEGATIVE_INFINITY,
@@ -126,6 +141,26 @@ export default function Contracts() {
     sortState: contractSort,
     toggleSort: toggleContractSort,
   } = useTableSort<Contract, ContractSortKey>(rows, contractSortAccessors);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(sortedRows.length / pageSize)),
+    [sortedRows.length, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize, items.length]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, page, pageSize]);
 
   async function handleDelete(id: number) {
     if (!confirm("هل تريد حذف العقد؟")) return;
@@ -194,6 +229,20 @@ export default function Contracts() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>عدد النتائج:</span>
+          <select
+            className="form-select"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="md:ms-auto">
           <AddContractButton onAdded={load} propertyId={propertyId} />
         </div>
@@ -208,6 +257,7 @@ export default function Contracts() {
           <table className="table sticky">
             <thead className="bg-gray-50">
               <tr>
+                <th className="text-right p-3 font-semibold text-gray-700">تفاصيل</th>
                 <th className="text-right p-3 font-semibold text-gray-700">
                   <SortHeader
                     label="المستأجر"
@@ -222,6 +272,14 @@ export default function Contracts() {
                     active={contractSort?.key === "unit"}
                     direction={contractSort?.key === "unit" ? contractSort.direction : null}
                     onToggle={() => toggleContractSort("unit")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="العقار"
+                    active={contractSort?.key === "property"}
+                    direction={contractSort?.key === "property" ? contractSort.direction : null}
+                    onToggle={() => toggleContractSort("property")}
                   />
                 </th>
                 <th className="text-right p-3 font-semibold text-gray-700">
@@ -288,52 +346,86 @@ export default function Contracts() {
                     onToggle={() => toggleContractSort("endDate")}
                   />
                 </th>
-                <th className="text-right p-3 font-semibold text-gray-700">تفاصيل</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {sortedRows.map((c) => (
-                <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                  <Td>
-                    <div className="font-semibold text-gray-900 dark:text-white">{c.tenantName}</div>
-                    {c.notes ? <div className="text-xs text-gray-500 mt-1">{c.notes}</div> : null}
-                  </Td>
-                  <Td>
-                    {c.unit?.id ? (
-                      <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
-                        {c.unit?.unitNumber || c.unit?.number || "-"}
-                      </Link>
-                    ) : (
-                      c.unit?.unitNumber || c.unit?.number || "-"
-                    )}
-                  </Td>
-                  <Td>{mapRentalType(c.rentalType)}</Td>
-                  <Td>
-                    <span className={`px-2 py-1 rounded text-xs ${statusClass(c.status)}`}>{mapStatus(c.status)}</span>
-                  </Td>
-                  <Td>{typeof c.rentAmount === "number" ? <Currency amount={c.rentAmount} /> : "-"}</Td>
-                  <Td>{typeof c.deposit === "number" && c.deposit > 0 ? <Currency amount={c.deposit} /> : "-"}</Td>
-                  <Td>{c.ejarContractNumber || "-"}</Td>
-                  <Td>
-                    <div>{c.paymentMethod || "-"}</div>
-                    {c.paymentFrequency ? (
-                      <div className="text-xs text-gray-500">التكرار: {c.paymentFrequency}</div>
-                    ) : null}
-                  </Td>
-                  <Td>{formatDate(c.startDate, localeTag)}</Td>
-                  <Td>{formatDate(c.endDate, localeTag)}</Td>
-                  <Td>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setViewing(c)} className="btn-soft btn-soft-info" title="عرض التفاصيل">
-                        <Eye className="w-4 h-4" />
-                        <span className="hidden sm:inline">عرض</span>
-                      </button>
-                    </div>
-                  </Td>
-                </tr>
-              ))}
+              {pagedRows.map((c) => {
+                const tenantId = c.tenant?.id;
+                const propertySegment = propertyId ?? (c.unit?.propertyId !== undefined ? String(c.unit.propertyId) : undefined);
+                const tenantHref = tenantId && propertySegment ? `/hotel/${propertySegment}/tenants/${tenantId}` : null;
+                return (
+                  <tr key={c.id} className="odd:bg-white even:bg-gray-50">
+                    <Td>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setViewing(c)} className="btn-soft btn-soft-info" title="عرض التفاصيل">
+                          <Eye className="w-4 h-4" />
+                          <span className="hidden sm:inline">عرض</span>
+                        </button>
+                      </div>
+                    </Td>
+                    <Td>
+                      {tenantHref ? (
+                        <Link to={tenantHref} className="font-semibold text-primary hover:underline">
+                          {c.tenantName}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-gray-900 dark:text-white">{c.tenantName}</span>
+                      )}
+                      {c.notes ? <div className="text-xs text-gray-500 mt-1">{c.notes}</div> : null}
+                    </Td>
+                    <Td>
+                      {c.unit?.id ? (
+                        <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
+                          {c.unit?.unitNumber || c.unit?.number || "-"}
+                        </Link>
+                      ) : (
+                        c.unit?.unitNumber || c.unit?.number || "-"
+                      )}
+                    </Td>
+                    <Td>{c.unit?.property?.name || "-"}</Td>
+                    <Td>{mapRentalType(c.rentalType)}</Td>
+                    <Td>
+                      <span className={`px-2 py-1 rounded text-xs ${statusClass(c.status)}`}>{mapStatus(c.status)}</span>
+                    </Td>
+                    <Td>{typeof c.rentAmount === "number" ? <Currency amount={c.rentAmount} /> : "-"}</Td>
+                    <Td>{typeof c.deposit === "number" && c.deposit > 0 ? <Currency amount={c.deposit} /> : "-"}</Td>
+                    <Td>{c.ejarContractNumber || "-"}</Td>
+                    <Td>
+                      <div>{c.paymentMethod || "-"}</div>
+                      {c.paymentFrequency ? <div className="text-xs text-gray-500">التكرار: {c.paymentFrequency}</div> : null}
+                    </Td>
+                    <Td>{formatDate(c.startDate, localeTag)}</Td>
+                    <Td>{formatDate(c.endDate, localeTag)}</Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+            <div>
+              عرض {(page - 1) * pageSize + 1}-
+              {Math.min(page * pageSize, sortedRows.length)} من {sortedRows.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                السابق
+              </button>
+              <span>
+                صفحة {page} من {totalPages}
+              </span>
+              <button
+                className="btn-soft btn-soft-secondary"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                التالي
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
