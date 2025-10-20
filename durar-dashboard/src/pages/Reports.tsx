@@ -4,7 +4,7 @@ import { FileText, Receipt, Wrench, AlertCircle } from "lucide-react";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import Currency from "../components/Currency";
-import { getSettings, getDefaultSettings } from "../lib/settings";
+import { getSettings, getDefaultSettings, DEFAULT_DATE_LOCALE } from "../lib/settings";
 import { getUser } from "../lib/auth";
 
 type TabKey = "contracts" | "financial" | "maintenance";
@@ -82,6 +82,7 @@ type ExportContext = {
   title: string;
   fileBase: string;
   generatedAt: Date;
+  localeTag: string;
   company: {
     name: string;
     cr: string;
@@ -306,7 +307,7 @@ export default function Reports() {
     try {
       return new Intl.NumberFormat(localeTag, { style: "currency", currency: "SAR" });
     } catch {
-      return new Intl.NumberFormat("ar-SA", { style: "currency", currency: "SAR" });
+      return new Intl.NumberFormat(DEFAULT_DATE_LOCALE, { style: "currency", currency: "SAR" });
     }
   }, [localeTag]);
 
@@ -320,7 +321,7 @@ export default function Reports() {
         withTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }
       ).format(date);
     } catch {
-      return date.toLocaleString();
+      return date.toLocaleString(DEFAULT_DATE_LOCALE);
     }
   }
 
@@ -358,6 +359,7 @@ export default function Reports() {
         title,
         fileBase: `contracts-report-${dateStamp}`,
         generatedAt,
+        localeTag,
         company: {
           name: settings.companyName,
           cr: settings.companyCR,
@@ -400,6 +402,7 @@ export default function Reports() {
         title,
         fileBase: `financial-report-${dateStamp}`,
         generatedAt,
+        localeTag,
         company: {
           name: settings.companyName,
           cr: settings.companyCR,
@@ -439,6 +442,7 @@ export default function Reports() {
       title,
       fileBase: `maintenance-report-${dateStamp}`,
       generatedAt,
+      localeTag,
       company: {
         name: settings.companyName,
         cr: settings.companyCR,
@@ -1133,7 +1137,7 @@ function downloadBlob(content: string, mimeType: string, fileName: string) {
 
 function buildHeaderHtml(context: ExportContext) {
   const generatedAt = context.generatedAt;
-  const formattedDate = formatDateTime(generatedAt);
+  const formattedDate = formatDateTime(generatedAt, context.localeTag);
   const company = context.company;
   const lines = [
     company.address,
@@ -1156,10 +1160,14 @@ function buildHeaderHtml(context: ExportContext) {
   </div>`;
 }
 
-function formatDateTime(value: Date) {
+function formatDateTime(value: Date, locale = DEFAULT_DATE_LOCALE) {
   try {
-    return value.toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" });
+    return value.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
   } catch {
-    return value.toISOString();
+    try {
+      return value.toLocaleString(DEFAULT_DATE_LOCALE, { dateStyle: "medium", timeStyle: "short" });
+    } catch {
+      return value.toISOString();
+    }
   }
 }

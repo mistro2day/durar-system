@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { logout, getRole, getUser } from "../lib/auth";
 import { hasPermission, getSettings } from "../lib/settings";
+import { useLocaleTag } from "../lib/settings-react";
 import api from "../lib/api";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
@@ -66,6 +67,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const role = getRole();
   const site = getSettings();
+  const localeTag = useLocaleTag();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [properties, setProperties] = useState<PropertySummary[]>([]);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
@@ -431,7 +433,7 @@ export default function Layout() {
                               <p className="font-medium text-gray-800">{translateActivityAction(a.action)}</p>
                               {a.description ? <p className="text-xs text-gray-500 mt-1">{a.description}</p> : null}
                               <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
-                                <span>{new Date(a.createdAt).toLocaleString("ar-SA")}</span>
+                                <span>{new Date(a.createdAt).toLocaleString(localeTag)}</span>
                                 {a.userName ? <span>بواسطة: {a.userName}</span> : null}
                               </div>
                             </li>

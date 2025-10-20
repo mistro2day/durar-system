@@ -1,3 +1,5 @@
+import { DEFAULT_DATE_LOCALE } from "../../lib/settings";
+
 export type TenantContract = {
   id: number;
   status: string;
@@ -135,7 +137,7 @@ export function formatValue(value?: string | null) {
 export function formatDate(value?: string | null) {
   if (!value) return "—";
   try {
-    return new Date(value).toLocaleDateString("ar-SA");
+    return new Date(value).toLocaleDateString(DEFAULT_DATE_LOCALE);
   } catch {
     return value;
   }

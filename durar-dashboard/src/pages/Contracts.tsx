@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useLocation, useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
+import { DEFAULT_DATE_LOCALE } from "../lib/settings";
 import { Eye, Pencil, Trash2, Flag, Loader2 } from "lucide-react";
 import DateInput from "../components/DateInput";
 import { toDateInput, fromDateInput } from "../components/date-input-helpers";
@@ -853,7 +854,7 @@ function statusClass(v?: string) {
 function formatDate(d?: string, lt?: string) {
   if (!d) return "-";
   try {
-    return new Date(d).toLocaleDateString(lt || "ar-SA");
+    return new Date(d).toLocaleDateString(lt || DEFAULT_DATE_LOCALE);
   } catch {
     return "-";
   }
