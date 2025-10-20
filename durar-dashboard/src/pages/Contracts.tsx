@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import { Eye, Pencil, Trash2, Flag, Loader2 } from "lucide-react";
-import DateInput, { toDateInput, fromDateInput } from "../components/DateInput";
+import DateInput from "../components/DateInput";
+import { toDateInput, fromDateInput } from "../components/date-input-helpers";
 import Currency from "../components/Currency";
 import SortHeader from "../components/SortHeader";
 import { useTableSort } from "../hooks/useTableSort";
@@ -75,7 +76,7 @@ export default function Contracts() {
   const propertyId = (params as any)?.id as string | undefined;
   const location = useLocation();
 
-  async function load() {
+  const load = useCallback(async () => {
     setError(null);
     setLoading(true);
     try {
@@ -86,11 +87,11 @@ export default function Contracts() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [propertyId]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   // فتح نافذة التعديل تلقائياً عند وجود ?editId= في الرابط
   useEffect(() => {
@@ -430,7 +431,7 @@ export default function Contracts() {
       )}
 
       {editing ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-3">
+        <div className="modal-backdrop">
           <div className="card w-[95%] max-w-xl">
             <h3 className="text-lg font-semibold mb-4">تعديل العقد</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -551,7 +552,7 @@ export default function Contracts() {
       ) : null}
 
       {viewing ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-3">
+        <div className="modal-backdrop">
           <div className="card w-[95%] max-w-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -740,7 +741,7 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
         إضافة عقد
       </button>
       {open ? (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+        <div className="modal-backdrop">
           <div className="card w-full max-w-2xl">
             <h3 className="text-lg font-semibold mb-4">عقد جديد</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

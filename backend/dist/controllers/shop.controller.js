@@ -1,5 +1,4 @@
-import { PrismaClient } from "../lib/prisma.js";
-const prisma = new PrismaClient();
+import prisma from "../lib/prisma.js";
 // 🏪 عرض جميع المحلات
 export const getShops = async (req, res) => {
     try {

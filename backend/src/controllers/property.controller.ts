@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import prisma from "../lib/prisma.ts";
+import prisma from "../lib/prisma.js";
 import prismaPkg from "@prisma/client";
-import { logActivity } from "../utils/activity-log.ts";
+import { logActivity } from "../utils/activity-log.js";
 
 const { Prisma } = prismaPkg;
 

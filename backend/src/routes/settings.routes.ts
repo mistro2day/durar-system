@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getPermissions, updatePermissions } from "../controllers/settings.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { getPermissions, updatePermissions } from "../controllers/settings.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

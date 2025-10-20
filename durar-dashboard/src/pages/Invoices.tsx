@@ -400,7 +400,7 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
         إضافة فاتورة
       </button>
       {open ? (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+        <div className="modal-backdrop">
           <div className="card w-full max-w-xl">
             <h3 className="text-lg font-semibold mb-4">فاتورة جديدة</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

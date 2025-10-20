@@ -105,10 +105,18 @@ export default function InvoiceDetails() {
             const props = await api.get<any[]>(`/api/properties`);
             const p = (props.data || []).find((pp: any) => Number(pp.id) === Number(c.unit.propertyId));
             if (p) propertyName = p.name;
-          } catch {}
+          } catch (err) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[invoice] property lookup failed", err);
+            }
+          }
         }
         setUnitInfo({ unitId, unitNumber, propertyName });
-      } catch {}
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[invoice] contract lookup failed", err);
+        }
+      }
     })();
   }, [invoice]);
 

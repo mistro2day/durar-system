@@ -614,7 +614,7 @@ function EditTenantModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-3">
+    <div className="modal-backdrop">
       <div className="card w-full max-w-3xl space-y-5">
         <header className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">تعديل المستأجر</h3>

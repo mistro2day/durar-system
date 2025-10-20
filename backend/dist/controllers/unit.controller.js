@@ -1,6 +1,5 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import { getPagination } from "../utils/pagination.js";
-const prisma = new PrismaClient();
 // ✅ عرض جميع الوحدات
 export const getUnits = async (req, res) => {
     const { propertyId } = req.query;
@@ -12,8 +11,14 @@ export const getUnits = async (req, res) => {
         const units = await prisma.unit.findMany({ where, include: { property: true } });
         return res.json(units);
     }
-    const [items, total] = await Promise.all([
-        prisma.unit.findMany({ where, include: { property: true }, skip: pg.skip, take: pg.take, orderBy: { id: "desc" } }),
+    const [items, total] = await prisma.$transaction([
+        prisma.unit.findMany({
+            where,
+            include: { property: true },
+            skip: pg.skip,
+            take: pg.take,
+            orderBy: { id: "desc" },
+        }),
         prisma.unit.count({ where }),
     ]);
     res.json({ items, total, page: pg.page, pageSize: pg.pageSize });
@@ -156,9 +161,13 @@ export const importUnitsCsv = async (req, res) => {
                 return undefined;
             const v = s.trim().toUpperCase();
             const map = {
-                'AVAILABLE': 'AVAILABLE', 'متاحة': 'AVAILABLE',
-                'OCCUPIED': 'OCCUPIED', 'مشغولة': 'OCCUPIED',
-                'MAINTENANCE': 'MAINTENANCE', 'صيانة': 'MAINTENANCE',
+                AVAILABLE: "AVAILABLE",
+                "مُتَاحَة": "AVAILABLE",
+                متاحة: "AVAILABLE",
+                OCCUPIED: "OCCUPIED",
+                مشغولة: "OCCUPIED",
+                MAINTENANCE: "MAINTENANCE",
+                صيانة: "MAINTENANCE",
             };
             return map[v];
         }
@@ -167,8 +176,12 @@ export const importUnitsCsv = async (req, res) => {
                 return undefined;
             const v = s.trim().toUpperCase();
             const map = {
-                'DAILY': 'DAILY', 'يومي': 'DAILY',
-                'MONTHLY': 'MONTHLY', 'شهري': 'MONTHLY',
+                DAILY: "DAILY",
+                يومي: "DAILY",
+                MONTHLY: "MONTHLY",
+                شهري: "MONTHLY",
+                YEARLY: "YEARLY",
+                سنوي: "YEARLY",
             };
             return map[v];
         }
@@ -190,7 +203,7 @@ export const importUnitsCsv = async (req, res) => {
                     propertyId = prop.id;
                 }
                 const status = normStatus(iStatus >= 0 ? r[iStatus] : undefined);
-                const type = normType(iType >= 0 ? r[iType] : (iType < 0 && iFloor < 0 && iRooms < 0 && iBaths < 0 && iArea < 0 && (iStatus < 0) ? undefined : undefined));
+                const type = normType(iType >= 0 ? r[iType] : undefined);
                 const floor = iFloor >= 0 && r[iFloor] !== '' ? Number(r[iFloor]) : undefined;
                 const rooms = iRooms >= 0 && r[iRooms] !== '' ? Number(r[iRooms]) : undefined;
                 const baths = iBaths >= 0 && r[iBaths] !== '' ? Number(r[iBaths]) : undefined;
@@ -203,17 +216,30 @@ export const importUnitsCsv = async (req, res) => {
                         errors.push(`لا يمكن إنشاء وحدة ${unitNumber} بدون عمود العقار`);
                         continue;
                     }
+                    const finalType = type ?? "MONTHLY";
+                    const finalStatus = status ?? "AVAILABLE";
                     await prisma.unit.create({
-                        data: { number: unitNumber, propertyId, ...(status ? { status } : {}), ...(type ? { type } : {}), floor, rooms, baths, area }
+                        data: { number: unitNumber, propertyId, type: finalType, status: finalStatus, floor, rooms, baths, area }
                     });
                     imported++;
                 }
                 else {
-                    const data = { floor, rooms, baths, area };
+                    const data = {};
+                    if (floor !== undefined)
+                        data.floor = floor;
+                    if (rooms !== undefined)
+                        data.rooms = rooms;
+                    if (baths !== undefined)
+                        data.baths = baths;
+                    if (area !== undefined)
+                        data.area = area;
                     if (status)
                         data.status = status;
                     if (type)
                         data.type = type;
+                    if (Object.keys(data).length === 0) {
+                        continue;
+                    }
                     await prisma.unit.update({ where: { id: existing.id }, data });
                     updated++;
                 }

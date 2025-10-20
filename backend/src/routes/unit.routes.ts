@@ -7,10 +7,10 @@ import {
   deleteUnit,
   importUnitsCsv,
   deleteUnitsByProperty,
-} from "../controllers/unit.controller.ts";
+} from "../controllers/unit.controller.js";
 import multer from "multer";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

@@ -1,8 +1,7 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import prismaPkg from "@prisma/client";
 import { logActivity } from "../utils/activity-log.js";
 const { Prisma } = prismaPkg;
-const prisma = new PrismaClient();
 export async function listProperties(req, res) {
     const { type } = req.query;
     const where = {};

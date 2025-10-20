@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import prisma from "../lib/prisma.ts";
-import { getPagination } from "../utils/pagination.ts";
-import type { AuthedRequest } from "../middlewares/auth.ts";
-import { logActivity } from "../utils/activity-log.ts";
+import prisma from "../lib/prisma.js";
+import { getPagination } from "../utils/pagination.js";
+import type { AuthedRequest } from "../middlewares/auth.js";
+import { logActivity } from "../utils/activity-log.js";
 
 
 function normalizeString(value: unknown): string | null | undefined {

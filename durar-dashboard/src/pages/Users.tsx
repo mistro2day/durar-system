@@ -255,7 +255,7 @@ function mapRole(r?: string) {
 function UserModal({ mode, data, saving, onClose, onSave }: { mode: "add" | "edit"; data?: Partial<User>; saving: boolean; onClose: () => void; onSave: (u: Partial<User> & { password?: string }) => void }) {
   const [form, setForm] = useState<Partial<User> & { password?: string }>(data || {});
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+    <div className="modal-backdrop">
       <div className="card w-full max-w-lg">
         <h3 className="text-lg font-semibold mb-4">{mode === "add" ? "مستخدم جديد" : "تعديل المستخدم"}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -291,7 +291,7 @@ function UserModal({ mode, data, saving, onClose, onSave }: { mode: "add" | "edi
 function PasswordModal({ email, saving, onClose, onSave }: { email: string; saving: boolean; onClose: () => void; onSave: (pwd: string) => void }) {
   const [pwd, setPwd] = useState("");
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+    <div className="modal-backdrop">
       <div className="card w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">تعيين كلمة مرور جديدة</h3>
         <p className="text-sm text-gray-600 mb-2">للمستخدم: {email}</p>

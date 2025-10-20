@@ -4,7 +4,7 @@ import {
   createShop,
   deleteShop,
   updateShop,
-} from "../controllers/shop.controller.ts";
+} from "../controllers/shop.controller.js";
 
 const router = express.Router();
 

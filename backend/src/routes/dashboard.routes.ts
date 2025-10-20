@@ -1,7 +1,7 @@
 import express from "express";
-import { getDashboardStats, getDashboardSummary } from "../controllers/dashboard.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { getDashboardStats, getDashboardSummary } from "../controllers/dashboard.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = express.Router();
 

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { Contract, Unit, Property, Invoice } from "@prisma/client";
-import prisma from "../lib/prisma.ts";
-import { getPagination } from "../utils/pagination.ts";
+import prisma from "../lib/prisma.js";
+import { getPagination } from "../utils/pagination.js";
 
 
 export async function listTenants(req: Request, res: Response) {

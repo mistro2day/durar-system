@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { listActivityLogs } from "../controllers/activity.controller.ts";
-import { authGuard } from "../middlewares/auth.ts";
-import { requirePermission } from "../middlewares/permission.ts";
+import { listActivityLogs } from "../controllers/activity.controller.js";
+import { authGuard } from "../middlewares/auth.js";
+import { requirePermission } from "../middlewares/permission.js";
 
 const router = Router();
 

@@ -1,6 +1,5 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import cron from "node-cron";
-const prisma = new PrismaClient();
 export const startInvoiceScheduler = () => {
     cron.schedule("0 0 1 * *", async () => {
         console.log("📅 بدء إنشاء الفواتير الشهرية ...");

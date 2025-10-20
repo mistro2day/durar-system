@@ -3,7 +3,7 @@ import {
   getContractsReport,
   getFinancialReport,
   getMaintenanceReport
-} from "../controllers/reports.controller.ts";
+} from "../controllers/reports.controller.js";
 
 const router = express.Router();
 

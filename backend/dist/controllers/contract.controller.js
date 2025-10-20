@@ -1,7 +1,6 @@
-import { PrismaClient } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import { getPagination } from "../utils/pagination.js";
 import { logActivity } from "../utils/activity-log.js";
-const prisma = new PrismaClient();
 function normalizeString(value) {
     if (value === undefined)
         return undefined;
@@ -92,7 +91,7 @@ export const getContracts = async (req, res) => {
             });
             return res.json(contracts);
         }
-        const [items, total] = await Promise.all([
+        const [items, total] = await prisma.$transaction([
             prisma.contract.findMany({
                 where,
                 include: { unit: { include: { property: true } }, tenant: true },

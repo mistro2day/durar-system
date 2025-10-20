@@ -64,7 +64,7 @@ export default function Units() {
 
   // اجعل دالة التحميل متاحة للاستيراد لإعادة التحديث بعد النجاح
   useEffect(() => {
-    // @ts-ignore
+    // @ts-ignore - legacy dashboards rely on window.loadUnits to trigger refresh
     (window as any).loadUnits = load;
     return () => { /* cleanup */ };
   }, [load]);
@@ -507,7 +507,7 @@ async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const r = resp.data || {};
     alert(`تم الاستيراد: مضافة ${r.imported || 0}، محدّثة ${r.updated || 0}${r.errors?.length ? `\nأخطاء: \n- ${r.errors.join('\n- ')}` : ''}`);
     (e.target as any).value = '';
-    // @ts-ignore
+    // @ts-ignore - invoke global reload hook after import (legacy integration)
     if (typeof window.loadUnits === 'function') window.loadUnits();
   } catch (err: any) {
     alert(err?.response?.data?.message || 'تعذر استيراد الملف');
@@ -516,7 +516,6 @@ async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
 
 async function handleWipeUnits() {
   try {
-    const params = new URLSearchParams(window.location.pathname.split('/').filter(Boolean).slice(-2).join('='));
     // يستخرج id من /hotel/:id/units
     const match = window.location.pathname.match(/\/hotel\/(\d+)\/units/);
     const id = match ? match[1] : undefined;
@@ -524,7 +523,7 @@ async function handleWipeUnits() {
     if (!confirm('سيتم حذف جميع الوحدات والعلاقات المرتبطة بهذا الفندق. هل أنت متأكد؟')) return;
     const r = await api.delete(`/api/units/by-property/${id}`);
     alert(`تم الحذف: الوحدات ${r.data?.deletedUnits||0}`);
-    // @ts-ignore
+    // @ts-ignore - invoke global reload hook after deletion (legacy integration)
     if (typeof window.loadUnits === 'function') window.loadUnits();
   } catch (e: any) {
     alert(e?.response?.data?.message || 'تعذر حذف الوحدات');
@@ -586,7 +585,7 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-3">
+    <div className="modal-backdrop">
       <div className="card w-full max-w-2xl">
         <h3 className="text-lg font-semibold mb-4">{mode === 'add' ? 'إضافة وحدة' : 'تعديل وحدة'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
