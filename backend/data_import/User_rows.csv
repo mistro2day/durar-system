@@ -1,0 +1,3 @@
+id,name,email,password,role,createdAt
+1,محمد حيدر,admin@durar.local,$2a$10$rJ55zx0ad6EUpTmsINgFjOm.eI0ZRxRXRS9FpVMr/ckDyMa/.KtuK,ADMIN,2025-10-14 17:56:08.748
+6,محمد علي,emp@durar.local,$2a$10$fN.QHAVbhdf2nOmA2/hUF.bzmgppLvWVnekLNITIUm/KikbhHzC0S,ADMIN,2025-10-14 22:44:25.135

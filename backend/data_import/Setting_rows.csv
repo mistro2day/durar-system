@@ -1,0 +1,2 @@
+id,key,value,updatedAt,createdAt
+1,permissions,"{""permissions"": {""ADMIN"": ""*"", ""STAFF"": [""dashboard.view"", ""contracts.view"", ""invoices.view"", ""units.view"", ""maintenance.view"", ""contracts.edit"", ""contracts.end"", ""settings.view""], ""MANAGER"": [""dashboard.view"", ""contracts.view"", ""contracts.edit"", ""contracts.end"", ""invoices.view"", ""invoices.edit"", ""units.view"", ""units.edit"", ""maintenance.view"", ""maintenance.edit"", ""users.view"", ""settings.view""]}}",2025-10-14 22:48:09.411,2025-10-14 22:45:39.397

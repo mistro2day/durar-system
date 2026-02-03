@@ -32,17 +32,32 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
     } = req.body;
 
     // 🔍 تحقق من وجود الوحدة
+    if (!unitId) {
+      return res.status(400).json({ message: "رقم الوحدة مطلوب" });
+    }
     const unit = await prisma.unit.findUnique({ where: { id: Number(unitId) } });
     if (!unit) {
       return res.status(404).json({ message: "الوحدة غير موجودة" });
     }
 
+    // 🔍 التحقق من اسم المستأجر
+    if (!tenantName || typeof tenantName !== 'string' || !tenantName.trim()) {
+      return res.status(400).json({ message: "اسم المستأجر مطلوب" });
+    }
+
+    const safeTenantName = tenantName.trim();
+
     // 🔍 البحث عن المستأجر أو إنشاؤه
-    let tenant = await prisma.tenant.findFirst({ where: { name: tenantName } });
+    let tenant = await prisma.tenant.findFirst({ where: { name: safeTenantName } });
     if (!tenant) {
-      tenant = await prisma.tenant.create({
-        data: { name: tenantName, phone: "0000000000" },
-      });
+      try {
+        tenant = await prisma.tenant.create({
+          data: { name: safeTenantName, phone: "0000000000" },
+        });
+      } catch (createErr: any) {
+        console.error("Error creating tenant:", createErr);
+        return res.status(500).json({ message: "فشل إنشاء سجل المستأجر: " + createErr.message });
+      }
     }
 
     // ✅ إنشاء العقد
@@ -70,16 +85,67 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
       include: { unit: true, tenant: true },
     });
 
-    // 💵 إنشاء أول فاتورة تلقائيًا
-    const invoice = await prisma.invoice.create({
-      data: {
-        tenantId: tenant.id,
-        contractId: contract.id,
-        amount: periodicRent,
-        dueDate: new Date(startDate),
-        status: "PENDING",
-      },
-    });
+    // 💵 حساب الفواتير بناءً على تكرار الدفع
+    const frequencyMap: Record<string, number> = {
+      "شهري": 1, "MONTHLY": 1,
+      "ربع سنوي": 3, "QUARTERLY": 3,
+      "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6,
+      "سنوي": 12, "YEARLY": 12,
+    };
+
+    const freqKey = (normalizeString(paymentFrequency) || "").toUpperCase();
+
+    // ترتيب المفاتيح بالأطول أولاً لتجنب تطابق "سنوي" داخل "نصف سنوي"
+    const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
+    const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k) || k === freqKey);
+    const monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+
+    console.log(`[InvoiceDebug] Input: "${paymentFrequency}", Matched: "${matchedKey}", Steps: ${monthStep}`);
+
+    const createdInvoices: any[] = [];
+
+    if (monthStep > 0) {
+      // حساب عدد الدفعات وتوزيع المبلغ
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      let periods = 0;
+      let tempDate = new Date(start);
+      while (tempDate < end) {
+        periods++;
+        tempDate.setMonth(tempDate.getMonth() + monthStep);
+      }
+
+      if (periods === 0) periods = 1;
+      const amountPerInvoice = totalAmount / periods;
+
+      let currentInvoiceDate = new Date(start);
+      while (currentInvoiceDate < end) {
+        const inv = await prisma.invoice.create({
+          data: {
+            tenantId: tenant.id,
+            contractId: contract.id,
+            amount: amountPerInvoice,
+            dueDate: new Date(currentInvoiceDate),
+            status: "PENDING",
+          },
+        });
+        createdInvoices.push(inv);
+        currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+      }
+    } else {
+      // إذا لم يتم تحديد تكرار (دفعة واحدة)
+      const inv = await prisma.invoice.create({
+        data: {
+          tenantId: tenant.id,
+          contractId: contract.id,
+          amount: totalAmount,
+          dueDate: new Date(startDate),
+          status: "PENDING",
+        },
+      });
+      createdInvoices.push(inv);
+    }
 
     await logActivity(prisma, req, {
       action: "CONTRACT_CREATE",
@@ -88,9 +154,9 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
     });
 
     res.json({
-      message: "✅ تم إنشاء العقد والفاتورة الأولى بنجاح",
+      message: "✅ تم إنشاء العقد والفواتير بنجاح",
       contract,
-      invoice,
+      invoices: createdInvoices,
     });
   } catch (err: any) {
     console.error(err);
@@ -307,65 +373,65 @@ export const importContractsCsv = async (req: Request, res: Response) => {
       while (i < input.length) {
         const ch = input[i];
         if (ch === '"') {
-          if (inQuotes && input[i+1] === '"') { field += '"'; i += 2; continue; }
+          if (inQuotes && input[i + 1] === '"') { field += '"'; i += 2; continue; }
           inQuotes = !inQuotes; i++; continue;
         }
-        if (!inQuotes && ch === ',') { row.push(field.trim()); field=''; i++; continue; }
-        if (!inQuotes && (ch === '\n' || ch === '\r')) { if (field.length || row.length) { row.push(field.trim()); rows.push(row); } field=''; row=[]; while (i<input.length && (input[i]=='\n'||input[i]=='\r')) i++; continue; }
+        if (!inQuotes && ch === ',') { row.push(field.trim()); field = ''; i++; continue; }
+        if (!inQuotes && (ch === '\n' || ch === '\r')) { if (field.length || row.length) { row.push(field.trim()); rows.push(row); } field = ''; row = []; while (i < input.length && (input[i] == '\n' || input[i] == '\r')) i++; continue; }
         field += ch; i++;
       }
       if (field.length || row.length) { row.push(field.trim()); rows.push(row); }
-      return rows.filter(r => r.some(c => c!==''));
+      return rows.filter(r => r.some(c => c !== ''));
     }
 
     const rows = parseCsv(text);
     if (!rows.length) return res.json({ imported: 0, errors: ["ملف فارغ"] });
-    const header = rows.shift()!.map(h => h.replace(/\ufeff/g,'').trim());
+    const header = rows.shift()!.map(h => h.replace(/\ufeff/g, '').trim());
     const idx = (names: string[]) => {
-      for (const n of names) { const i = header.findIndex(h => h.toLowerCase() === n.toLowerCase()); if (i>=0) return i; }
+      for (const n of names) { const i = header.findIndex(h => h.toLowerCase() === n.toLowerCase()); if (i >= 0) return i; }
       return -1;
     };
     const I = {
-      name: idx(['اسم النزيل','النزيل','name']),
-      rental: idx(['النوع','شهري - يومي','rental']),
-      unit: idx(['رقم الغرفة','الوحدة','room','unit']),
-      rent: idx(['الإيجار','ايجار الغرفة (المبالغ المسددة)','rent']),
-      start: idx(['تاريخ الدخول','start']),
-      end: idx(['تاريخ الخروج','end']),
-      payStatus: idx(['السداد','حالة السداد']),
-      payDate: idx(['تاريخ السداد','payment date']),
-      payType: idx(['طريقة السداد','نوع السداد كاش / حوالة']),
-      deposit: idx(['التأمين','التامين','deposit']),
-      notes: idx(['ملاحظات','notes']),
-      cstatus: idx(['حالة العقد','contract status']),
-      phone: idx(['رقم الجوال','الهاتف','phone']),
+      name: idx(['اسم النزيل', 'النزيل', 'name']),
+      rental: idx(['النوع', 'شهري - يومي', 'rental']),
+      unit: idx(['رقم الغرفة', 'الوحدة', 'room', 'unit']),
+      rent: idx(['الإيجار', 'ايجار الغرفة (المبالغ المسددة)', 'rent']),
+      start: idx(['تاريخ الدخول', 'start']),
+      end: idx(['تاريخ الخروج', 'end']),
+      payStatus: idx(['السداد', 'حالة السداد']),
+      payDate: idx(['تاريخ السداد', 'payment date']),
+      payType: idx(['طريقة السداد', 'نوع السداد كاش / حوالة']),
+      deposit: idx(['التأمين', 'التامين', 'deposit']),
+      notes: idx(['ملاحظات', 'notes']),
+      cstatus: idx(['حالة العقد', 'contract status']),
+      phone: idx(['رقم الجوال', 'الهاتف', 'phone']),
     } as const;
 
     function parseDate(s?: string) {
       if (!s) return undefined;
-      const t = s.replace(/\s+/g,'').replace(/^\D+|\D+$/g,'');
-      const parts = t.split(/[\/-]/).map(x=>x.trim()).filter(Boolean);
-      const toDate = (y:number,m:number,d:number)=> new Date(y,m-1,d);
-      if (parts.length===3) {
-        const [a,b,c] = parts;
+      const t = s.replace(/\s+/g, '').replace(/^\D+|\D+$/g, '');
+      const parts = t.split(/[\/-]/).map(x => x.trim()).filter(Boolean);
+      const toDate = (y: number, m: number, d: number) => new Date(y, m - 1, d);
+      if (parts.length === 3) {
+        const [a, b, c] = parts;
         const A = Number(a), B = Number(b), C = Number(c);
         // try M/D/Y then D/M/Y then Y/M/D
-        if (C>1900 && A<=12) return toDate(C,A,B);
-        if (C>1900 && B<=12) return toDate(C,B,A);
-        if (A>1900 && B<=12) return toDate(A,B,C);
+        if (C > 1900 && A <= 12) return toDate(C, A, B);
+        if (C > 1900 && B <= 12) return toDate(C, B, A);
+        if (A > 1900 && B <= 12) return toDate(A, B, C);
       }
       const d = new Date(s);
       return isNaN(d.getTime()) ? undefined : d;
     }
-    const toRental = (v?: string) => !v ? 'MONTHLY' : (v.includes('يومي')||v.toUpperCase().includes('DAILY')?'DAILY':'MONTHLY');
+    const toRental = (v?: string) => !v ? 'MONTHLY' : (v.includes('يومي') || v.toUpperCase().includes('DAILY') ? 'DAILY' : 'MONTHLY');
     const toStatus = (v?: string) => v && v.includes('منتهي') ? 'ENDED' : (v && v.includes('ملغ') ? 'CANCELLED' : 'ACTIVE');
 
     let imported = 0; const errors: string[] = [];
     for (const r of rows) {
       try {
-        const name = I.name>=0 ? r[I.name] : '';
+        const name = I.name >= 0 ? r[I.name] : '';
         if (!name || name.includes('غرفة فاضية')) continue; // تخطّي الغرف الفارغة
-        const unitNumber = I.unit>=0 ? r[I.unit] : '';
+        const unitNumber = I.unit >= 0 ? r[I.unit] : '';
         if (!unitNumber) { errors.push(`سطر بدون رقم غرفة للنزيل ${name}`); continue; }
         const unitWhere: any = { number: unitNumber };
         if (pid) unitWhere.propertyId = pid;
@@ -373,16 +439,16 @@ export const importContractsCsv = async (req: Request, res: Response) => {
         if (!unit) { errors.push(`الوحدة غير موجودة: ${unitNumber}`); continue; }
 
         // المستأجر
-        const phone = I.phone>=0 ? r[I.phone] : '';
+        const phone = I.phone >= 0 ? r[I.phone] : '';
         let tenant = await prisma.tenant.findFirst({ where: { name } });
         if (!tenant) tenant = await prisma.tenant.create({ data: { name, phone: phone || '—' } });
 
-        const rentalType = toRental(I.rental>=0 ? r[I.rental] : undefined);
-        const rent = I.rent>=0 ? Number(String(r[I.rent]).replace(/[^0-9.]+/g,'')) : 0;
-        const startDate = parseDate(I.start>=0 ? r[I.start] : undefined) || new Date();
-        const endDate = parseDate(I.end>=0 ? r[I.end] : undefined) || new Date(startDate.getTime()+1000*60*60*24*30);
-        const deposit = I.deposit>=0 ? Number(String(r[I.deposit]).replace(/[^0-9.]+/g,'')) : 0;
-        const cstatus = toStatus(I.cstatus>=0 ? r[I.cstatus] : undefined);
+        const rentalType = toRental(I.rental >= 0 ? r[I.rental] : undefined);
+        const rent = I.rent >= 0 ? Number(String(r[I.rent]).replace(/[^0-9.]+/g, '')) : 0;
+        const startDate = parseDate(I.start >= 0 ? r[I.start] : undefined) || new Date();
+        const endDate = parseDate(I.end >= 0 ? r[I.end] : undefined) || new Date(startDate.getTime() + 1000 * 60 * 60 * 24 * 30);
+        const deposit = I.deposit >= 0 ? Number(String(r[I.deposit]).replace(/[^0-9.]+/g, '')) : 0;
+        const cstatus = toStatus(I.cstatus >= 0 ? r[I.cstatus] : undefined);
 
         const contract = await prisma.contract.create({
           data: {
@@ -402,8 +468,8 @@ export const importContractsCsv = async (req: Request, res: Response) => {
         });
 
         // إنشاء فاتورة واحدة كبداية للفترة
-        const payStatus = (I.payStatus>=0 ? r[I.payStatus] : '').includes('سدد') ? 'PAID' : 'PENDING';
-        const payDate = parseDate(I.payDate>=0 ? r[I.payDate] : undefined) || startDate;
+        const payStatus = (I.payStatus >= 0 ? r[I.payStatus] : '').includes('سدد') ? 'PAID' : 'PENDING';
+        const payDate = parseDate(I.payDate >= 0 ? r[I.payDate] : undefined) || startDate;
         await prisma.invoice.create({ data: { tenantId: tenant.id, contractId: contract.id, amount: rent, dueDate: payDate, status: payStatus as any } });
 
         // تحديث حالة الوحدة إلى مشغولة عند وجود عقد نشط

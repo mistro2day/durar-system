@@ -9,10 +9,10 @@
   --font-sans: "Tajawal", "Poppins", ui-sans-serif, system-ui, Segoe UI, Arial, sans-serif;
   --color-primary: #5C61F2;
   --color-secondary: #6C5DD3;
-  --color-success: #54BA4A;
-  --color-warning: #FFAA05;
-  --color-danger: #E4606D;
-  --color-info: #48A3D7;
+  --color-success: #166534; /* Darker Green (Green-800) for light mode visibility */
+  --color-warning: #92400E; /* Darker Orange (Amber-800) for light mode visibility */
+  --color-danger: #991B1B;  /* Darker Red (Red-800) for light mode visibility */
+  --color-info: #075985;    /* Darker Blue (Sky-800) for light mode visibility */
 }
 
 /* خلفية عامة ولون النص */

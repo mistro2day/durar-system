@@ -269,21 +269,28 @@ export default function Invoices() {
             <tbody className="divide-y">
               {pagedInvoices.map((inv) => (
                 <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
-                  <Td>{inv.id}</Td>
+                  <Td>
+                    <Link to={`/invoices/${inv.id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                      #{inv.id}
+                    </Link>
+                  </Td>
                   <Td>{inv.contract?.tenantName || "-"}</Td>
                   <Td>{inv.contract?.unit?.number || "-"}</Td>
                   <Td>{inv.contract?.unit?.property?.name || "-"}</Td>
                   <Td><Currency amount={Number(inv.amount || 0)} locale={localeTag} /></Td>
                   <Td>
                     <select
-                      className={`border rounded p-1 ${savingId === inv.id ? "opacity-60" : ""}`}
+                      className={`text-xs border rounded px-2 py-1 font-semibold transition-colors ${inv.status === 'PAID' ? 'text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
+                          inv.status === 'OVERDUE' ? 'text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
+                            'text-[--color-warning] bg-[--color-warning]/10 border-[--color-warning]/20'
+                        } ${savingId === inv.id ? "opacity-60" : ""}`}
                       value={inv.status}
                       onChange={(e) => updateStatus(inv.id, e.target.value)}
                       disabled={savingId === inv.id}
                     >
-                      <option value="PAID">مدفوعة</option>
-                      <option value="PENDING">معلّقة</option>
-                      <option value="OVERDUE">متأخرة</option>
+                      <option value="PAID" className="bg-white text-green-700 dark:bg-slate-800 dark:text-green-300">مدفوعة</option>
+                      <option value="PENDING" className="bg-white text-amber-700 dark:bg-slate-800 dark:text-amber-300">معلّقة</option>
+                      <option value="OVERDUE" className="bg-white text-red-700 dark:bg-slate-800 dark:text-red-300">متأخرة</option>
                     </select>
                   </Td>
                   <Td>{fmtDate(inv.dueDate)}</Td>
@@ -342,7 +349,7 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
 
   useEffect(() => {
     if (!open) return;
-    api.get('/api/contracts').then(r => setContracts((r.data || []).map((c: any)=>({id:c.id, tenantName:c.tenantName})))).catch(()=>{});
+    api.get('/api/contracts').then(r => setContracts((r.data || []).map((c: any) => ({ id: c.id, tenantName: c.tenantName })))).catch(() => { });
   }, [open]);
 
   async function save() {
@@ -396,7 +403,7 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
 
   return (
     <>
-      <button className="btn-soft btn-soft-primary" onClick={()=>setOpen(true)}>
+      <button className="btn-soft btn-soft-primary" onClick={() => setOpen(true)}>
         إضافة فاتورة
       </button>
       {open ? (
@@ -454,11 +461,11 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-gray-600">تاريخ الاستحقاق</span>
-                <DateInput value={form.dueDate || ''} onChange={(v)=>setForm({...form, dueDate: v})} />
+                <DateInput value={form.dueDate || ''} onChange={(v) => setForm({ ...form, dueDate: v })} />
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-gray-600">الحالة</span>
-                <select className="form-select" value={form.status} onChange={(e)=>setForm({...form, status: e.target.value})}>
+                <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option value="PENDING">معلّقة</option>
                   <option value="PAID">مدفوعة</option>
                   <option value="OVERDUE">متأخرة</option>

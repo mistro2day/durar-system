@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../../lib/api";
 import Currency from "../../components/Currency";
 import {
@@ -418,8 +418,10 @@ export default function HotelTenantDetails() {
                   <tbody className="divide-y divide-gray-100 dark:divide-white/10">
                     {sortedInvoices.map((invoice) => (
                       <tr key={invoice.id} className="odd:bg-white even:bg-gray-50 dark:odd:bg-white/5 dark:even:bg-white/10">
-                        <td className="py-2 text-right font-medium text-gray-800 dark:text-white">
-                          #{invoice.id}
+                        <td className="py-2 text-right font-medium">
+                          <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                            #{invoice.id}
+                          </Link>
                         </td>
                         <td className="py-2 text-right text-gray-700 dark:text-slate-200">
                           <Currency amount={invoice.amount} />
@@ -503,10 +505,10 @@ function SummaryStat({
 }) {
   const toneClass =
     tone === "success"
-      ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200"
+      ? "text-[--color-success] bg-[--color-success]/10"
       : tone === "warning"
-      ? "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-200"
-      : "bg-white text-gray-700 dark:bg-white/5 dark:text-slate-200";
+        ? "text-[--color-warning] bg-[--color-warning]/10"
+        : "text-gray-700 bg-white dark:bg-white/5 dark:text-slate-200";
 
   return (
     <div className={`rounded-xl border border-gray-200/60 px-4 py-3 dark:border-white/10`}>
@@ -520,7 +522,7 @@ function StatusBadge({ status }: { status?: string | null }) {
   const map: Record<string, { label: string; className: string }> = {
     ACTIVE: {
       label: "نشط",
-      className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+      className: "badge-success shadow-sm",
     },
     ENDED: {
       label: "منتهي",
@@ -548,8 +550,8 @@ function StatusBadge({ status }: { status?: string | null }) {
 
 function InvoiceBadge({ status }: { status?: string | null }) {
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: { label: "معلق", className: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200" },
-    PAID: { label: "مدفوع", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200" },
+    PENDING: { label: "معلق", className: "badge-warning shadow-sm" },
+    PAID: { label: "مدفوع", className: "badge-success shadow-sm" },
     CANCELLED: { label: "ملغى", className: "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200" },
   };
   const info = status ? map[status] : undefined;

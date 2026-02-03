@@ -55,7 +55,7 @@ export default function Dashboard() {
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
   const [contracts, setContracts] = useState<any[]>([]);
-  const [range, setRange] = useState<'week'|'month'>('week');
+  const [range, setRange] = useState<'week' | 'month'>('week');
   const [rangeMonths, setRangeMonths] = useState<number>(6);
   const visibleRevenue = useMemo(() => {
     if (!monthlyRevenue.length) return [];
@@ -180,7 +180,7 @@ export default function Dashboard() {
         const formatter = new Intl.DateTimeFormat("ar-u-ca-gregory", { month: "short" });
         setMonthlyRevenue(res.data.charts.revenueLast6Months.map((m) => {
           const [y, mo] = m.key.split('-').map(Number);
-          return { label: formatter.format(new Date(y, (mo||1)-1, 1)), value: m.value };
+          return { label: formatter.format(new Date(y, (mo || 1) - 1, 1)), value: m.value };
         }));
       }
       if (res.data?.charts?.occupancy) setOccupancy(res.data.charts.occupancy);
@@ -311,7 +311,7 @@ export default function Dashboard() {
     // جلب العقود لبطاقة "العقود القريبة الانتهاء"
     api.get(`/api/contracts${propertyId ? `?propertyId=${propertyId}` : ''}`)
       .then(r => setContracts(r.data || []))
-      .catch(()=>setContracts([]));
+      .catch(() => setContracts([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -382,7 +382,7 @@ export default function Dashboard() {
   return (
     <div>
       <LoadingOverlay visible={showOverlay || (firstLoad && connecting)} text={connecting ? 'جارٍ الاتصال بالخادم...' : 'جارٍ تحميل البيانات...'} />
-      <Header onRefresh={handleRefresh} refreshing={refreshing} lastUpdated={lastUpdatedText} rangeMonths={rangeMonths} onRangeChange={(v)=>setRangeMonths(v)} />
+      <Header onRefresh={handleRefresh} refreshing={refreshing} lastUpdated={lastUpdatedText} rangeMonths={rangeMonths} onRangeChange={(v) => setRangeMonths(v)} />
 
       {/* البطاقات الرئيسية (أعلى الصفحة) */}
       <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -426,51 +426,53 @@ export default function Dashboard() {
         <div className="col-span-12 md:col-span-4 md:col-start-1 md:row-start-1 card h-full min-h-[360px]">
           <div className="text-sm font-semibold text-indigo-600/80 mb-2">• نسب الإشغال</div>
           {(() => {
-            const labels = occupancy.labels.length ? occupancy.labels : ["متاحة","مشغولة","صيانة"];
-            const values = occupancy.values.length ? occupancy.values : [summary.units.available||0, summary.units.occupied||0, (summary.units.maintenance||0)];
+            const labels = occupancy.labels.length ? occupancy.labels : ["متاحة", "مشغولة", "صيانة"];
+            const values = occupancy.values.length ? occupancy.values : [summary.units.available || 0, summary.units.occupied || 0, (summary.units.maintenance || 0)];
             const colors = [themeColors.success, themeColors.danger, themeColors.warning];
-            const total = values.reduce((a:number,b:number)=>a+Number(b||0),0) || 1;
-            const pct = (i:number) => new Intl.NumberFormat('ar-SA', { maximumFractionDigits: 1 }).format((Number(values[i]||0)*100)/total);
+            const total = values.reduce((a: number, b: number) => a + Number(b || 0), 0) || 1;
+            const pct = (i: number) => new Intl.NumberFormat('ar-SA', { maximumFractionDigits: 1 }).format((Number(values[i] || 0) * 100) / total);
             return (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative h-56">
-            <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
-                    <Doughnut
-                      key={`occupancy-${themeMode}`}
-                      data={{ labels, datasets: [{
-                        data: values as any,
-                        backgroundColor: colors,
-                        borderColor: '#fff',
-                        borderWidth: 2,
-                        spacing: 2,
-                        hoverOffset: 6,
-                      }] }}
-                      options={{
-                        plugins: {
-                          legend: { display: false },
-                          tooltip: {
-                            backgroundColor: tooltipBackground,
-                            titleColor: tooltipTitleColor,
-                            bodyColor: tooltipBodyColor,
-                            titleFont: { family: fontStack },
-                            bodyFont: { family: fontStack },
-                            callbacks: { label: (ctx:any)=> `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` },
+                  <div className="relative h-56">
+                    <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" />}>
+                      <Doughnut
+                        key={`occupancy-${themeMode}`}
+                        data={{
+                          labels, datasets: [{
+                            data: values as any,
+                            backgroundColor: colors,
+                            borderColor: '#fff',
+                            borderWidth: 2,
+                            spacing: 2,
+                            hoverOffset: 6,
+                          }]
+                        }}
+                        options={{
+                          plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                              backgroundColor: tooltipBackground,
+                              titleColor: tooltipTitleColor,
+                              bodyColor: tooltipBodyColor,
+                              titleFont: { family: fontStack },
+                              bodyFont: { family: fontStack },
+                              callbacks: { label: (ctx: any) => `${labels[ctx.dataIndex]}: ${values[ctx.dataIndex]} (${pct(ctx.dataIndex)}%)` },
+                            },
                           },
-                        },
-                        maintainAspectRatio: false,
-                        cutout: '72%' as any,
-                        animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
-                      }}
-                    />
-            </Suspense>
-            <div className="absolute inset-0 grid place-items-center pointer-events-none">
-              <div className="text-center">
-                <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('ar-SA').format(total)}</div>
-                <div className="text-xs" style={{ color: themeColors.text }}>إجمالي الوحدات</div>
-              </div>
-            </div>
-          </div>
+                          maintainAspectRatio: false,
+                          cutout: '72%' as any,
+                          animation: { animateRotate: true, duration: 900, easing: 'easeOutQuart' },
+                        }}
+                      />
+                    </Suspense>
+                    <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                      <div className="text-center">
+                        <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('ar-SA').format(total)}</div>
+                        <div className="text-xs" style={{ color: themeColors.text }}>إجمالي الوحدات</div>
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex flex-col justify-center gap-3">
                     {labels.map((lab, i) => {
                       const count = Number(values[i] || 0);
@@ -508,7 +510,7 @@ export default function Dashboard() {
         <div className="col-span-12 md:col-span-4 md:col-start-5 md:row-start-1 card h-full min-h-[360px] flex flex-col">
           <div className="text-xs text-indigo-600/80 font-semibold mb-2">• إجمالي الإيرادات</div>
           <div className="flex-1 min-h-[180px]">
-            <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" /> }>
+            <Suspense fallback={<div className="w-full h-full animate-pulse bg-gray-100 rounded" />}>
               <Line
                 key={`revenue-${themeMode}`}
                 data={{
@@ -517,7 +519,7 @@ export default function Dashboard() {
                     {
                       data: visibleRevenue.map((m) => m.value),
                       borderColor: '#5C61F2',
-                      backgroundColor: (ctx:any) => {
+                      backgroundColor: (ctx: any) => {
                         const { chart } = ctx;
                         const { ctx: c, chartArea } = chart as any;
                         if (!chartArea) return 'rgba(92,97,242,0.18)';
@@ -559,10 +561,10 @@ export default function Dashboard() {
               />
             </Suspense>
           </div>
-        <div className="mt-3 text-right text-sm text-gray-500">
-          <Currency amount={visibleRevenueTotal} locale={localeTag} /> خلال آخر {rangeMonths} شهر
+          <div className="mt-3 text-right text-sm text-gray-500">
+            <Currency amount={visibleRevenueTotal} locale={localeTag} /> خلال آخر {rangeMonths} شهر
+          </div>
         </div>
-      </div>
 
         {/* حالة الفواتير حسب الحالة */}
         <div className="col-span-12 md:col-span-4 md:col-start-9 md:row-start-1 card h-full min-h-[360px] flex flex-col">
@@ -633,7 +635,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      
+
       {/* مصادر الإيرادات حسب العقار */}
       <div className="mt-8 card">
         <div className="flex flex-col gap-6">
@@ -770,7 +772,7 @@ export default function Dashboard() {
       <div className="mt-8 card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">العقود القريبة على الانتهاء</h3>
-          <select className="form-select w-40" value={range} onChange={(e)=>setRange(e.target.value as any)}>
+          <select className="form-select w-40" value={range} onChange={(e) => setRange(e.target.value as any)}>
             <option value="week">هذا الأسبوع</option>
             <option value="month">هذا الشهر</option>
           </select>
@@ -810,7 +812,7 @@ function Header({
       </div>
       <div className="flex items-center gap-3">
         {onRangeChange ? (
-          <select className="form-select w-36" value={String(rangeMonths ?? 6)} onChange={(e)=>onRangeChange(Number(e.target.value))}>
+          <select className="form-select w-36" value={String(rangeMonths ?? 6)} onChange={(e) => onRangeChange(Number(e.target.value))}>
             <option value={3}>آخر 3 أشهر</option>
             <option value={6}>آخر 6 أشهر</option>
             <option value={12}>آخر 12 شهر</option>
@@ -941,7 +943,7 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
                 </td>
                 <td className="p-3 text-gray-800">{c.unit?.property?.name || '-'}</td>
                 <td className="p-3">{endDate.toLocaleDateString(localeTag)}</td>
-                <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft<=7? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
+                <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
                     <a
@@ -983,10 +985,10 @@ function StatCard({
   icon: React.ReactNode;
 }) {
   const colorMap: Record<typeof color, { ring: string; text: string; bg: string; icon: string }> = {
-    blue: { ring: "ring-blue-200", text: "text-blue-700", bg: "bg-blue-50", icon: "text-blue-600" },
-    green: { ring: "ring-green-200", text: "text-green-700", bg: "bg-green-50", icon: "text-green-600" },
-    amber: { ring: "ring-amber-200", text: "text-amber-700", bg: "bg-amber-50", icon: "text-amber-600" },
-    purple: { ring: "ring-purple-200", text: "text-purple-700", bg: "bg-purple-50", icon: "text-purple-600" },
+    blue: { ring: "ring-blue-200", text: "text-blue-900", bg: "bg-blue-50", icon: "text-blue-600" },
+    green: { ring: "ring-green-200", text: "text-green-900", bg: "bg-green-50", icon: "text-green-600" },
+    amber: { ring: "ring-amber-200", text: "text-amber-900", bg: "bg-amber-50", icon: "text-amber-600" },
+    purple: { ring: "ring-purple-200", text: "text-purple-900", bg: "bg-purple-50", icon: "text-purple-600" },
   };
 
   const palette = colorMap[color];
