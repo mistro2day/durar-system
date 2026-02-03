@@ -1,3 +1,4 @@
 id,name,email,password,role,createdAt
-1,محمد حيدر,admin@durar.local,$2a$10$rJ55zx0ad6EUpTmsINgFjOm.eI0ZRxRXRS9FpVMr/ckDyMa/.KtuK,ADMIN,2025-10-14 17:56:08.748
-6,محمد علي,emp@durar.local,$2a$10$fN.QHAVbhdf2nOmA2/hUF.bzmgppLvWVnekLNITIUm/KikbhHzC0S,ADMIN,2025-10-14 22:44:25.135
+1,مدير درر,admin@durar.local,$2a$10$vxCaGAcXFmMbVXtt6KrdbOBvK6lY3H.pvjB9P6BTLe0M2i4JsTmRy,ADMIN,2025-10-15T15:43:22.436Z
+6,محمد علي,emp@durar.local,$2a$10$fN.QHAVbhdf2nOmA2/hUF.bzmgppLvWVnekLNITIUm/KikbhHzC0S,ADMIN,2025-10-14T19:44:25.135Z
+7,جهاد السيد,gehadelsaid45@gmail.com,$2a$10$Lty7Zuf17J60XJ5mRNkeN.QLSq71fyoK5iigIFKSKBcS6i9CkEx6i,ADMIN,2026-02-03T13:11:19.467Z
