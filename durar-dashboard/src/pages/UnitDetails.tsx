@@ -23,6 +23,7 @@ type MaintenanceTicket = {
 
 type Contract = {
   id: number;
+  tenantId?: number;
   tenantName: string;
   startDate: string;
   endDate: string;
@@ -30,6 +31,7 @@ type Contract = {
   status: "ACTIVE" | "ENDED" | "CANCELLED";
   rentalType?: string;
 };
+
 
 type Unit = {
   id: number;
@@ -293,7 +295,15 @@ export default function UnitDetails() {
             <tbody className="divide-y">
               {contractsActive.length ? sortedActiveContracts.map(c => (
                 <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                  <td className="p-3">{c.tenantName}</td>
+                  <td className="p-3">
+                    {c.tenantId && unit.property?.id ? (
+                      <Link to={`/hotel/${unit.property.id}/tenants/${c.tenantId}`} className="hover:text-primary hover:underline font-medium">
+                        {c.tenantName}
+                      </Link>
+                    ) : (
+                      c.tenantName
+                    )}
+                  </td>
                   <td className="p-3">{formatDate(c.startDate)}</td>
                   <td className="p-3">{formatDate(c.endDate)}</td>
                   <td className="p-3">{Number(c.rentAmount).toLocaleString("ar-SA")} ريال</td>
@@ -369,7 +379,15 @@ export default function UnitDetails() {
             <tbody className="divide-y">
               {contractsEnded.length ? sortedEndedContracts.map(c => (
                 <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                  <td className="p-3">{c.tenantName}</td>
+                  <td className="p-3">
+                    {c.tenantId && unit.property?.id ? (
+                      <Link to={`/hotel/${unit.property.id}/tenants/${c.tenantId}`} className="hover:text-primary hover:underline font-medium">
+                        {c.tenantName}
+                      </Link>
+                    ) : (
+                      c.tenantName
+                    )}
+                  </td>
                   <td className="p-3">{formatDate(c.startDate)}</td>
                   <td className="p-3">{formatDate(c.endDate)}</td>
                   <td className="p-3">{Number(c.rentAmount).toLocaleString("ar-SA")} ريال</td>

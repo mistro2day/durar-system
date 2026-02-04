@@ -35,6 +35,8 @@ export default function HotelTenantDetails() {
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
+  const [addingInvoice, setAddingInvoice] = useState(false);
 
   const role = getRole();
   const site = getSettings();
@@ -175,6 +177,27 @@ export default function HotelTenantDetails() {
       alert(e?.response?.data?.message || "تعذر إضافة السجل");
     } finally {
       setAddingLog(false);
+    }
+  }
+
+  async function handleAddInvoice(data: { amount: number; dueDate: string; status: string; contractId?: number }) {
+    if (!tenantId) return;
+    setAddingInvoice(true);
+    try {
+      await api.post("/api/invoices", {
+        tenantId,
+        amount: data.amount,
+        dueDate: data.dueDate,
+        status: data.status,
+        contractId: data.contractId
+      });
+      setAddInvoiceOpen(false);
+      await loadTenant();
+      alert("تم إضافة الفاتورة بنجاح");
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إضافة الفاتورة");
+    } finally {
+      setAddingInvoice(false);
     }
   }
 
@@ -375,9 +398,17 @@ export default function HotelTenantDetails() {
           <div className="card space-y-4">
             <header className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">الفواتير</h3>
-              <span className="text-sm text-gray-500 dark:text-slate-300">
-                إجمالي الفواتير: {stats.totalInvoices} — المعلقة: {stats.pendingInvoices}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500 dark:text-slate-300">
+                  إجمالي الفواتير: {stats.totalInvoices} — المعلقة: {stats.pendingInvoices}
+                </span>
+                <button
+                  className="btn-soft btn-soft-primary text-xs px-3 py-1"
+                  onClick={() => setAddInvoiceOpen(true)}
+                >
+                  + إضافة فاتورة
+                </button>
+              </div>
             </header>
             {invoiceList.length ? (
               <div className="overflow-x-auto">
@@ -558,6 +589,15 @@ export default function HotelTenantDetails() {
           saving={saving}
           onClose={() => setEditOpen(false)}
           onSave={handleSave}
+        />
+      )}
+
+      {addInvoiceOpen && (
+        <AddInvoiceModal
+          contracts={contractList}
+          onClose={() => setAddInvoiceOpen(false)}
+          onSave={handleAddInvoice}
+          saving={addingInvoice}
         />
       )}
     </div>
@@ -851,3 +891,93 @@ function toFormState(tenant: TenantDetail): TenantFormState {
 }
 
 
+
+function AddInvoiceModal({
+  contracts,
+  onClose,
+  onSave,
+  saving,
+}: {
+  contracts: TenantContract[];
+  onClose: () => void;
+  onSave: (data: { amount: number; dueDate: string; status: string; contractId?: number }) => void;
+  saving: boolean;
+}) {
+  const [amount, setAmount] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [status, setStatus] = useState("PENDING");
+  const [contractId, setContractId] = useState("");
+
+  const handleSubmit = () => {
+    if (!amount || !dueDate) return;
+    onSave({
+      amount: Number(amount),
+      dueDate,
+      status,
+      contractId: contractId ? Number(contractId) : undefined
+    });
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <div className="card w-full max-w-sm space-y-4">
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white">إضافة فاتورة جديدة</h3>
+        <div className="space-y-3">
+          <Field label="العقد (اختياري)">
+            <select
+              className="form-select"
+              value={contractId}
+              onChange={(e) => setContractId(e.target.value)}
+            >
+              <option value="">-- بدون عقد --</option>
+              {contracts.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.unitNumber ? `وحدة ${c.unitNumber}` : `عقد #${c.id}`} ({formatDate(c.startDate)} - {formatDate(c.endDate)})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="المبلغ (ريال)">
+            <input
+              type="number"
+              className="form-input"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </Field>
+          <Field label="تاريخ الاستحقاق">
+            <input
+              type="date"
+              className="form-input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </Field>
+          <Field label="الحالة">
+            <select
+              className="form-select"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="PENDING">معلق</option>
+              <option value="PAID">مدفوع</option>
+            </select>
+          </Field>
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button className="btn-raw text-sm text-gray-500 hover:text-gray-700" onClick={onClose} disabled={saving}>
+            إلغاء
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleSubmit}
+            disabled={saving || !amount || !dueDate}
+          >
+            {saving ? "جاري الحفظ..." : "حفظ"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

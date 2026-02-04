@@ -5,10 +5,24 @@ import { getPagination } from "../utils/pagination.js";
 
 
 export const getInvoices = async (req: Request, res: Response) => {
-  const { propertyId } = req.query as { propertyId?: string };
+  const { propertyId, status } = req.query as { propertyId?: string; status?: string };
   const where: any = {};
+
   if (propertyId) {
     where.contract = { is: { unit: { propertyId: Number(propertyId) } } };
+  }
+
+  if (status === 'overdue') {
+    where.status = 'PENDING';
+    where.dueDate = { lt: new Date() };
+  } else if (status === 'upcoming') {
+    const today = new Date();
+    const future = new Date();
+    future.setDate(today.getDate() + 30);
+    where.status = 'PENDING';
+    where.dueDate = { gte: today, lte: future };
+  } else if (status) {
+    where.status = status.toUpperCase();
   }
   const pg = getPagination(req);
   const include = {
@@ -19,8 +33,10 @@ export const getInvoices = async (req: Request, res: Response) => {
             property: true,
           },
         },
+        tenant: true,
       },
     },
+    tenant: true,
   } as const;
   if (!pg) {
     const invoices = await prisma.invoice.findMany({ where, include, orderBy: { dueDate: "asc" } });

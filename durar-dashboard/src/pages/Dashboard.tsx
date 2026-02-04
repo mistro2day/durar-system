@@ -16,6 +16,7 @@ import useThemeMode from "../hooks/useThemeMode";
 import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
+import { InvoiceStatusSelect } from "../components/InvoiceStatusSelect";
 
 type DashboardResponse = {
   summary: {
@@ -55,6 +56,14 @@ export default function Dashboard() {
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
   const [contracts, setContracts] = useState<any[]>([]);
+  const [lateInvoices, setLateInvoices] = useState<any[]>([]);
+  const [lateInvoicesPage, setLateInvoicesPage] = useState<number>(1);
+  const [lateInvoicesTotal, setLateInvoicesTotal] = useState<number>(0);
+  const lateInvoicesPageSize = 5;
+  const [upcomingInvoices, setUpcomingInvoices] = useState<any[]>([]);
+  const [upcomingInvoicesPage, setUpcomingInvoicesPage] = useState<number>(1);
+  const [upcomingInvoicesTotal, setUpcomingInvoicesTotal] = useState<number>(0);
+  const upcomingInvoicesPageSize = 5;
   const [range, setRange] = useState<'week' | 'month'>('week');
   const [rangeMonths, setRangeMonths] = useState<number>(6);
   const visibleRevenue = useMemo(() => {
@@ -312,8 +321,68 @@ export default function Dashboard() {
     api.get(`/api/contracts${propertyId ? `?propertyId=${propertyId}` : ''}`)
       .then(r => setContracts(r.data || []))
       .catch(() => setContracts([]));
+
+    fetchLateInvoices(1);
+    fetchUpcomingInvoices(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function fetchLateInvoices(page: number) {
+    api.get(`/api/invoices?status=overdue&page=${page}&pageSize=${lateInvoicesPageSize}${propertyId ? `&propertyId=${propertyId}` : ''}`)
+      .then(r => {
+        if (r.data.items) {
+          setLateInvoices(r.data.items);
+          setLateInvoicesTotal(r.data.total || 0);
+          setLateInvoicesPage(page);
+        } else {
+          setLateInvoices(Array.isArray(r.data) ? r.data : []);
+          setLateInvoicesTotal(Array.isArray(r.data) ? r.data.length : 0);
+          setLateInvoicesPage(1);
+        }
+      })
+      .catch(() => {
+        setLateInvoices([]);
+        setLateInvoicesTotal(0);
+      });
+  }
+
+  function fetchUpcomingInvoices(page: number) {
+    api.get(`/api/invoices?status=upcoming&page=${page}&pageSize=${upcomingInvoicesPageSize}${propertyId ? `&propertyId=${propertyId}` : ''}`)
+      .then(r => {
+        if (r.data.items) {
+          setUpcomingInvoices(r.data.items);
+          setUpcomingInvoicesTotal(r.data.total || 0);
+          setUpcomingInvoicesPage(page);
+        } else {
+          setUpcomingInvoices(Array.isArray(r.data) ? r.data : []);
+          setUpcomingInvoicesTotal(Array.isArray(r.data) ? r.data.length : 0);
+          setUpcomingInvoicesPage(1);
+        }
+      })
+      .catch(() => {
+        setUpcomingInvoices([]);
+        setUpcomingInvoicesTotal(0);
+      });
+  }
+
+  function handleLateInvoiceStatusUpdate(id: number, status: string) {
+    if (status !== 'PENDING') {
+      // Optimistic update: remove from list if no longer pending/overdue
+      setLateInvoices(prev => prev.filter(inv => inv.id !== id));
+      setLateInvoicesTotal(prev => Math.max(0, prev - 1));
+    }
+    // If status is still PENDING, we keep it, but UI will update via the component's internal state + re-render if needed
+    // Ideally we would fetchSummary/revenue too as they might change
+    fetchSummary();
+  }
+
+  function handleUpcomingInvoiceStatusUpdate(id: number, status: string) {
+    if (status !== 'PENDING') {
+      setUpcomingInvoices(prev => prev.filter(inv => inv.id !== id));
+      setUpcomingInvoicesTotal(prev => Math.max(0, prev - 1));
+    }
+    fetchSummary();
+  }
 
   function handleRefresh() {
     setRefreshing(true);
@@ -780,6 +849,42 @@ export default function Dashboard() {
         <ExpiringContractsTable items={contracts} range={range} localeTag={localeTag} />
       </div>
 
+      {/* الفواتير المتأخرة */}
+      {lateInvoices.length > 0 && (
+        <div className="mt-8 card border-red-100 ring-2 ring-red-50 dark:border-red-900/20 dark:ring-red-900/10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-red-700 dark:text-red-400">الفواتير المتأخرة</h3>
+          </div>
+          <LateInvoicesTable
+            items={lateInvoices}
+            localeTag={localeTag}
+            page={lateInvoicesPage}
+            pageSize={lateInvoicesPageSize}
+            total={lateInvoicesTotal}
+            onPageChange={fetchLateInvoices}
+            onStatusUpdate={handleLateInvoiceStatusUpdate}
+          />
+        </div>
+      )}
+
+      {/* الفواتير القريبة الانتهاء */}
+      {upcomingInvoices.length > 0 && (
+        <div className="mt-8 card border-sky-100 ring-2 ring-sky-50 dark:border-sky-900/20 dark:ring-sky-900/10">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-sky-700 dark:text-sky-400">الفواتير المستحقة قريباً</h3>
+          </div>
+          <UpcomingInvoicesTable
+            items={upcomingInvoices}
+            localeTag={localeTag}
+            page={upcomingInvoicesPage}
+            pageSize={upcomingInvoicesPageSize}
+            total={upcomingInvoicesTotal}
+            onPageChange={fetchUpcomingInvoices}
+            onStatusUpdate={handleUpcomingInvoiceStatusUpdate}
+          />
+        </div>
+      )}
+
 
       {/* تم نقل نسب الإشغال للأعلى + الأنشطة ضمن الصف العلوي */}
     </div>
@@ -884,7 +989,7 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
           <tr>
             <th className="text-right p-3">
               <SortHeader
-                label="النزيل"
+                label="المستأجر"
                 active={expiringSort?.key === "tenant"}
                 direction={expiringSort?.key === "tenant" ? expiringSort.direction : null}
                 onToggle={() => toggleExpiringSort("tenant")}
@@ -1080,3 +1185,240 @@ function SkeletonDashboard() {
   );
 }
 
+
+function LateInvoicesTable({
+  items, localeTag, page, pageSize, total, onPageChange, onStatusUpdate
+}: {
+  items: any[];
+  localeTag: string;
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  onPageChange?: (p: number) => void;
+  onStatusUpdate: (id: number, status: string) => void;
+}) {
+  if (!items.length) return <p className="text-sm text-gray-500">لا يوجد فواتير متأخرة.</p>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="table w-full">
+        <thead>
+          <tr>
+            <th className="text-right p-3 w-[100px] whitespace-nowrap">رقم الفاتورة</th>
+            <th className="text-right p-3 min-w-[300px] w-auto whitespace-normal">المستأجر</th>
+            <th className="text-right p-3 min-w-[150px] whitespace-normal">رقم الوحدة</th>
+            <th className="text-right p-3 whitespace-nowrap">العقار</th>
+            <th className="text-right p-3 whitespace-nowrap">تاريخ الاستحقاق</th>
+            <th className="text-right p-3 whitespace-nowrap">المبلغ</th>
+            <th className="text-center p-3 whitespace-nowrap">الحالة</th>
+            <th className="text-right p-3 whitespace-nowrap">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {items.map((inv: any) => {
+            const dueDate = new Date(inv.dueDate);
+            const daysOverdue = Math.ceil((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            return (
+              <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
+                <td className="p-3 whitespace-nowrap">#{inv.id}</td>
+                <td className="p-3 font-medium text-gray-800 whitespace-normal">
+                  {(() => {
+                    const tenant = inv.contract?.tenant || inv.tenant;
+                    const tenantId = tenant?.id;
+                    const propertyId = inv.contract?.unit?.propertyId || inv.contract?.unit?.property?.id;
+
+                    if (tenant && tenantId && propertyId) {
+                      return (
+                        <Link
+                          to={`/hotel/${propertyId}/tenants/${tenantId}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {tenant.name || "-"}
+                        </Link>
+                      );
+                    }
+                    return tenant?.name || inv.contract?.tenantName || "-";
+                  })()}
+                </td>
+                <td className="p-3 text-gray-600 whitespace-normal">
+                  {inv.contract?.unit?.id ? (
+                    <Link to={`/units/${inv.contract?.unit?.id}`} className="hover:text-primary hover:underline">
+                      {inv.contract?.unit?.number || "-"}
+                    </Link>
+                  ) : (
+                    inv.contract?.unit?.number || "-"
+                  )}
+                </td>
+                <td className="p-3 text-gray-600 whitespace-nowrap">{inv.contract?.unit?.property?.name || "-"}</td>
+                <td className="p-3 whitespace-nowrap">
+                  <div className="flex flex-col">
+                    <span>{dueDate.toLocaleDateString(localeTag)}</span>
+                    <span className="text-xs font-semibold text-red-600">متأخر {daysOverdue} يوم</span>
+                  </div>
+                </td>
+                <td className="p-3 font-bold text-gray-800">{formatSAR(inv.amount)}</td>
+                <td className="p-3 text-center">
+                  <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
+                </td>
+                <td className="p-3">
+                  {inv.contractId ? (
+                    <Link to={`/contracts/${inv.contractId}`} className="btn-xs btn-soft-primary">
+                      عرض العقد
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {total && pageSize && onPageChange && total > pageSize ? (
+        <div className="flex items-center justify-between p-3 border-t border-gray-100">
+          <div className="text-xs text-gray-500">
+            عرض {(page! - 1) * pageSize + 1} - {Math.min(page! * pageSize, total)} من {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange(page! - 1)}
+              disabled={page === 1}
+              className="px-3 py-1 text-xs font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              السابق
+            </button>
+            <button
+              onClick={() => onPageChange(page! + 1)}
+              disabled={page! * pageSize >= total}
+              className="px-3 py-1 text-xs font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              التالي
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function UpcomingInvoicesTable({
+  items, localeTag, page, pageSize, total, onPageChange, onStatusUpdate
+}: {
+  items: any[];
+  localeTag: string;
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  onPageChange?: (p: number) => void;
+  onStatusUpdate: (id: number, status: string) => void;
+}) {
+  if (!items.length) return <p className="text-sm text-gray-500">لا توجد فواتير مستحقة قريباً.</p>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="table w-full">
+        <thead>
+          <tr>
+            <th className="text-right p-3 w-[100px] whitespace-nowrap">رقم الفاتورة</th>
+            <th className="text-right p-3 min-w-[300px] w-auto whitespace-normal">المستأجر</th>
+            <th className="text-right p-3 min-w-[150px] whitespace-normal">رقم الوحدة</th>
+            <th className="text-right p-3 whitespace-nowrap">العقار</th>
+            <th className="text-right p-3 whitespace-nowrap">تاريخ الاستحقاق</th>
+            <th className="text-right p-3 whitespace-nowrap">المبلغ</th>
+            <th className="text-center p-3 whitespace-nowrap">الحالة</th>
+            <th className="text-right p-3 whitespace-nowrap">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {items.map((inv: any) => {
+            const dueDate = new Date(inv.dueDate);
+            const today = new Date();
+            const daysLeft = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+            return (
+              <tr key={inv.id} className="odd:bg-white even:bg-gray-50">
+                <td className="p-3 whitespace-nowrap">#{inv.id}</td>
+                <td className="p-3 font-medium text-gray-800 whitespace-normal">
+                  {(() => {
+                    const tenant = inv.contract?.tenant || inv.tenant;
+                    const tenantId = tenant?.id;
+                    const propertyId = inv.contract?.unit?.propertyId || inv.contract?.unit?.property?.id;
+
+                    if (tenant && tenantId && propertyId) {
+                      return (
+                        <Link
+                          to={`/hotel/${propertyId}/tenants/${tenantId}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {tenant.name || "-"}
+                        </Link>
+                      );
+                    }
+                    return tenant?.name || inv.contract?.tenantName || "-";
+                  })()}
+                </td>
+                <td className="p-3 text-gray-600 whitespace-normal">
+                  {inv.contract?.unit?.id ? (
+                    <Link to={`/units/${inv.contract?.unit?.id}`} className="hover:text-primary hover:underline">
+                      {inv.contract?.unit?.number || "-"}
+                    </Link>
+                  ) : (
+                    inv.contract?.unit?.number || "-"
+                  )}
+                </td>
+                <td className="p-3 text-gray-600 whitespace-nowrap">{inv.contract?.unit?.property?.name || "-"}</td>
+                <td className="p-3 whitespace-nowrap">
+                  <div className="flex flex-col">
+                    <span>{dueDate.toLocaleDateString(localeTag)}</span>
+                    {daysLeft > 0 ? (
+                      <span className="text-xs font-semibold text-blue-600">خلال {daysLeft} يوم</span>
+                    ) : (
+                      <span className="text-xs font-semibold text-amber-600">اليوم</span>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3 font-bold text-gray-800">{formatSAR(inv.amount)}</td>
+                <td className="p-3 text-center">
+                  <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
+                </td>
+                <td className="p-3">
+                  {inv.contractId ? (
+                    <Link to={`/contracts/${inv.contractId}`} className="btn-xs btn-soft-primary">
+                      عرض العقد
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {total && pageSize && onPageChange && total > pageSize ? (
+        <div className="flex items-center justify-between p-3 border-t border-gray-100">
+          <div className="text-xs text-gray-500">
+            عرض {(page! - 1) * pageSize + 1} - {Math.min(page! * pageSize, total)} من {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange(page! - 1)}
+              disabled={page === 1}
+              className="px-3 py-1 text-xs font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              السابق
+            </button>
+            <button
+              onClick={() => onPageChange(page! + 1)}
+              disabled={page! * pageSize >= total}
+              className="px-3 py-1 text-xs font-medium bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              التالي
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
