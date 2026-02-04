@@ -16,7 +16,7 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button onClick={toggle} className="btn-outline" aria-label="Toggle theme">
+    <button onClick={toggle} className="btn-outline text-gray-900 dark:text-gray-200" aria-label="Toggle theme">
       {mode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       <span className="hidden sm:inline">{mode === 'dark' ? 'وضع نهاري' : 'وضع ليلي'}</span>
     </button>

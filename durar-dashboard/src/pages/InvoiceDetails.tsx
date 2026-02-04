@@ -336,7 +336,7 @@ function statusClass(v?: string) {
     case "PAID":
       return "bg-green-100 text-green-700";
     case "PENDING":
-      return "bg-amber-100 text-amber-700";
+      return "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-medium badge-warning";
     case "OVERDUE":
       return "bg-red-100 text-red-700";
     default:

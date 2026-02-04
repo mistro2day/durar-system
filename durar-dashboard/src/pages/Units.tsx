@@ -23,7 +23,7 @@ export default function Units() {
   const [items, setItems] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [properties, setProperties] = useState<Array<{id:number; name:string}>>([]);
+  const [properties, setProperties] = useState<Array<{ id: number; name: string }>>([]);
   const [filterProperty, setFilterProperty] = useState<string>("");
   const [filterFloor, setFilterFloor] = useState<string>("");
   const [search, setSearch] = useState<string>("");
@@ -58,7 +58,7 @@ export default function Units() {
   useEffect(() => {
     // حمّل العقارات لخيارات التصفية/الإضافة إن لم نكن داخل فندق
     if (!propertyId) {
-      api.get(`/api/properties?type=BUILDING`).then(r => setProperties(r.data || [])).catch(()=>{});
+      api.get(`/api/properties?type=BUILDING`).then(r => setProperties(r.data || [])).catch(() => { });
     }
   }, [propertyId]);
 
@@ -136,7 +136,7 @@ export default function Units() {
     setOpenProps((s) => ({ ...s, [name]: !s[name] }));
   }
   function toggleFloor(prop: string, floor: number) {
-    setOpenFloors((s) => ({ ...s, [prop]: { ...(s[prop]||{}), [floor]: !(s[prop]?.[floor]) } }));
+    setOpenFloors((s) => ({ ...s, [prop]: { ...(s[prop] || {}), [floor]: !(s[prop]?.[floor]) } }));
   }
 
   function toggleUnitSort(key: UnitSortKey) {
@@ -179,7 +179,7 @@ export default function Units() {
     try {
       const data: string[][] = [];
       // رؤوس عربية متسقة مع المستورد في الخادم
-      data.push(['العقار','الوحدة','الحالة','النوع','الإيجار','الدور','الغرف','الحمامات','المساحة']);
+      data.push(['العقار', 'الوحدة', 'الحالة', 'النوع', 'الإيجار', 'الدور', 'الغرف', 'الحمامات', 'المساحة']);
       for (const u of rows) {
         const unitLabel = u.unitNumber || (u as any).number || '';
         const propName = u.property?.name || '';
@@ -202,7 +202,7 @@ export default function Units() {
           String(area),
         ]);
       }
-      const csv = data.map(r => r.map(v => `"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+      const csv = data.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
       const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -227,7 +227,7 @@ export default function Units() {
         {!propertyId && (
           <div className="flex flex-col text-sm">
             <label className="text-gray-600 mb-1">العقار</label>
-            <select className="form-select" value={filterProperty} onChange={(e)=>setFilterProperty(e.target.value)}>
+            <select className="form-select" value={filterProperty} onChange={(e) => setFilterProperty(e.target.value)}>
               <option value="">الكل</option>
               {properties.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
             </select>
@@ -235,14 +235,14 @@ export default function Units() {
         )}
         <div className="flex flex-col text-sm">
           <label className="text-gray-600 mb-1">الدور</label>
-          <input className="form-input" type="number" value={filterFloor} onChange={(e)=>setFilterFloor(e.target.value)} placeholder="مثال: 3" />
+          <input className="form-input" type="number" value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} placeholder="مثال: 3" />
         </div>
         <div className="flex flex-col text-sm">
           <label className="text-gray-600 mb-1">بحث بالوحدة</label>
-          <input className="form-input" value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="رقم/اسم الوحدة" />
+          <input className="form-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="رقم/اسم الوحدة" />
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button className="btn-soft btn-soft-primary" onClick={()=>setModal({mode:'add', data: { propertyId: propertyId ? Number(propertyId) : undefined }})}>
+          <button className="btn-soft btn-soft-primary" onClick={() => setModal({ mode: 'add', data: { propertyId: propertyId ? Number(propertyId) : undefined } })}>
             <Plus className="w-4 h-4" /> إضافة وحدة
           </button>
           <button className="btn-soft btn-soft-info" onClick={exportCsvLocal}>تصدير CSV</button>
@@ -265,9 +265,9 @@ export default function Units() {
           {Array.from(grouped.entries()).map(([propName, floors]) => (
             <div key={propName} className="card overflow-x-auto">
               {!propertyId && (
-                <button className="w-full flex items-center justify-between text-right mb-3" onClick={()=>toggleProp(propName)}>
+                <button className="w-full flex items-center justify-between text-right mb-3" onClick={() => toggleProp(propName)}>
                   <h3 className="text-lg font-semibold">{propName || '—'}</h3>
-                  {openProps[propName] ? <ChevronDown className="w-5 h-5"/> : <ChevronRight className="w-5 h-5"/>}
+                  {openProps[propName] ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                 </button>
               )}
               {/* ملخص العمارة */}
@@ -281,7 +281,7 @@ export default function Units() {
                 return (
                   <div className="mb-3 flex items-center gap-3 text-sm">
                     <span className="badge-success">متاحة: {avail}</span>
-                    <span className="badge-warning">مشغولة: {occ}</span>
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-medium badge-warning">مشغولة: {occ}</span>
                     <span className="badge-info">صيانة: {mnt}</span>
                   </div>
                 );
@@ -289,99 +289,101 @@ export default function Units() {
               {openProps[propName] !== false && (
                 <table className="table sticky">
                   <colgroup>
-                    <col style={{width:'14%'}} />
-                    <col style={{width:'12%'}} />
-                    <col style={{width:'10%'}} />
-                    <col style={{width:'10%'}} />
-                    <col style={{width:'8%'}} />
-                    <col style={{width:'8%'}} />
-                    <col style={{width:'8%'}} />
-                    <col style={{width:'30%'}} />
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '30%' }} />
                   </colgroup>
-                   <thead>
-                     <tr>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الوحدة"
-                           active={unitSort?.key === "unit"}
-                           direction={unitSort?.key === "unit" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("unit")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الحالة"
-                           active={unitSort?.key === "status"}
-                           direction={unitSort?.key === "status" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("status")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="النوع"
-                           active={unitSort?.key === "type"}
-                           direction={unitSort?.key === "type" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("type")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الإيجار"
-                           active={unitSort?.key === "rentalType"}
-                           direction={unitSort?.key === "rentalType" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("rentalType")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الدور"
-                           active={unitSort?.key === "floor"}
-                           direction={unitSort?.key === "floor" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("floor")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الغرف"
-                           active={unitSort?.key === "rooms"}
-                           direction={unitSort?.key === "rooms" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("rooms")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">
-                         <SortHeader
-                           label="الحمامات"
-                           active={unitSort?.key === "baths"}
-                           direction={unitSort?.key === "baths" ? unitSort.direction : null}
-                           onToggle={() => toggleUnitSort("baths")}
-                         />
-                       </th>
-                       <th className="text-right p-3 font-semibold">إجراءات</th>
-                     </tr>
-                   </thead>
+                  <thead>
+                    <tr>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الوحدة"
+                          active={unitSort?.key === "unit"}
+                          direction={unitSort?.key === "unit" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("unit")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الحالة"
+                          active={unitSort?.key === "status"}
+                          direction={unitSort?.key === "status" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("status")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="النوع"
+                          active={unitSort?.key === "type"}
+                          direction={unitSort?.key === "type" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("type")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الإيجار"
+                          active={unitSort?.key === "rentalType"}
+                          direction={unitSort?.key === "rentalType" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("rentalType")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الدور"
+                          active={unitSort?.key === "floor"}
+                          direction={unitSort?.key === "floor" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("floor")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الغرف"
+                          active={unitSort?.key === "rooms"}
+                          direction={unitSort?.key === "rooms" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("rooms")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">
+                        <SortHeader
+                          label="الحمامات"
+                          active={unitSort?.key === "baths"}
+                          direction={unitSort?.key === "baths" ? unitSort.direction : null}
+                          onToggle={() => toggleUnitSort("baths")}
+                        />
+                      </th>
+                      <th className="text-right p-3 font-semibold">إجراءات</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y">
-                    {Array.from(floors.keys()).sort((a,b)=>a-b).map((f) => (
+                    {Array.from(floors.keys()).sort((a, b) => a - b).map((f) => (
                       <>
                         <tr key={`floor-${f}`}>
                           <td colSpan={8} className="bg-[var(--surface-2)] text-gray-700 font-semibold p-2">
-                            <button className="w-full flex items-center justify-between" onClick={()=>toggleFloor(propName, f)}>
+                            <button className="w-full flex items-center justify-between" onClick={() => toggleFloor(propName, f)}>
                               <span>الدور: {f}</span>
-                              {openFloors[propName]?.[f] !== false ? <ChevronDown className="w-4 h-4"/> : <ChevronRight className="w-4 h-4"/>}
+                              {openFloors[propName]?.[f] !== false ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             </button>
                           </td>
                         </tr>
                         {/* إحصائيات الدور */}
-                        {openFloors[propName]?.[f] !== false && (() => { const list = floors.get(f)!; const avail = list.filter(x=>x.status==='AVAILABLE').length; const occ = list.filter(x=>x.status==='OCCUPIED').length; const mnt = list.filter(x=>x.status==='MAINTENANCE').length; return (
-                          <tr key={`stats-${f}`}>
-                            <td colSpan={8} className="p-2">
-                              <div className="flex items-center gap-3 text-sm">
-                                <span className="badge-success">متاحة: {avail}</span>
-                                <span className="badge-warning">مشغولة: {occ}</span>
-                                <span className="badge-info">صيانة: {mnt}</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ) })()}
+                        {openFloors[propName]?.[f] !== false && (() => {
+                          const list = floors.get(f)!; const avail = list.filter(x => x.status === 'AVAILABLE').length; const occ = list.filter(x => x.status === 'OCCUPIED').length; const mnt = list.filter(x => x.status === 'MAINTENANCE').length; return (
+                            <tr key={`stats-${f}`}>
+                              <td colSpan={8} className="p-2">
+                                <div className="flex items-center gap-3 text-sm">
+                                  <span className="badge-success">متاحة: {avail}</span>
+                                  <span className="badge-warning">مشغولة: {occ}</span>
+                                  <span className="badge-info">صيانة: {mnt}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })()}
                         {openFloors[propName]?.[f] !== false && floors.get(f)!.map((u) => (
                           <tr key={u.id} className="odd:bg-white even:bg-gray-50">
                             <td className="p-3">
@@ -401,7 +403,7 @@ export default function Units() {
                                 <button className="btn-soft btn-soft-warning" onClick={() => updateStatus(u.id, "OCCUPIED")}>مشغولة</button>
                                 <button className="btn-soft btn-soft-info" onClick={() => updateStatus(u.id, "MAINTENANCE")}>صيانة</button>
                                 <button className="btn-soft btn-soft-primary" onClick={() => openTicket(u)}><Wrench className="w-4 h-4" />بلاغ</button>
-                                <button className="btn-soft btn-soft-info" onClick={()=>setModal({mode:'edit', data: u})}><Edit className="w-4 h-4" />تعديل</button>
+                                <button className="btn-soft btn-soft-info" onClick={() => setModal({ mode: 'edit', data: u })}><Edit className="w-4 h-4" />تعديل</button>
                               </div>
                             </td>
                           </tr>
@@ -422,7 +424,7 @@ export default function Units() {
           data={modal.data}
           properties={properties}
           defaultPropertyId={propertyId ? Number(propertyId) : undefined}
-          onClose={()=>setModal(null)}
+          onClose={() => setModal(null)}
           onSaved={load}
         />
       ) : null}
@@ -435,9 +437,9 @@ function statusClass(v?: string) {
     case "AVAILABLE":
       return "bg-green-100 text-green-700";
     case "OCCUPIED":
-      return "bg-red-100 text-red-700";
+      return "badge-warning";
     case "MAINTENANCE":
-      return "bg-amber-100 text-amber-700";
+      return "badge-warning";
     default:
       return "bg-slate-100 text-slate-700";
   }
@@ -522,7 +524,7 @@ async function handleWipeUnits() {
     if (!id) return alert('لا يوجد فندق محدد');
     if (!confirm('سيتم حذف جميع الوحدات والعلاقات المرتبطة بهذا الفندق. هل أنت متأكد؟')) return;
     const r = await api.delete(`/api/units/by-property/${id}`);
-    alert(`تم الحذف: الوحدات ${r.data?.deletedUnits||0}`);
+    alert(`تم الحذف: الوحدات ${r.data?.deletedUnits || 0}`);
     // @ts-ignore - invoke global reload hook after deletion (legacy integration)
     if (typeof window.loadUnits === 'function') window.loadUnits();
   } catch (e: any) {
@@ -530,7 +532,7 @@ async function handleWipeUnits() {
   }
 }
 
-function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId }: { mode: 'add'|'edit'; data?: Partial<Unit>; onClose: ()=>void; onSaved: ()=>void; properties: Array<{id:number; name:string}>; defaultPropertyId?: number }) {
+function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId }: { mode: 'add' | 'edit'; data?: Partial<Unit>; onClose: () => void; onSaved: () => void; properties: Array<{ id: number; name: string }>; defaultPropertyId?: number }) {
   const [form, setForm] = useState<Partial<Unit>>({
     id: data?.id,
     unitNumber: data?.unitNumber || (data as any)?.number || "",
@@ -590,10 +592,10 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
         <h3 className="text-lg font-semibold mb-4">{mode === 'add' ? 'إضافة وحدة' : 'تعديل وحدة'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="رقم/اسم الوحدة">
-            <input className="form-input" value={form.unitNumber || ''} onChange={(e)=>setForm({...form, unitNumber: e.target.value})} />
+            <input className="form-input" value={form.unitNumber || ''} onChange={(e) => setForm({ ...form, unitNumber: e.target.value })} />
           </Field>
           <Field label="الحالة">
-            <select className="form-select" value={form.status} onChange={(e)=>setForm({...form, status: e.target.value})}>
+            <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option value="AVAILABLE">متاحة</option>
               <option value="OCCUPIED">مشغولة</option>
               <option value="MAINTENANCE">صيانة</option>
@@ -601,16 +603,16 @@ function UnitModal({ mode, data, onClose, onSaved, properties, defaultPropertyId
           </Field>
           {!defaultPropertyId && (
             <Field label="العقار">
-              <select className="form-select" value={String(form.propertyId||'')} onChange={(e)=>setForm({...form, propertyId: Number(e.target.value)})}>
+              <select className="form-select" value={String(form.propertyId || '')} onChange={(e) => setForm({ ...form, propertyId: Number(e.target.value) })}>
                 <option value="">—</option>
-                {properties.map(p=> (<option key={p.id} value={p.id}>{p.name}</option>))}
+                {properties.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
               </select>
             </Field>
           )}
-          <Field label="الدور"><input className="form-input" type="number" value={String(form.floor ?? '')} onChange={(e)=>setForm({...form, floor: Number(e.target.value)})} /></Field>
-          <Field label="الغرف"><input className="form-input" type="number" value={String(form.rooms ?? '')} onChange={(e)=>setForm({...form, rooms: Number(e.target.value)})} /></Field>
-          <Field label="الحمامات"><input className="form-input" type="number" value={String(form.baths ?? '')} onChange={(e)=>setForm({...form, baths: Number(e.target.value)})} /></Field>
-          <Field label="المساحة (م²)"><input className="form-input" type="number" step="0.1" value={String(form.area ?? '')} onChange={(e)=>setForm({...form, area: Number(e.target.value)})} /></Field>
+          <Field label="الدور"><input className="form-input" type="number" value={String(form.floor ?? '')} onChange={(e) => setForm({ ...form, floor: Number(e.target.value) })} /></Field>
+          <Field label="الغرف"><input className="form-input" type="number" value={String(form.rooms ?? '')} onChange={(e) => setForm({ ...form, rooms: Number(e.target.value) })} /></Field>
+          <Field label="الحمامات"><input className="form-input" type="number" value={String(form.baths ?? '')} onChange={(e) => setForm({ ...form, baths: Number(e.target.value) })} /></Field>
+          <Field label="المساحة (م²)"><input className="form-input" type="number" step="0.1" value={String(form.area ?? '')} onChange={(e) => setForm({ ...form, area: Number(e.target.value) })} /></Field>
         </div>
         <div className="mt-6 flex items-center justify-end gap-3">
           <button className="btn-outline disabled:opacity-60" onClick={onClose} disabled={saving}>إلغاء</button>

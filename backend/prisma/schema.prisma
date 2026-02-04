@@ -74,6 +74,7 @@ model Tenant {
   bookings              Booking[]
   contracts             Contract[]
   invoices              Invoice[]
+  communicationLogs     CommunicationLog[]
 
   @@index([name], map: "idx_Tenant_name")
 }
@@ -185,6 +186,7 @@ model Contract {
   paymentFrequency   String?
   servicesIncluded   String?
   notes              String?
+  renewalStatus      RenewalStatus  @default(PENDING)
   activityLogs       ActivityLog[]
   tenant             Tenant?        @relation(fields: [tenantId], references: [id])
   unit               Unit           @relation(fields: [unitId], references: [id])
@@ -230,6 +232,18 @@ model PasswordReset {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "idx_PasswordReset_userId")
+}
+
+model CommunicationLog {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  type        String
+  content     String
+  date        DateTime @default(now())
+  performedBy String?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId], map: "idx_CommunicationLog_tenantId")
 }
 
 enum Role {
@@ -290,4 +304,10 @@ enum TicketStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum RenewalStatus {
+  PENDING
+  RENEWED
+  NOT_RENEWING
 }

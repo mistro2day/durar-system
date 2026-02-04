@@ -14,7 +14,9 @@ import {
   formatRange,
   mapRentalType,
   NATIONALITIES,
+  CommunicationLog as CommunicationLogType,
 } from "./tenantShared";
+import { getUser } from "../../lib/auth";
 import { getRole } from "../../lib/auth";
 import { getSettings, hasPermission } from "../../lib/settings";
 import SortHeader from "../../components/SortHeader";
@@ -26,6 +28,7 @@ type TenantInvoice = NonNullable<TenantDetail["invoices"]>[number];
 export default function HotelTenantDetails() {
   const { id, tenantId } = useParams();
   const navigate = useNavigate();
+  const authName = getUser()?.name;
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +158,26 @@ export default function HotelTenantDetails() {
     }
   }
 
+  const [logForm, setLogForm] = useState({ type: "ملاحظة", content: "" });
+  const [addingLog, setAddingLog] = useState(false);
+
+  async function handleAddLog() {
+    if (!tenantId || !logForm.content.trim()) return;
+    setAddingLog(true);
+    try {
+      await api.post(`/api/tenants/${tenantId}/logs`, {
+        ...logForm,
+        performedBy: authName,
+      });
+      setLogForm({ type: "ملاحظة", content: "" });
+      await loadTenant();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إضافة السجل");
+    } finally {
+      setAddingLog(false);
+    }
+  }
+
   async function handleDelete() {
     if (!tenantId) return;
     if (!confirm("سيتم حذف المستأجر وجميع العقود والفواتير المرتبطة به. هل أنت متأكد؟")) return;
@@ -217,30 +240,6 @@ export default function HotelTenantDetails() {
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
-          <div className="card space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">البيانات الأساسية</h3>
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-slate-200">
-                  <span>الهوية: {formatValue(tenant.nationalId)}</span>
-                  <span>الجنسية: {formatValue(tenant.nationality)}</span>
-                  <span>الجنس: {mapGender(tenant.gender)}</span>
-                  <span>تاريخ الميلاد: {formatBirth(tenant.birthDate)}</span>
-                </div>
-              </div>
-              <div className="rounded-full bg-indigo-500/20 px-4 py-2 text-sm text-indigo-200">
-                <span>الهاتف:</span> {formatValue(tenant.phone)}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <InfoField label="البريد الإلكتروني" value={formatValue(tenant.email)} />
-              <InfoField label="جهة العمل" value={formatValue(tenant.employer)} />
-              <InfoField label="العنوان الكامل" value={buildAddress(tenant) || "—"} />
-              <InfoField label="جهة الطوارئ" value={buildEmergency(tenant) || "—"} />
-            </div>
-          </div>
-
           <div className="card space-y-4">
             <header className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">العقود</h3>
@@ -318,6 +317,7 @@ export default function HotelTenantDetails() {
                           onToggle={() => toggleContractSort("status")}
                         />
                       </th>
+                      <th className="py-2 text-right">قرار التجديد</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/10">
@@ -358,6 +358,9 @@ export default function HotelTenantDetails() {
                         </td>
                         <td className="py-2 text-right">
                           <StatusBadge status={contract.status} />
+                        </td>
+                        <td className="py-2 text-right">
+                          <RenewalBadge status={contract.renewalStatus} />
                         </td>
                       </tr>
                     ))}
@@ -450,9 +453,91 @@ export default function HotelTenantDetails() {
               </p>
             </div>
           ) : null}
+
+          <div className="card space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">سجل التواصل والملاحظات</h3>
+
+            <div className="flex flex-col gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10">
+              <div className="flex gap-2">
+                <select
+                  className="form-select w-32"
+                  value={logForm.type}
+                  onChange={(e) => setLogForm({ ...logForm, type: e.target.value })}
+                >
+                  <option value="ملاحظة">ملاحظة</option>
+                  <option value="اتصال">اتصال</option>
+                  <option value="زيارة">زيارة</option>
+                  <option value="أخرى">أخرى</option>
+                </select>
+                <input
+                  className="form-input flex-1"
+                  placeholder="اكتب الملاحظة هنا..."
+                  value={logForm.content}
+                  onChange={(e) => setLogForm({ ...logForm, content: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLog()}
+                />
+                <button
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                  disabled={addingLog || !logForm.content.trim()}
+                  onClick={handleAddLog}
+                >
+                  إضافة
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {tenant.communicationLogs.length ? (
+                tenant.communicationLogs.map((log) => (
+                  <div key={log.id} className="flex gap-3 p-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-lg text-sm">
+                    <div className="w-16 shrink-0 text-indigo-600 dark:text-indigo-400 font-semibold">{log.type}</div>
+                    <div className="flex-1">
+                      <p className="text-gray-800 dark:text-slate-200">{log.content}</p>
+                      <div className="mt-1 flex gap-3 text-xs text-gray-400">
+                        <span>{formatDate(log.date)}</span>
+                        {log.performedBy && <span>بواسطة: {log.performedBy}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState message="لا يوجد سجل تواصل حتى الآن." />
+              )}
+            </div>
+          </div>
         </div>
 
         <aside className="space-y-4">
+          <div className="card space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">البيانات الأساسية</h3>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-slate-200">
+                  <span>الهوية: {formatValue(tenant.nationalId)}</span>
+                  <span>الجنسية: {formatValue(tenant.nationality)}</span>
+                  <span>الجنس: {mapGender(tenant.gender)}</span>
+                  <span>تاريخ الميلاد: {formatBirth(tenant.birthDate)}</span>
+                </div>
+              </div>
+            </div>
+
+            {tenant.phone && (
+              <a
+                href={`tel:${tenant.phone}`}
+                className="block text-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-lg font-semibold text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+              >
+                {tenant.phone}
+              </a>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 text-sm">
+              <InfoField label="البريد الإلكتروني" value={formatValue(tenant.email)} />
+              <InfoField label="جهة العمل" value={formatValue(tenant.employer)} />
+              <InfoField label="العنوان الكامل" value={buildAddress(tenant) || "—"} />
+              <InfoField label="جهة الطوارئ" value={buildEmergency(tenant) || "—"} />
+            </div>
+          </div>
+
           <div className="card space-y-3">
             <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-100">نظرة عامة</h4>
             <SummaryStat label="عقود نشطة" value={stats.activeContracts} tone={stats.activeContracts ? "success" : "default"} />
@@ -463,12 +548,6 @@ export default function HotelTenantDetails() {
               tone={stats.receivables > 0 ? "warning" : "default"}
             />
             <SummaryStat label="آخر استحقاق" value={formatDate(stats.lastInvoiceDueDate)} />
-          </div>
-          <div className="card space-y-2 text-sm text-gray-600 dark:text-slate-300">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-100">التواصل</h4>
-            <p>الهاتف: {formatValue(tenant.phone)}</p>
-            <p>البريد: {formatValue(tenant.email)}</p>
-            <p>جهة الطوارئ: {buildEmergency(tenant) || "—"}</p>
           </div>
         </aside>
       </section>
@@ -548,6 +627,29 @@ function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
+function RenewalBadge({ status }: { status?: string | null }) {
+  const map: Record<string, { label: string; className: string }> = {
+    PENDING: {
+      label: "قيد الانتظار",
+      className: "badge-warning",
+    },
+    RENEWED: {
+      label: "تم التجديد",
+      className: "badge-success",
+    },
+    NOT_RENEWING: {
+      label: "لن يتم التجديد",
+      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+    },
+  };
+  const info = status ? map[status] : map["PENDING"];
+  return (
+    <span className={`${info.className}`}>
+      {info.label}
+    </span>
+  );
+}
+
 function InvoiceBadge({ status }: { status?: string | null }) {
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: "معلق", className: "badge-warning shadow-sm" },
@@ -563,7 +665,7 @@ function InvoiceBadge({ status }: { status?: string | null }) {
     );
   }
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${info.className}`}>
+    <span className={`${info.className}`}>
       {info.label}
     </span>
   );

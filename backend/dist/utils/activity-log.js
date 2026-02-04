@@ -7,12 +7,29 @@ function resolveActor(req) {
 export async function logActivity(prisma, req, payload) {
     try {
         const actor = resolveActor(req);
+        const actorId = actor?.id ? Number(actor.id) : null;
+        // 🔬 التحقق من وجود المستخدم في قاعدة البيانات لتجنب خطأ Foreign Key
+        if (actorId) {
+            const userExists = await prisma.user.findUnique({ where: { id: actorId }, select: { id: true } });
+            if (!userExists) {
+                console.warn(`⚠️ محاولة تسجيل نشاط لمستخدم غير موجود (ID: ${actorId}). تم التسجيل بدون ربط المستخدم.`);
+                await prisma.activityLog.create({
+                    data: {
+                        action: payload.action,
+                        description: payload.description.slice(0, 1000),
+                        contractId: payload.contractId ?? null,
+                        userId: null, // سجل بدون مستخدم
+                    },
+                });
+                return;
+            }
+        }
         await prisma.activityLog.create({
             data: {
                 action: payload.action,
                 description: payload.description.slice(0, 1000),
                 contractId: payload.contractId ?? null,
-                userId: actor?.id ?? null,
+                userId: actorId,
             },
         });
     }

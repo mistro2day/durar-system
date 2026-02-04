@@ -72,6 +72,10 @@ export async function getTenantById(req, res) {
                 select: { id: true, status: true, amount: true, dueDate: true },
                 orderBy: { dueDate: "desc" },
             },
+            communicationLogs: {
+                orderBy: { date: "desc" },
+                take: 50,
+            },
         },
     });
     if (!tenant) {
@@ -84,6 +88,28 @@ export async function getTenantById(req, res) {
         }
     }
     return res.json(enrichTenant(tenant));
+}
+export async function addCommunicationLog(req, res) {
+    const { id } = req.params;
+    const tenantId = Number(id);
+    const { type, content, performedBy } = req.body;
+    if (!tenantId || !type || !content) {
+        return res.status(400).json({ message: "البيانات المطلوبة ناقصة" });
+    }
+    try {
+        const log = await prisma.communicationLog.create({
+            data: {
+                tenantId,
+                type,
+                content,
+                performedBy,
+            },
+        });
+        res.json({ message: "تم إضافة السجل بنجاح", log });
+    }
+    catch (e) {
+        res.status(500).json({ message: e?.message || "تعذر إضافة السجل" });
+    }
 }
 export async function updateTenant(req, res) {
     const { id } = req.params;
@@ -154,7 +180,7 @@ export async function deleteTenant(req, res) {
     }
 }
 function enrichTenant(tenant) {
-    const { contracts, invoices, birthDate, createdAt, ...rest } = tenant;
+    const { contracts, invoices, communicationLogs, birthDate, createdAt, ...rest } = tenant;
     const activeContracts = contracts.filter((c) => c.status === "ACTIVE");
     const latestContract = contracts[0] || null;
     const pendingInvoices = invoices.filter((inv) => inv.status === "PENDING");
@@ -219,5 +245,9 @@ function enrichTenant(tenant) {
         recentContracts: contractPayload.slice(0, 3),
         contracts: contractPayload,
         invoices: invoicePayload,
+        communicationLogs: communicationLogs?.map(log => ({
+            ...log,
+            date: log.date.toISOString(),
+        })) || [],
     };
 }

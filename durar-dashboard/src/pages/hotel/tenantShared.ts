@@ -17,6 +17,7 @@ export type TenantContract = {
   paymentFrequency?: string | null;
   servicesIncluded?: string | null;
   notes?: string | null;
+  renewalStatus?: string | null;
 };
 
 export type TenantInvoice = {
@@ -24,6 +25,14 @@ export type TenantInvoice = {
   amount: number;
   status: string;
   dueDate?: string | null;
+};
+
+export type CommunicationLog = {
+  id: number;
+  type: string;
+  content: string;
+  date: string;
+  performedBy?: string | null;
 };
 
 export type TenantStats = {
@@ -57,11 +66,13 @@ export type TenantSummary = {
   recentContracts?: TenantContract[];
   contracts?: TenantContract[];
   invoices?: TenantInvoice[];
+  communicationLogs?: CommunicationLog[];
 };
 
 export type TenantDetail = TenantSummary & {
   contracts: TenantContract[];
   invoices: TenantInvoice[];
+  communicationLogs: CommunicationLog[];
 };
 
 export const NATIONALITIES: string[] = [

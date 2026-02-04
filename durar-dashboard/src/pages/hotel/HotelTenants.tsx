@@ -107,13 +107,13 @@ export default function HotelTenants() {
             </select>
           </div>
           <div className="w-full sm:w-72">
-          <input
-            className="form-input"
-            placeholder="بحث باسم المستأجر أو الهوية..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+            <input
+              className="form-input"
+              placeholder="بحث باسم المستأجر أو الهوية..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -171,7 +171,7 @@ export default function HotelTenants() {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        className="w-full text-right font-medium text-indigo-200 hover:text-white focus:outline-none"
+                        className="w-full text-right font-semibold text-gray-900 hover:text-primary hover:underline focus:outline-none transition-colors dark:text-white"
                         onClick={() => openTenant(tenant.id)}
                       >
                         {tenant.name}
@@ -212,7 +212,8 @@ export default function HotelTenants() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }

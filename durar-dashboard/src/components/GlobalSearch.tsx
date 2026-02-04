@@ -100,9 +100,9 @@ export default function GlobalSearch() {
   return (
     <div className="hidden md:block w-72 relative" ref={containerRef}>
       <div className="relative">
-        <Search className="w-4 h-4 absolute top-1/2 left-3 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <Search className="w-4 h-4 absolute top-1/2 start-3 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
-          className="w-full px-9 py-2 rounded-lg border border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition"
+          className="w-full ps-10 pe-4 py-2 rounded-lg border border-gray-200 bg-white text-sm text-black placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition"
           placeholder="بحث عن مستأجر أو عقد أو وحدة..."
           value={query}
           onFocus={() => setOpen(true)}
@@ -122,9 +122,8 @@ export default function GlobalSearch() {
               {visibleResults.map((item, idx) => (
                 <li key={item.id}>
                   <button
-                    className={`global-search-item w-full px-4 py-2 text-right text-sm flex flex-col gap-1 rounded-lg transition ${
-                      idx === activeIdx ? "global-search-item--active" : ""
-                    }`}
+                    className={`global-search-item w-full px-4 py-2 text-right text-sm flex flex-col gap-1 rounded-lg transition ${idx === activeIdx ? "global-search-item--active" : ""
+                      }`}
                     onMouseEnter={() => setActiveIdx(idx)}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelect(item)}

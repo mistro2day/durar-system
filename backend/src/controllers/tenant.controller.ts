@@ -11,10 +11,10 @@ export async function listTenants(req: Request, res: Response) {
 
   const where = pid
     ? {
-        contracts: {
-          some: { unit: { propertyId: pid } },
-        },
-      }
+      contracts: {
+        some: { unit: { propertyId: pid } },
+      },
+    }
     : undefined;
 
   const contractFilter = pid ? { unit: { propertyId: pid } } : undefined;
@@ -46,7 +46,7 @@ export async function listTenants(req: Request, res: Response) {
       prisma.tenant.count({ where }),
     ]);
     return res.json({
-      items: items.map((tenant) => enrichTenant(tenant)),
+      items: items.map((tenant) => enrichTenant(tenant as any)),
       total,
       page: pg.page,
       pageSize: pg.pageSize,
@@ -54,7 +54,7 @@ export async function listTenants(req: Request, res: Response) {
   }
 
   const tenants = await query;
-  return res.json(tenants.map((tenant) => enrichTenant(tenant)));
+  return res.json(tenants.map((tenant) => enrichTenant(tenant as any)));
 }
 
 export async function getTenantById(req: Request, res: Response) {
@@ -85,6 +85,10 @@ export async function getTenantById(req: Request, res: Response) {
         select: { id: true, status: true, amount: true, dueDate: true },
         orderBy: { dueDate: "desc" },
       },
+      communicationLogs: {
+        orderBy: { date: "desc" },
+        take: 50,
+      },
     },
   });
 
@@ -93,13 +97,37 @@ export async function getTenantById(req: Request, res: Response) {
   }
 
   if (pid) {
-    const belongsToProperty = tenant.contracts.some((contract) => contract.unit?.propertyId === pid);
+    const belongsToProperty = (tenant as any).contracts.some((contract: any) => contract.unit?.propertyId === pid);
     if (!belongsToProperty) {
       return res.status(404).json({ message: "المستأجر غير مرتبط بهذا العقار" });
     }
   }
 
-  return res.json(enrichTenant(tenant));
+  return res.json(enrichTenant(tenant as any));
+}
+
+export async function addCommunicationLog(req: Request, res: Response) {
+  const { id } = req.params;
+  const tenantId = Number(id);
+  const { type, content, performedBy } = req.body;
+
+  if (!tenantId || !type || !content) {
+    return res.status(400).json({ message: "البيانات المطلوبة ناقصة" });
+  }
+
+  try {
+    const log = await prisma.communicationLog.create({
+      data: {
+        tenantId,
+        type,
+        content,
+        performedBy,
+      },
+    });
+    res.json({ message: "تم إضافة السجل بنجاح", log });
+  } catch (e: any) {
+    res.status(500).json({ message: e?.message || "تعذر إضافة السجل" });
+  }
 }
 
 export async function updateTenant(req: Request, res: Response) {
@@ -194,10 +222,11 @@ type TenantWithRelations = {
   createdAt: Date;
   contracts: Array<Contract & { unit: (Unit & { property: Property | null }) | null }>;
   invoices: Array<Pick<Invoice, "id" | "status" | "amount" | "dueDate">>;
+  communicationLogs?: Array<{ id: number; type: string; content: string; date: Date; performedBy: string | null }>;
 };
 
 function enrichTenant(tenant: TenantWithRelations) {
-  const { contracts, invoices, birthDate, createdAt, ...rest } = tenant;
+  const { contracts, invoices, communicationLogs, birthDate, createdAt, ...rest } = tenant;
 
   const activeContracts = contracts.filter((c) => c.status === "ACTIVE");
   const latestContract = contracts[0] || null;
@@ -244,28 +273,32 @@ function enrichTenant(tenant: TenantWithRelations) {
       receivables,
       latestContract: latestContract
         ? {
-            id: latestContract.id,
-            status: latestContract.status,
-            rentalType: latestContract.rentalType,
-            startDate: latestContract.startDate.toISOString(),
-            endDate: latestContract.endDate.toISOString(),
-            unitNumber: latestContract.unit?.number || (latestContract.unit as any)?.unitNumber || null,
-            propertyName: latestContract.unit?.property?.name || null,
-            propertyId: latestContract.unit?.propertyId ?? null,
-            rentAmount: latestContract.rentAmount,
-            amount: latestContract.amount,
-            deposit: latestContract.deposit ?? null,
-            ejarContractNumber: latestContract.ejarContractNumber || null,
-            paymentMethod: latestContract.paymentMethod || null,
-            paymentFrequency: latestContract.paymentFrequency || null,
-            servicesIncluded: latestContract.servicesIncluded || null,
-            notes: latestContract.notes || null,
-          }
+          id: latestContract.id,
+          status: latestContract.status,
+          rentalType: latestContract.rentalType,
+          startDate: latestContract.startDate.toISOString(),
+          endDate: latestContract.endDate.toISOString(),
+          unitNumber: latestContract.unit?.number || (latestContract.unit as any)?.unitNumber || null,
+          propertyName: latestContract.unit?.property?.name || null,
+          propertyId: latestContract.unit?.propertyId ?? null,
+          rentAmount: latestContract.rentAmount,
+          amount: latestContract.amount,
+          deposit: latestContract.deposit ?? null,
+          ejarContractNumber: latestContract.ejarContractNumber || null,
+          paymentMethod: latestContract.paymentMethod || null,
+          paymentFrequency: latestContract.paymentFrequency || null,
+          servicesIncluded: latestContract.servicesIncluded || null,
+          notes: latestContract.notes || null,
+        }
         : null,
     },
     recentContracts: contractPayload.slice(0, 3),
     contracts: contractPayload,
     invoices: invoicePayload,
+    communicationLogs: communicationLogs?.map(log => ({
+      ...log,
+      date: log.date.toISOString(),
+    })) || [],
   };
 }
 

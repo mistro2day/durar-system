@@ -14,16 +14,30 @@ export const createContract = async (req, res) => {
     try {
         const { tenantName, unitId, startDate, endDate, amount, rentAmount, rentalType, deposit, ejarContractNumber, paymentMethod, paymentFrequency, servicesIncluded, notes, } = req.body;
         // 🔍 تحقق من وجود الوحدة
+        if (!unitId) {
+            return res.status(400).json({ message: "رقم الوحدة مطلوب" });
+        }
         const unit = await prisma.unit.findUnique({ where: { id: Number(unitId) } });
         if (!unit) {
             return res.status(404).json({ message: "الوحدة غير موجودة" });
         }
+        // 🔍 التحقق من اسم المستأجر
+        if (!tenantName || typeof tenantName !== 'string' || !tenantName.trim()) {
+            return res.status(400).json({ message: "اسم المستأجر مطلوب" });
+        }
+        const safeTenantName = tenantName.trim();
         // 🔍 البحث عن المستأجر أو إنشاؤه
-        let tenant = await prisma.tenant.findFirst({ where: { name: tenantName } });
+        let tenant = await prisma.tenant.findFirst({ where: { name: safeTenantName } });
         if (!tenant) {
-            tenant = await prisma.tenant.create({
-                data: { name: tenantName, phone: "0000000000" },
-            });
+            try {
+                tenant = await prisma.tenant.create({
+                    data: { name: safeTenantName, phone: "0000000000" },
+                });
+            }
+            catch (createErr) {
+                console.error("Error creating tenant:", createErr);
+                return res.status(500).json({ message: "فشل إنشاء سجل المستأجر: " + createErr.message });
+            }
         }
         // ✅ إنشاء العقد
         const totalAmount = amount !== undefined ? Number(amount) : rentAmount !== undefined ? Number(rentAmount) : 0;
@@ -48,25 +62,70 @@ export const createContract = async (req, res) => {
             },
             include: { unit: true, tenant: true },
         });
-        // 💵 إنشاء أول فاتورة تلقائيًا
-        const invoice = await prisma.invoice.create({
-            data: {
-                tenantId: tenant.id,
-                contractId: contract.id,
-                amount: periodicRent,
-                dueDate: new Date(startDate),
-                status: "PENDING",
-            },
-        });
+        // 💵 حساب الفواتير بناءً على تكرار الدفع
+        const frequencyMap = {
+            "شهري": 1, "MONTHLY": 1,
+            "ربع سنوي": 3, "QUARTERLY": 3,
+            "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6,
+            "سنوي": 12, "YEARLY": 12,
+        };
+        const freqKey = (normalizeString(paymentFrequency) || "").toUpperCase();
+        // ترتيب المفاتيح بالأطول أولاً لتجنب تطابق "سنوي" داخل "نصف سنوي"
+        const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
+        const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k) || k === freqKey);
+        const monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+        console.log(`[InvoiceDebug] Input: "${paymentFrequency}", Matched: "${matchedKey}", Steps: ${monthStep}`);
+        const createdInvoices = [];
+        if (monthStep > 0) {
+            // حساب عدد الدفعات وتوزيع المبلغ
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            let periods = 0;
+            let tempDate = new Date(start);
+            while (tempDate < end) {
+                periods++;
+                tempDate.setMonth(tempDate.getMonth() + monthStep);
+            }
+            if (periods === 0)
+                periods = 1;
+            const amountPerInvoice = totalAmount / periods;
+            let currentInvoiceDate = new Date(start);
+            while (currentInvoiceDate < end) {
+                const inv = await prisma.invoice.create({
+                    data: {
+                        tenantId: tenant.id,
+                        contractId: contract.id,
+                        amount: amountPerInvoice,
+                        dueDate: new Date(currentInvoiceDate),
+                        status: "PENDING",
+                    },
+                });
+                createdInvoices.push(inv);
+                currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+            }
+        }
+        else {
+            // إذا لم يتم تحديد تكرار (دفعة واحدة)
+            const inv = await prisma.invoice.create({
+                data: {
+                    tenantId: tenant.id,
+                    contractId: contract.id,
+                    amount: totalAmount,
+                    dueDate: new Date(startDate),
+                    status: "PENDING",
+                },
+            });
+            createdInvoices.push(inv);
+        }
         await logActivity(prisma, req, {
             action: "CONTRACT_CREATE",
             description: `تم إنشاء عقد جديد للوحدة ${contract.unit?.number ?? contract.unitId} باسم ${contract.tenantName}`,
             contractId: contract.id,
         });
         res.json({
-            message: "✅ تم إنشاء العقد والفاتورة الأولى بنجاح",
+            message: "✅ تم إنشاء العقد والفواتير بنجاح",
             contract,
-            invoice,
+            invoices: createdInvoices,
         });
     }
     catch (err) {
@@ -111,7 +170,7 @@ export const getContracts = async (req, res) => {
 export const updateContract = async (req, res) => {
     try {
         const { id } = req.params;
-        const { startDate, endDate, amount, rentAmount, rentalType, status, deposit, ejarContractNumber, paymentMethod, paymentFrequency, servicesIncluded, notes, } = req.body;
+        const { startDate, endDate, amount, rentAmount, rentalType, status, deposit, ejarContractNumber, paymentMethod, paymentFrequency, servicesIncluded, notes, renewalStatus, } = req.body;
         const contract = await prisma.contract.update({
             where: { id: Number(id) },
             data: {
@@ -127,6 +186,7 @@ export const updateContract = async (req, res) => {
                 paymentFrequency: normalizeString(paymentFrequency),
                 servicesIncluded: normalizeString(servicesIncluded),
                 notes: normalizeString(notes),
+                renewalStatus,
             },
         });
         res.json({ message: "✅ تم تحديث بيانات العقد بنجاح", contract });

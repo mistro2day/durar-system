@@ -280,16 +280,16 @@ export default function Invoices() {
                   <Td><Currency amount={Number(inv.amount || 0)} locale={localeTag} /></Td>
                   <Td>
                     <select
-                      className={`text-xs border rounded px-2 py-1 font-semibold transition-colors ${inv.status === 'PAID' ? 'text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
-                          inv.status === 'OVERDUE' ? 'text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
-                            'text-[--color-warning] bg-[--color-warning]/10 border-[--color-warning]/20'
+                      className={`transition-colors appearance-none cursor-pointer ${inv.status === 'PAID' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
+                          inv.status === 'OVERDUE' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
+                            'badge-warning'
                         } ${savingId === inv.id ? "opacity-60" : ""}`}
                       value={inv.status}
                       onChange={(e) => updateStatus(inv.id, e.target.value)}
                       disabled={savingId === inv.id}
                     >
                       <option value="PAID" className="bg-white text-green-700 dark:bg-slate-800 dark:text-green-300">مدفوعة</option>
-                      <option value="PENDING" className="bg-white text-amber-700 dark:bg-slate-800 dark:text-amber-300">معلّقة</option>
+                      <option value="PENDING" className="bg-white text-[#7c2d12] dark:bg-slate-800 dark:text-amber-300">معلّقة</option>
                       <option value="OVERDUE" className="bg-white text-red-700 dark:bg-slate-800 dark:text-red-300">متأخرة</option>
                     </select>
                   </Td>

@@ -214,6 +214,7 @@ export const updateContract = async (req: Request, res: Response) => {
       paymentFrequency,
       servicesIncluded,
       notes,
+      renewalStatus,
     } = req.body;
 
     const contract = await prisma.contract.update({
@@ -231,7 +232,8 @@ export const updateContract = async (req: Request, res: Response) => {
         paymentFrequency: normalizeString(paymentFrequency),
         servicesIncluded: normalizeString(servicesIncluded),
         notes: normalizeString(notes),
-      },
+        renewalStatus,
+      } as any,
     });
 
     res.json({ message: "✅ تم تحديث بيانات العقد بنجاح", contract });

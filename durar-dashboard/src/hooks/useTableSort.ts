@@ -58,7 +58,10 @@ function compareValues(a: unknown, b: unknown) {
   return 0;
 }
 
-function normalize(value: unknown): string | number {
+function normalize(value: unknown, depth: number = 0): string | number {
+  // Prevent infinite recursion
+  if (depth > 5) return "";
+
   if (typeof value === "number") return value;
   if (typeof value === "boolean") return value ? 1 : 0;
   if (value instanceof Date) return value.getTime();
@@ -80,12 +83,12 @@ function normalize(value: unknown): string | number {
     if ("valueOf" in value) {
       const val = (value as { valueOf: () => unknown }).valueOf();
       if (typeof val === "string" || typeof val === "number") {
-        return normalize(val);
+        return normalize(val, depth + 1);
       }
     }
-    return normalize(String(value));
+    return normalize(String(value), depth + 1);
   }
 
-  return normalize(String(value ?? ""));
+  return "";
 }
 

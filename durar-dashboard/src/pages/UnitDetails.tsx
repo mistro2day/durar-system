@@ -150,12 +150,12 @@ export default function UnitDetails() {
         <div className="overflow-x-auto">
           <table className="table">
             <colgroup>
-              <col style={{width:'10%'}} />
+              <col style={{ width: '10%' }} />
               <col />
-              <col style={{width:'12%'}} />
-              <col style={{width:'14%'}} />
-              <col style={{width:'14%'}} />
-              <col style={{width:'18%'}} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '18%' }} />
             </colgroup>
             <thead>
               <tr>
@@ -240,11 +240,11 @@ export default function UnitDetails() {
         <div className="overflow-x-auto">
           <table className="table">
             <colgroup>
-              <col style={{width:'32%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'20%'}} />
+              <col style={{ width: '32%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '20%' }} />
             </colgroup>
             <thead>
               <tr>
@@ -316,11 +316,11 @@ export default function UnitDetails() {
         <div className="overflow-x-auto">
           <table className="table">
             <colgroup>
-              <col style={{width:'32%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'16%'}} />
-              <col style={{width:'20%'}} />
+              <col style={{ width: '32%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '20%' }} />
             </colgroup>
             <thead>
               <tr>
@@ -415,7 +415,7 @@ function statusClass(v?: string) {
     case "OCCUPIED":
       return "bg-red-100 text-red-700";
     case "MAINTENANCE":
-      return "bg-amber-100 text-amber-700";
+      return "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-medium badge-warning";
     default:
       return "bg-slate-100 text-slate-700";
   }
@@ -465,7 +465,7 @@ function mapTicketStatus(s: MaintenanceTicket["status"]) {
 function ticketStatusClass(s: MaintenanceTicket["status"]) {
   switch (s) {
     case "NEW": return "bg-slate-100 text-slate-700";
-    case "IN_PROGRESS": return "bg-amber-100 text-amber-700";
+    case "IN_PROGRESS": return "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-medium badge-warning";
     case "COMPLETED": return "bg-green-100 text-green-700";
     case "CANCELLED": return "bg-red-100 text-red-700";
   }

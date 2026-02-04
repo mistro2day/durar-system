@@ -458,7 +458,7 @@ export default function Layout() {
                     {userInitial}
                   </div>
                   <div className="hidden sm:flex flex-col items-start">
-                    <span className="text-sm font-medium text-gray-700">مرحباً، {userName}</span>
+                    <span className="text-sm font-medium text-gray-900">مرحباً، {userName}</span>
                     <span className="text-xs text-gray-500">إدارة الملف الشخصي</span>
                   </div>
                   <ChevronDown className={`hidden sm:block w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />

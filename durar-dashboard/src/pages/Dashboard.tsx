@@ -162,12 +162,12 @@ export default function Dashboard() {
   const localeTag = useLocaleTag();
 
   function formatNumber(n: number) {
-    return new Intl.NumberFormat(localeTag).format(n ?? 0);
+    return new Intl.NumberFormat('en-US').format(n ?? 0);
   }
 
   // استخدم رمز ﷼ أو المعرّف من البيئة بدل "ر.س"
   function formatCurrency(n: number) {
-    return formatSAR(n, { locale: localeTag });
+    return formatSAR(n);
   }
 
   async function fetchSummary(): Promise<void> {
@@ -430,7 +430,7 @@ export default function Dashboard() {
             const values = occupancy.values.length ? occupancy.values : [summary.units.available || 0, summary.units.occupied || 0, (summary.units.maintenance || 0)];
             const colors = [themeColors.success, themeColors.danger, themeColors.warning];
             const total = values.reduce((a: number, b: number) => a + Number(b || 0), 0) || 1;
-            const pct = (i: number) => new Intl.NumberFormat('ar-SA', { maximumFractionDigits: 1 }).format((Number(values[i] || 0) * 100) / total);
+            const pct = (i: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format((Number(values[i] || 0) * 100) / total);
             return (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -468,7 +468,7 @@ export default function Dashboard() {
                     </Suspense>
                     <div className="absolute inset-0 grid place-items-center pointer-events-none">
                       <div className="text-center">
-                        <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('ar-SA').format(total)}</div>
+                        <div className="text-2xl font-extrabold" style={{ color: themeColors.text }}>{new Intl.NumberFormat('en-US').format(total)}</div>
                         <div className="text-xs" style={{ color: themeColors.text }}>إجمالي الوحدات</div>
                       </div>
                     </div>
@@ -476,7 +476,7 @@ export default function Dashboard() {
                   <div className="flex flex-col justify-center gap-3">
                     {labels.map((lab, i) => {
                       const count = Number(values[i] || 0);
-                      const countLabel = new Intl.NumberFormat('ar-SA').format(count);
+                      const countLabel = new Intl.NumberFormat('en-US').format(count);
                       return (
                         <div key={lab} className="flex items-center justify-between p-2 rounded-lg border border-gray-100">
                           <div className="flex items-center gap-2">
@@ -820,7 +820,7 @@ function Header({
         ) : null}
         <button
           onClick={onRefresh}
-          className="refresh-button"
+          className="btn-outline text-gray-900 dark:text-gray-200"
           aria-label="تحديث البيانات"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -914,14 +914,8 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
                 onToggle={() => toggleExpiringSort("endDate")}
               />
             </th>
-            <th className="text-right p-3">
-              <SortHeader
-                label="متبق"
-                active={expiringSort?.key === "remaining"}
-                direction={expiringSort?.key === "remaining" ? expiringSort.direction : null}
-                onToggle={() => toggleExpiringSort("remaining")}
-              />
-            </th>
+            <th className="text-right p-3">بقي</th>
+            <th className="text-right p-3">قرار التجديد</th>
             <th className="text-right p-3">إجراءات</th>
           </tr>
         </thead>
@@ -929,35 +923,69 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
           {rows.map((c: any) => {
             const endDate = new Date(c.endDate);
             const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+            const updateStatus = async (status: string) => {
+              try {
+                await api.patch(`/api/contracts/${c.id}`, { renewalStatus: status });
+                alert("تم تحديث القرار بنجاح");
+                window.location.reload(); // Refresh to show changes
+              } catch (e: any) {
+                alert("تعذر تحديث القرار");
+              }
+            };
+
             return (
               <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                <td className="p-3 text-gray-800">{c.tenantName || c.tenant?.name || '-'}</td>
+                <td className="p-3 text-gray-800">{c.tenantName || c.tenant?.name || "-"}</td>
                 <td className="p-3">
                   {c.unit?.id ? (
                     <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
-                      {c.unit?.unitNumber || c.unit?.number || '-'}
+                      {c.unit?.unitNumber || c.unit?.number || "-"}
                     </Link>
                   ) : (
-                    c.unit?.unitNumber || c.unit?.number || '-'
+                    c.unit?.unitNumber || c.unit?.number || "-"
                   )}
                 </td>
-                <td className="p-3 text-gray-800">{c.unit?.property?.name || '-'}</td>
+                <td className="p-3 text-gray-800">{c.unit?.property?.name || "-"}</td>
                 <td className="p-3">{endDate.toLocaleDateString(localeTag)}</td>
-                <td className="p-3"><span className={`px-2 py-1 rounded text-xs ${daysLeft <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{daysLeft} يوم</span></td>
+                <td className="p-3">
+                  <span
+                    className={`${daysLeft <= 7 ? "badge-warning" : "px-2 py-1 rounded text-xs bg-blue-100 text-blue-700"
+                      }`}
+                  >
+                    {daysLeft} يوم
+                  </span>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-1">
+                    <button
+                      className={`btn-icon-soft ${c.renewalStatus === "RENEWED" ? "bg-green-100 text-green-700" : ""}`}
+                      onClick={() => updateStatus("RENEWED")}
+                      title="تم الاتفاق على التجديد"
+                    >
+                      تجديد
+                    </button>
+                    <button
+                      className={`btn-icon-soft ${c.renewalStatus === "NOT_RENEWING" ? "bg-red-100 text-red-700" : ""}`}
+                      onClick={() => updateStatus("NOT_RENEWING")}
+                      title="لن يتم التجديد"
+                    >
+                      إنهاء
+                    </button>
+                  </div>
+                </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <a
+                    <Link
                       className="btn-soft btn-soft-info"
-                      href={`/contracts?editId=${c.id}`}
-                      title="تجديد/تعديل العقد"
+                      to={`/hotel/${c.unit?.propertyId}/tenants/${c.tenantId}`}
+                      title="عرض التفاصيل"
                     >
-                      <RotateCcw className="w-4 h-4" />
-                      <span className="hidden sm:inline">تجديد</span>
-                    </a>
+                      <FileText className="w-4 h-4" />
+                    </Link>
                     {c.tenant?.phone ? (
                       <a className="btn-soft btn-soft-success" href={`tel:${c.tenant?.phone}`} title="اتصال">
                         <Phone className="w-4 h-4" />
-                        <span className="hidden sm:inline">اتصال</span>
                       </a>
                     ) : null}
                   </div>
@@ -987,7 +1015,7 @@ function StatCard({
   const colorMap: Record<typeof color, { ring: string; text: string; bg: string; icon: string }> = {
     blue: { ring: "ring-blue-200", text: "text-blue-900", bg: "bg-blue-50", icon: "text-blue-600" },
     green: { ring: "ring-green-200", text: "text-green-900", bg: "bg-green-50", icon: "text-green-600" },
-    amber: { ring: "ring-amber-200", text: "text-amber-900", bg: "bg-amber-50", icon: "text-amber-600" },
+    amber: { ring: "ring-orange-200", text: "text-[#431407]", bg: "bg-orange-100/50", icon: "text-[#431407]" },
     purple: { ring: "ring-purple-200", text: "text-purple-900", bg: "bg-purple-50", icon: "text-purple-600" },
   };
 

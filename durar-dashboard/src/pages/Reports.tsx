@@ -267,20 +267,20 @@ export default function Reports() {
       const values =
         activeTab === "contracts"
           ? [
-              (row as ContractsReportRow).propertyName,
-              (row as ContractsReportRow).unitNumber,
-              (row as ContractsReportRow).tenantName,
-              mapContractStatus((row as ContractsReportRow).status),
-            ]
+            (row as ContractsReportRow).propertyName,
+            (row as ContractsReportRow).unitNumber,
+            (row as ContractsReportRow).tenantName,
+            mapContractStatus((row as ContractsReportRow).status),
+          ]
           : activeTab === "financial"
-          ? [
+            ? [
               (row as FinancialReportRow).propertyName,
               (row as FinancialReportRow).unitNumber,
               (row as FinancialReportRow).tenantName,
               mapFinancialStatus((row as FinancialReportRow).status),
               mapPaymentMethod((row as FinancialReportRow).paymentMethod),
             ]
-          : [
+            : [
               (row as MaintenanceReportRow).propertyName,
               (row as MaintenanceReportRow).unitNumber,
               (row as MaintenanceReportRow).description,
@@ -510,11 +510,10 @@ export default function Reports() {
               key={key}
               type="button"
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition ${
-                active
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition ${active
                   ? "border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm"
                   : "border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               <span>{label}</span>
@@ -1084,16 +1083,16 @@ function buildTableHtml(context: ExportContext) {
   const bodyRows =
     context.data.length > 0
       ? context.data
-          .map(
-            (row) =>
-              `<tr>${row
-                .map(
-                  (cell) =>
-                    `<td style="border:1px solid #e5e7eb; padding:8px 12px;">${escapeHtml(cell ?? "")}</td>`
-                )
-                .join("")}</tr>`
-          )
-          .join("")
+        .map(
+          (row) =>
+            `<tr>${row
+              .map(
+                (cell) =>
+                  `<td style="border:1px solid #e5e7eb; padding:8px 12px;">${escapeHtml(cell ?? "")}</td>`
+              )
+              .join("")}</tr>`
+        )
+        .join("")
       : `<tr><td colspan="${context.headers.length}" style="border:1px solid #e5e7eb; padding:16px; text-align:center; color:#6b7280;">لا توجد بيانات متاحة</td></tr>`;
 
   return `<div style="width:100%; direction:rtl; font-family:'Tajawal','Cairo','Segoe UI',sans-serif; color:#111827;">

@@ -33,6 +33,7 @@ type Contract = {
   paymentFrequency?: string | null;
   servicesIncluded?: string | null;
   notes?: string | null;
+  renewalStatus?: string | null;
 };
 
 type ContractSortKey =
@@ -46,7 +47,8 @@ type ContractSortKey =
   | "ejar"
   | "payment"
   | "startDate"
-  | "endDate";
+  | "endDate"
+  | "renewalStatus";
 
 const PAYMENT_METHODS = ["كاش", "تحويل بنكي", "منصة إيجار"] as const;
 
@@ -71,6 +73,7 @@ export default function Contracts() {
   const [editing, setEditing] = useState<Contract | null>(null);
   const [viewing, setViewing] = useState<Contract | null>(null);
   const [search, setSearch] = useState("");
+  const [renewalFilter, setRenewalFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const params = useParams();
@@ -118,8 +121,11 @@ export default function Contracts() {
         (ejar && ejar.includes(term)) ||
         (propertyName && propertyName.includes(term))
       );
+    }).filter(c => {
+      if (renewalFilter === "ALL") return true;
+      return (c.renewalStatus || "PENDING") === renewalFilter;
     });
-  }, [items, search]);
+  }, [items, search, renewalFilter]);
 
   const contractSortAccessors = useMemo<Record<ContractSortKey, (c: Contract) => unknown>>(
     () => ({
@@ -134,6 +140,7 @@ export default function Contracts() {
       payment: (c) => c.paymentMethod || "",
       startDate: (c) => c.startDate,
       endDate: (c) => c.endDate,
+      renewalStatus: (c) => c.renewalStatus || "PENDING",
     }),
     []
   );
@@ -225,11 +232,24 @@ export default function Contracts() {
         <div className="flex items-center gap-3 w-full md:w-auto">
           <span className="text-sm text-gray-600">بحث</span>
           <input
-            className="form-input w-full md:w-72"
-            placeholder="اسم المستأجر أو رقم عقد إيجار أو رقم الوحدة"
+            className="form-input w-full md:w-64"
+            placeholder="المستأجر أو رقم الوحدة..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>قرار التجديد</span>
+          <select
+            className="form-select"
+            value={renewalFilter}
+            onChange={(e) => setRenewalFilter(e.target.value)}
+          >
+            <option value="ALL">الكل</option>
+            <option value="PENDING">قيد الانتظار</option>
+            <option value="RENEWED">تم التجديد</option>
+            <option value="NOT_RENEWING">لن يتم التجديد</option>
+          </select>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span>عدد النتائج:</span>
@@ -348,6 +368,14 @@ export default function Contracts() {
                     onToggle={() => toggleContractSort("endDate")}
                   />
                 </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="قرار التجديد"
+                    active={contractSort?.key === "renewalStatus"}
+                    direction={contractSort?.key === "renewalStatus" ? contractSort.direction : null}
+                    onToggle={() => toggleContractSort("renewalStatus")}
+                  />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -367,7 +395,7 @@ export default function Contracts() {
                     </Td>
                     <Td>
                       {tenantHref ? (
-                        <Link to={tenantHref} className="font-semibold text-primary hover:underline">
+                        <Link to={tenantHref} className="font-semibold text-gray-900 hover:text-primary hover:underline transition-colors dark:text-white">
                           {c.tenantName}
                         </Link>
                       ) : (
@@ -398,6 +426,9 @@ export default function Contracts() {
                     </Td>
                     <Td>{formatDate(c.startDate, localeTag)}</Td>
                     <Td>{formatDate(c.endDate, localeTag)}</Td>
+                    <Td>
+                      <RenewalBadge status={c.renewalStatus} />
+                    </Td>
                   </tr>
                 );
               })}
@@ -542,7 +573,7 @@ export default function Contracts() {
               </label>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
-              <button className="btn-outline" onClick={() => setEditing(null)}>إلغاء</button>
+              <button className="btn-soft btn-soft-secondary" onClick={() => setEditing(null)}>إلغاء</button>
               <button className="btn-primary inline-flex items-center gap-2" onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 حفظ
@@ -685,8 +716,8 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
   useEffect(() => {
     if (!open) return;
     const qp = propertyId ? `?propertyId=${propertyId}` : '';
-    api.get(`/api/units${qp}`).then(r => setUnits((r.data || []).map((u:any)=>({id:u.id, unitNumber:(u.unitNumber||u.number)}))))
-      .catch(()=>{});
+    api.get(`/api/units${qp}`).then(r => setUnits((r.data || []).map((u: any) => ({ id: u.id, unitNumber: (u.unitNumber || u.number) }))))
+      .catch(() => { });
   }, [open, propertyId]);
 
   function closeModal() {
@@ -729,7 +760,7 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
       await api.post('/api/contracts', payload);
       closeModal();
       onAdded();
-    } catch (e:any) {
+    } catch (e: any) {
       alert(e?.response?.data?.message || 'تعذر إضافة العقد');
     } finally {
       setSaving(false);
@@ -738,7 +769,7 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
 
   return (
     <>
-      <button className="btn-soft btn-soft-primary" onClick={()=>setOpen(true)}>
+      <button className="btn-soft btn-soft-primary" onClick={() => setOpen(true)}>
         إضافة عقد
       </button>
       {open ? (
@@ -747,22 +778,22 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
             <h3 className="text-lg font-semibold mb-4">عقد جديد</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="اسم المستأجر">
-                <input className="form-input" value={form.tenantName} onChange={(e)=>setForm({...form, tenantName: e.target.value})} />
+                <input className="form-input" value={form.tenantName} onChange={(e) => setForm({ ...form, tenantName: e.target.value })} />
               </Field>
               <Field label="الوحدة">
-                <select className="form-select" value={String(form.unitId||'')} onChange={(e)=>setForm({...form, unitId: Number(e.target.value)})}>
+                <select className="form-select" value={String(form.unitId || '')} onChange={(e) => setForm({ ...form, unitId: Number(e.target.value) })}>
                   <option value="">—</option>
                   {units.map(u => (<option key={u.id} value={u.id}>{u.unitNumber}</option>))}
                 </select>
               </Field>
-              <Field label="تاريخ البداية"><DateInput value={form.startDate||''} onChange={(v)=>setForm({...form,startDate:v})} /></Field>
-              <Field label="تاريخ النهاية"><DateInput value={form.endDate||''} onChange={(v)=>setForm({...form,endDate:v})} /></Field>
+              <Field label="تاريخ البداية"><DateInput value={form.startDate || ''} onChange={(v) => setForm({ ...form, startDate: v })} /></Field>
+              <Field label="تاريخ النهاية"><DateInput value={form.endDate || ''} onChange={(v) => setForm({ ...form, endDate: v })} /></Field>
               <Field label="المبلغ الإجمالي">
                 <input
                   className="form-input"
                   type="number"
                   value={form.amount !== undefined && form.amount !== null ? String(form.amount) : ""}
-                  onChange={(e)=>setForm({...form, amount: e.target.value === "" ? undefined : Number(e.target.value)})}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value === "" ? undefined : Number(e.target.value) })}
                 />
               </Field>
               <Field label="قيمة الإيجار">
@@ -770,11 +801,11 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
                   className="form-input"
                   type="number"
                   value={form.rentAmount !== undefined && form.rentAmount !== null ? String(form.rentAmount) : ""}
-                  onChange={(e)=>setForm({...form, rentAmount: e.target.value === "" ? undefined : Number(e.target.value)})}
+                  onChange={(e) => setForm({ ...form, rentAmount: e.target.value === "" ? undefined : Number(e.target.value) })}
                 />
               </Field>
               <Field label="نوع الإيجار">
-                <select className="form-select" value={form.rentalType} onChange={(e)=>setForm({...form, rentalType: e.target.value})}>
+                <select className="form-select" value={form.rentalType} onChange={(e) => setForm({ ...form, rentalType: e.target.value })}>
                   <option value="MONTHLY">شهري</option>
                   <option value="DAILY">يومي</option>
                 </select>
@@ -788,14 +819,14 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
                 />
               </Field>
               <Field label="رقم عقد إيجار">
-                <input className="form-input" value={form.ejarContractNumber || ""} onChange={(e)=>setForm({...form, ejarContractNumber: e.target.value})} />
+                <input className="form-input" value={form.ejarContractNumber || ""} onChange={(e) => setForm({ ...form, ejarContractNumber: e.target.value })} />
               </Field>
               <Field label="طريقة الدفع">
                 <input
                   className="form-input"
                   list={PAYMENT_METHODS_LIST_ID}
                   value={form.paymentMethod || ""}
-                  onChange={(e)=>setForm({...form, paymentMethod: e.target.value})}
+                  onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
                 />
               </Field>
               <Field label="تكرار الدفع">
@@ -803,15 +834,15 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
                   className="form-input"
                   list={PAYMENT_FREQUENCIES_LIST_ID}
                   value={form.paymentFrequency || ""}
-                  onChange={(e)=>setForm({...form, paymentFrequency: e.target.value})}
+                  onChange={(e) => setForm({ ...form, paymentFrequency: e.target.value })}
                 />
               </Field>
               <Field label="الخدمات المشمولة">
-                <input className="form-input" value={form.servicesIncluded || ""} onChange={(e)=>setForm({...form, servicesIncluded: e.target.value})} />
+                <input className="form-input" value={form.servicesIncluded || ""} onChange={(e) => setForm({ ...form, servicesIncluded: e.target.value })} />
               </Field>
               <label className="md:col-span-2 flex flex-col gap-1 text-sm">
                 <span className="text-gray-600">ملاحظات</span>
-                <textarea className="form-input h-24" value={form.notes || ""} onChange={(e)=>setForm({...form, notes: e.target.value})} />
+                <textarea className="form-input h-24" value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </label>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
@@ -836,6 +867,30 @@ function mapStatus(v?: string) {
     default:
       return v || "-";
   }
+}
+
+
+function RenewalBadge({ status }: { status?: string | null }) {
+  const map: Record<string, { label: string; className: string }> = {
+    PENDING: {
+      label: "قيد الانتظار",
+      className: "badge-warning",
+    },
+    RENEWED: {
+      label: "تم التجديد",
+      className: "badge-success",
+    },
+    NOT_RENEWING: {
+      label: "لن يتم التجديد",
+      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+    },
+  };
+  const info = status ? map[status] : map["PENDING"];
+  return (
+    <span className={`${info.className}`}>
+      {info.label}
+    </span>
+  );
 }
 
 function statusClass(v?: string) {
