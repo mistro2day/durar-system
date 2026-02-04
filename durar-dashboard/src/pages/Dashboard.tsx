@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { RefreshCw, FileText, Building2, Wrench, Coins, Phone, RotateCcw } from "lucide-react";
+import { RefreshCw, FileText, Building2, Wrench, Coins, Phone, RotateCcw, MessageCircle, MessageSquare, X } from "lucide-react";
 // حمّل مكونات الرسوم بشكل كسول لتقليل وزن حزمة التحميل الأولى
 const Line = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Line })));
 const Doughnut = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Doughnut })));
@@ -51,6 +51,7 @@ export default function Dashboard() {
     pending: 0,
     overdue: 0,
   });
+  const [renewingContract, setRenewingContract] = useState<any | null>(null);
   const [propertyRevenue, setPropertyRevenue] = useState<Array<{ label: string; value: number }>>([]);
   const [occupancy, setOccupancy] = useState<{ labels: string[]; values: number[] }>({ labels: [], values: [] });
   const params = useParams();
@@ -141,6 +142,8 @@ export default function Dashboard() {
       ? [...top, { label: "أخرى", value: othersTotal }]
       : top;
   }, [propertyRevenue]);
+
+
   const propertyRevenueTotal = useMemo(
     () => propertyRevenue.reduce((sum, item) => sum + item.value, 0),
     [propertyRevenue]
@@ -846,8 +849,16 @@ export default function Dashboard() {
             <option value="month">هذا الشهر</option>
           </select>
         </div>
-        <ExpiringContractsTable items={contracts} range={range} localeTag={localeTag} />
+        <ExpiringContractsTable items={contracts} range={range} localeTag={localeTag} onRenew={setRenewingContract} />
       </div>
+
+      {renewingContract && (
+        <RenewContractModal
+          contract={renewingContract}
+          onClose={() => setRenewingContract(null)}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
 
       {/* الفواتير المتأخرة */}
       {lateInvoices.length > 0 && (
@@ -936,7 +947,7 @@ function Header({
   );
 }
 
-function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; range: "week" | "month"; localeTag: string }) {
+function ExpiringContractsTable({ items, range, localeTag, onRenew }: { items: any[]; range: "week" | "month"; localeTag: string; onRenew: (c: any) => void }) {
   const now = useMemo(() => new Date(), [items, range]);
   const horizon = useMemo(() => {
     const end = new Date(now);
@@ -1030,6 +1041,23 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
             const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
             const updateStatus = async (status: string) => {
+              if (status === "NOT_RENEWING") {
+                if (!window.confirm("هل أنت متأكد من إنهاء العقد؟ سيتم تحويل الوحدة إلى متاحة.")) return;
+                try {
+                  await api.patch(`/api/contracts/${c.id}/end`, {});
+                  alert("تم إنهاء العقد بنجاح");
+                  window.location.reload();
+                } catch (e: any) {
+                  alert(e.response?.data?.message || "تعذر إنهاء العقد");
+                }
+                return;
+              }
+
+              if (status === "RENEWED") {
+                onRenew(c);
+                return;
+              }
+
               try {
                 await api.patch(`/api/contracts/${c.id}`, { renewalStatus: status });
                 alert("تم تحديث القرار بنجاح");
@@ -1089,9 +1117,20 @@ function ExpiringContractsTable({ items, range, localeTag }: { items: any[]; ran
                       <FileText className="w-4 h-4" />
                     </Link>
                     {c.tenant?.phone ? (
-                      <a className="btn-soft btn-soft-success" href={`tel:${c.tenant?.phone}`} title="اتصال">
-                        <Phone className="w-4 h-4" />
-                      </a>
+                      <>
+                        <a className="btn-soft btn-soft-success" href={`tel:${c.tenant?.phone}`} title="اتصال">
+                          <Phone className="w-4 h-4" />
+                        </a>
+                        <a
+                          href={getWhatsAppLink(c.tenant.phone) || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-soft btn-soft-success"
+                          title="واتساب"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </>
                     ) : null}
                   </div>
                 </td>
@@ -1186,6 +1225,121 @@ function SkeletonDashboard() {
 }
 
 
+function getWhatsAppLink(phone?: string | null) {
+  if (!phone) return null;
+  let p = phone.replace(/[^\d]/g, "");
+  if (!p) return null;
+  if (p.startsWith("0")) p = "966" + p.substring(1);
+  return `https://wa.me/${p}`;
+}
+
+function getSmsLink(phone?: string | null) {
+  if (!phone) return null;
+  return `sms:${phone}`;
+}
+
+function RenewContractModal({ contract, onClose, onSuccess }: { contract: any; onClose: () => void; onSuccess: () => void }) {
+  const [amount, setAmount] = useState<string>(String(contract.rentAmount || contract.amount || ""));
+  const [loading, setLoading] = useState(false);
+
+  // Calculate new dates
+  const { newStartDate, newEndDate } = useMemo(() => {
+    if (!contract.startDate || !contract.endDate) return { newStartDate: new Date(), newEndDate: new Date() };
+
+    const oldStart = new Date(contract.startDate);
+    const oldEnd = new Date(contract.endDate);
+    const durationTime = oldEnd.getTime() - oldStart.getTime();
+
+    // New start = Old end + 1 day
+    const start = new Date(oldEnd);
+    start.setDate(start.getDate() + 1);
+
+    // New end = New start + duration
+    const end = new Date(start.getTime() + durationTime);
+
+    return { newStartDate: start, newEndDate: end };
+  }, [contract]);
+
+  const handleConfirm = async () => {
+    if (!amount) return alert("الرجاء إدخال مبلغ الإيجار");
+
+    setLoading(true);
+    try {
+      // 1. Create New Contract
+      await api.post("/api/contracts", {
+        tenantName: contract.tenantName || contract.tenant?.name,
+        unitId: contract.unitId,
+        startDate: newStartDate,
+        endDate: newEndDate,
+        amount: Number(amount),
+        rentAmount: Number(amount),
+        paymentFrequency: contract.paymentFrequency,
+        rentalType: contract.rentalType,
+        paymentMethod: contract.paymentMethod,
+        notes: `تجديد للعقد رقم ${contract.id}`,
+      });
+
+      // 2. Update Old Contract Status
+      await api.patch(`/api/contracts/${contract.id}`, { renewalStatus: "RENEWED" });
+
+      onSuccess();
+    } catch (e: any) {
+      alert(e.response?.data?.message || "فشل التجديد");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative">
+        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <X className="w-5 h-5" />
+        </button>
+
+        <h3 className="text-xl font-bold mb-6 text-gray-800 dark:text-gray-100">تجديد العقد</h3>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
+              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-1">بداية العقد الجديد</label>
+              <div className="font-semibold text-gray-800 dark:text-gray-200" dir="ltr">{newStartDate.toLocaleDateString('en-CA')}</div>
+            </div>
+            <div className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
+              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-1">نهاية العقد الجديد</label>
+              <div className="font-semibold text-gray-800 dark:text-gray-200" dir="ltr">{newEndDate.toLocaleDateString('en-CA')}</div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">مبلغ الإيجار (ريال)</label>
+            <input
+              type="number"
+              className="input w-full dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">نفس المبلغ السابق افتراضياً، يمكنك تعديله.</p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 mt-8">
+          <button onClick={onClose} className="btn-ghost" disabled={loading}>إلغاء</button>
+          <button onClick={handleConfirm} className="btn-primary flex items-center gap-2" disabled={loading}>
+            {loading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>جاري التجديد...</span>
+              </>
+            ) : (
+              "تأكيد التجديد"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LateInvoicesTable({
   items, localeTag, page, pageSize, total, onPageChange, onStatusUpdate
 }: {
@@ -1262,13 +1416,27 @@ function LateInvoicesTable({
                   <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
                 </td>
                 <td className="p-3">
-                  {inv.contractId ? (
-                    <Link to={`/contracts/${inv.contractId}`} className="btn-xs btn-soft-primary">
-                      عرض العقد
-                    </Link>
-                  ) : (
-                    <span className="text-gray-400 text-xs">-</span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const tenant = inv.contract?.tenant || inv.tenant;
+                      const phone = tenant?.phone;
+                      if (!phone) return <span className="text-gray-400 text-xs">-</span>;
+
+                      const wa = getWhatsAppLink(phone);
+                      const sms = getSmsLink(phone);
+
+                      return (
+                        <>
+                          <a href={wa || '#'} target="_blank" rel="noopener noreferrer" className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10" title="واتساب">
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                          <a href={sms || '#'} className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10" title="رسالة نصية">
+                            <MessageSquare className="w-4 h-4" />
+                          </a>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </td>
               </tr>
             );
@@ -1383,13 +1551,27 @@ function UpcomingInvoicesTable({
                   <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
                 </td>
                 <td className="p-3">
-                  {inv.contractId ? (
-                    <Link to={`/contracts/${inv.contractId}`} className="btn-xs btn-soft-primary">
-                      عرض العقد
-                    </Link>
-                  ) : (
-                    <span className="text-gray-400 text-xs">-</span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const tenant = inv.contract?.tenant || inv.tenant;
+                      const phone = tenant?.phone;
+                      if (!phone) return <span className="text-gray-400 text-xs">-</span>;
+
+                      const wa = getWhatsAppLink(phone);
+                      const sms = getSmsLink(phone);
+
+                      return (
+                        <>
+                          <a href={wa || '#'} target="_blank" rel="noopener noreferrer" className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10" title="واتساب">
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                          <a href={sms || '#'} className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10" title="رسالة نصية">
+                            <MessageSquare className="w-4 h-4" />
+                          </a>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </td>
               </tr>
             );

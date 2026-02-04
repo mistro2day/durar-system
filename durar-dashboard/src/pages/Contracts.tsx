@@ -3,7 +3,7 @@ import { useLocation, useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import { DEFAULT_DATE_LOCALE } from "../lib/settings";
-import { Eye, Pencil, Trash2, Flag, Loader2 } from "lucide-react";
+import { Eye, Pencil, Trash2, Flag, Loader2, MessageCircle, MessageSquare } from "lucide-react";
 import DateInput from "../components/DateInput";
 import { toDateInput, fromDateInput } from "../components/date-input-helpers";
 import Currency from "../components/Currency";
@@ -24,7 +24,7 @@ type Contract = {
     propertyId?: number;
     property?: { id: number; name?: string | null } | null;
   } | null;
-  tenant?: { id: number; name: string } | null;
+  tenant?: { id: number; name: string; phone?: string | null } | null;
   rentAmount?: number | null;
   amount?: number | null;
   deposit?: number | null;
@@ -106,6 +106,19 @@ export default function Contracts() {
     const c = items.find(x => x.id === id);
     if (c) setEditing(c);
   }, [location.search, items]);
+
+  const getWhatsAppLink = (phone?: string | null) => {
+    if (!phone) return null;
+    let p = phone.replace(/[^\d]/g, "");
+    if (!p) return null;
+    if (p.startsWith("0")) p = "966" + p.substring(1);
+    return `https://wa.me/${p}`;
+  };
+
+  const getSmsLink = (phone?: string | null) => {
+    if (!phone) return null;
+    return `sms:${phone}`;
+  };
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -391,6 +404,26 @@ export default function Contracts() {
                           <Eye className="w-4 h-4" />
                           <span className="hidden sm:inline">عرض</span>
                         </button>
+                        {c.tenant?.phone ? (
+                          <>
+                            <a
+                              href={getWhatsAppLink(c.tenant.phone) || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10"
+                              title="واتساب"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                            <a
+                              href={getSmsLink(c.tenant.phone) || "#"}
+                              className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10"
+                              title="رسالة نصية"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </a>
+                          </>
+                        ) : null}
                       </div>
                     </Td>
                     <Td>
