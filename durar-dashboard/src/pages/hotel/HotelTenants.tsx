@@ -88,32 +88,33 @@ export default function HotelTenants() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">المستأجرون</h3>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-48">
-            <label className="block text-xs text-indigo-100/80 mb-1">عدد النتائج</label>
-            <select
-              className="form-select"
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-            >
-              {PAGE_SIZE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-full sm:w-72">
-            <input
-              className="form-input"
-              placeholder="بحث باسم المستأجر أو الهوية..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+    <div>
+      <h2 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-6">المستأجرون</h2>
+
+      {/* فلاتر وبحث */}
+      <div className="card mb-4 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col text-sm">
+          <label className="text-gray-600 dark:text-gray-300 mb-1">عدد النتائج</label>
+          <select
+            className="form-select"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col text-sm w-full sm:w-96">
+          <label className="text-gray-600 dark:text-gray-300 mb-1">بحث بالاسم أو الهوية</label>
+          <input
+            className="form-input"
+            placeholder="بحث باسم المستأجر أو الهوية..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </div>
 
