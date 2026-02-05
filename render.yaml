@@ -9,7 +9,7 @@ services:
     healthCheckPath: /api/health
     buildCommand: |
       npm install --include=dev
-      cd ../durar-dashboard && rm -rf node_modules && npm install --include=dev && cd ../backend
+      cd ../durar-dashboard && rm -rf node_modules package-lock.json && npm install --include=dev && cd ../backend
       npm --prefix ../durar-dashboard run build
       npx prisma generate
     # preDeployCommand is not supported on Free plan; run migrations at start (idempotent)
