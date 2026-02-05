@@ -10,7 +10,7 @@ services:
     buildCommand: |
       npm install --include=dev
       npm --prefix ../durar-dashboard install --include=dev
-      cd ../durar-dashboard && npm rebuild lightningcss && cd ../backend
+      cd ../durar-dashboard && npm rebuild rollup lightningcss && cd ../backend
       npm --prefix ../durar-dashboard run build
       npx prisma generate
     # preDeployCommand is not supported on Free plan; run migrations at start (idempotent)
