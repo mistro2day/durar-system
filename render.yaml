@@ -8,8 +8,8 @@ services:
     autoDeploy: true
     healthCheckPath: /api/health
     buildCommand: |
-      npm ci --include=dev
-      npm --prefix ../durar-dashboard ci --include=dev
+      npm install --include=dev
+      npm --prefix ../durar-dashboard install --include=dev
       npm --prefix ../durar-dashboard run build
       npx prisma generate
     # preDeployCommand is not supported on Free plan; run migrations at start (idempotent)
