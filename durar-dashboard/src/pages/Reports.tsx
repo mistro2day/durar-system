@@ -469,10 +469,10 @@ export default function Reports() {
 
   const exportDisabled = filteredRows.length === 0;
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (exportDisabled) return;
     const context = buildExportContext();
-    exportContextToCsv(context);
+    await exportContextToExcel(context);
   };
 
   const handlePrint = () => {
@@ -511,8 +511,8 @@ export default function Reports() {
               type="button"
               onClick={() => setActiveTab(key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition ${active
-                  ? "border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm"
-                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                ? "border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm"
+                : "border-gray-200 text-gray-900 dark:text-gray-100 hover:bg-gray-50"
                 }`}
             >
               <Icon className="w-4 h-4" />
@@ -648,7 +648,7 @@ export default function Reports() {
       ) : (
         <div className="card overflow-x-auto">
           {activeTab === "contracts" ? (
-            <table className="table min-w-[780px]">
+            <table className="table w-full">
               <thead>
                 <tr>
                   <th className="text-right">#</th>
@@ -689,7 +689,7 @@ export default function Reports() {
               </tbody>
             </table>
           ) : activeTab === "financial" ? (
-            <table className="table min-w-[880px]">
+            <table className="table w-full">
               <thead>
                 <tr>
                   <th className="text-right">#</th>
@@ -732,7 +732,7 @@ export default function Reports() {
               </tbody>
             </table>
           ) : (
-            <table className="table min-w-[900px]">
+            <table className="table w-full">
               <thead>
                 <tr>
                   <th className="text-right">#</th>
@@ -865,13 +865,76 @@ function mapPriority(value?: string | null) {
   }
 }
 
-function exportContextToCsv(context: ExportContext) {
-  const rows = [context.headers, ...context.data];
-  const csvBody = rows
-    .map((row) => row.map((cell) => escapeCsvValue(cell ?? "")).join(","))
-    .join("\r\n");
-  const csv = "\ufeff" + csvBody;
-  downloadBlob(csv, "text/csv;charset=utf-8;", `${context.fileBase}.csv`);
+async function exportContextToExcel(context: ExportContext) {
+  // Dynamic import للحفاظ على bundle size
+  const XLSX = await import('xlsx');
+
+  // إنشاء worksheet من البيانات
+  const wsData = [context.headers, ...context.data];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // تنسيق العناوين - خلفية رمادية وخط عريض
+  const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+    if (!ws[cellAddress]) continue;
+
+    // تطبيق التنسيق على خلايا العناوين
+    ws[cellAddress].s = {
+      font: { bold: true, sz: 12 },
+      fill: { fgColor: { rgb: "F3F4F6" } },
+      alignment: { horizontal: "right", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "D1D5DB" } },
+        bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+        left: { style: "thin", color: { rgb: "D1D5DB" } },
+        right: { style: "thin", color: { rgb: "D1D5DB" } }
+      }
+    };
+  }
+
+  // تنسيق خلايا البيانات - محاذاة لليمين وحدود
+  for (let row = headerRange.s.r + 1; row <= headerRange.e.r; row++) {
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+      if (!ws[cellAddress]) continue;
+
+      ws[cellAddress].s = {
+        alignment: { horizontal: "right", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "E5E7EB" } },
+          bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+          left: { style: "thin", color: { rgb: "E5E7EB" } },
+          right: { style: "thin", color: { rgb: "E5E7EB" } }
+        }
+      };
+    }
+  }
+
+  // ضبط عرض الأعمدة تلقائياً
+  const colWidths: Array<{ wch: number }> = [];
+  for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+    let maxWidth = 10;
+    for (let row = headerRange.s.r; row <= headerRange.e.r; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = ws[cellAddress];
+      if (cell && cell.v) {
+        const cellValue = String(cell.v);
+        // حساب عرض تقريبي (الأحرف العربية أعرض من اللاتينية)
+        const width = cellValue.length * 1.2;
+        maxWidth = Math.max(maxWidth, Math.min(width, 50)); // حد أقصى 50
+      }
+    }
+    colWidths.push({ wch: maxWidth });
+  }
+  ws['!cols'] = colWidths;
+
+  // إنشاء workbook وإضافة worksheet
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, context.title.substring(0, 31)); // Excel يحد اسم الورقة بـ 31 حرف
+
+  // تصدير الملف
+  XLSX.writeFile(wb, `${context.fileBase}.xlsx`);
 }
 
 async function exportContextToPdf(context: ExportContext) {

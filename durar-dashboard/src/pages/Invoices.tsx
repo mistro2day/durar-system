@@ -281,8 +281,8 @@ export default function Invoices() {
                   <Td>
                     <select
                       className={`transition-colors appearance-none cursor-pointer ${inv.status === 'PAID' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
-                          inv.status === 'OVERDUE' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
-                            'badge-warning'
+                        inv.status === 'OVERDUE' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
+                          'badge-warning'
                         } ${savingId === inv.id ? "opacity-60" : ""}`}
                       value={inv.status}
                       onChange={(e) => updateStatus(inv.id, e.target.value)}

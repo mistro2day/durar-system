@@ -328,7 +328,7 @@ export default function Dashboard() {
     fetchLateInvoices(1);
     fetchUpcomingInvoices(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [propertyId]);
 
   function fetchLateInvoices(page: number) {
     api.get(`/api/invoices?status=overdue&page=${page}&pageSize=${lateInvoicesPageSize}${propertyId ? `&propertyId=${propertyId}` : ''}`)

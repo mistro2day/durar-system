@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "csv-stringify": "^6.6.0"
+    "csv-stringify": "^6.6.0",
+    "xlsx": "^0.18.5"
   }
 }

@@ -134,7 +134,12 @@
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 transition-all dark:bg-white/5 dark:text-white dark:ring-white/10 dark:hover:bg-white/10;
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 transition-all dark:bg-white/5 dark:ring-white/10 dark:hover:bg-white/10;
+    color: #111827;
+  }
+
+  [data-theme='dark'] .btn-outline {
+    color: #F1F4FF !important;
   }
 
   .btn-soft {
