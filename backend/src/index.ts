@@ -85,7 +85,12 @@ ensureAdmin();
 
 // 📦 خدمة واجهة React المبنية من مجلد dist (خادم واحد)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const clientDist = path.resolve(__dirname, "..", "..", "durar-dashboard", "dist");
+// Try multiple paths for different environments (local vs Render)
+let clientDist = path.resolve(__dirname, "..", "..", "durar-dashboard", "dist");
+// On Render, the path might be different
+if (!require('fs').existsSync(clientDist)) {
+  clientDist = path.resolve(__dirname, "..", "durar-dashboard", "dist");
+}
 
 // تفعيل التخزين المؤقت للملفات الثابتة (year-long for hashed assets)
 app.use(express.static(clientDist, {
