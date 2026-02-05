@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import fs from "fs";
 import prisma from "./lib/prisma.js";
 import compression from "compression";
 import bcrypt from "bcryptjs";
@@ -88,7 +89,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Try multiple paths for different environments (local vs Render)
 let clientDist = path.resolve(__dirname, "..", "..", "durar-dashboard", "dist");
 // On Render, the path might be different
-if (!require('fs').existsSync(clientDist)) {
+if (!fs.existsSync(clientDist)) {
   clientDist = path.resolve(__dirname, "..", "durar-dashboard", "dist");
 }
 
