@@ -12,6 +12,30 @@ function normalizeString(value: unknown): string | null | undefined {
   return text.length ? text : null;
 }
 
+/**
+ * Calculates the number of payment installments based on duration and frequency.
+ * Uses a heuristic: if the remaining duration is less than half of the frequency step,
+ * it's absorbed into the previous installments.
+ */
+function calculateInstallmentCount(start: Date, end: Date, stepMonths: number): number {
+  if (stepMonths <= 0) return 1;
+  const s = new Date(start);
+  const e = new Date(end);
+
+  // Calculate total months difference
+  const diffMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  const diffDays = e.getDate() - s.getDate();
+  const totalMonths = diffMonths + (diffDays / 30);
+
+  if (totalMonths <= 0) return 1;
+
+  // Use rounding to decide installment count
+  // e.g., 12.6 months / 6 month step = 2.1 cycles -> 2 installments
+  // e.g., 15 months / 6 month step = 2.5 cycles -> 3 installments
+  const count = Math.round(totalMonths / stepMonths);
+  return Math.max(1, count);
+}
+
 // 📝 إنشاء عقد جديد + إنشاء المستأجر تلقائيًا + إصدار أول فاتورة
 export const createContract = async (req: AuthedRequest, res: Response) => {
   try {
@@ -117,19 +141,11 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
       // حساب عدد الدفعات وتوزيع المبلغ
       const start = new Date(startDate);
       const end = new Date(endDate);
-
-      let periods = 0;
-      let tempDate = new Date(start);
-      while (tempDate < end) {
-        periods++;
-        tempDate.setMonth(tempDate.getMonth() + monthStep);
-      }
-
-      if (periods === 0) periods = 1;
+      const periods = calculateInstallmentCount(start, end, monthStep);
       const amountPerInvoice = totalAmount / periods;
 
       let currentInvoiceDate = new Date(start);
-      while (currentInvoiceDate < end) {
+      for (let i = 0; i < periods; i++) {
         const inv = await prisma.invoice.create({
           data: {
             tenantId: tenant.id,
@@ -258,10 +274,10 @@ export const updateContract = async (req: Request, res: Response) => {
     // 💵 إعادة إنشاء الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
     const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : currentContract.rentAmount;
     const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
-    const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
-    const freqChanged = paymentFrequency && normalizeString(paymentFrequency) !== normalizeString(currentContract.paymentFrequency || "");
+    const dateChanged = (startDate && new Date(startDate).getTime() !== new Date(currentContract.startDate).getTime()) ||
+      (endDate && new Date(endDate).getTime() !== new Date(currentContract.endDate).getTime());
 
-    if ((rentChanged || freqChanged) && newRentAmount) {
+    if ((rentChanged || freqChanged || dateChanged) && newRentAmount) {
       // حساب المبلغ الجديد لكل فاتورة
       const frequencyMap: Record<string, number> = {
         "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
@@ -297,17 +313,11 @@ export const updateContract = async (req: Request, res: Response) => {
       // 2. إنشاء فواتير جديدة
       const createdInvoices: any[] = [];
       if (monthStep > 0 && contractStart && contractEnd) {
-        let periods = 0;
-        let tempDate = new Date(contractStart);
-        while (tempDate < contractEnd) {
-          periods++;
-          tempDate.setMonth(tempDate.getMonth() + monthStep);
-        }
-        if (periods === 0) periods = 1;
+        const periods = calculateInstallmentCount(contractStart, contractEnd, monthStep);
         const amountPerInvoice = Number(newRentAmount) / periods;
 
         let currentInvoiceDate = new Date(contractStart);
-        while (currentInvoiceDate < contractEnd) {
+        for (let i = 0; i < periods; i++) {
           const inv = await prisma.invoice.create({
             data: {
               tenantId: currentContract.tenantId,
@@ -678,17 +688,11 @@ export const renewContract = async (req: AuthedRequest, res: Response) => {
       if (monthStep > 0) {
         const start = new Date(startDate);
         const end = new Date(endDate);
-        let periods = 0;
-        let tempDate = new Date(start);
-        while (tempDate < end) {
-          periods++;
-          tempDate.setMonth(tempDate.getMonth() + monthStep);
-        }
-        if (periods === 0) periods = 1;
+        const periods = calculateInstallmentCount(start, end, monthStep);
         const amountPerInvoice = Number(amount) / periods;
 
         let currentInvoiceDate = new Date(start);
-        while (currentInvoiceDate < end) {
+        for (let i = 0; i < periods; i++) {
           await tx.invoice.create({
             data: {
               tenantId: oldContract.tenantId,
