@@ -56,9 +56,9 @@ const PAYMENT_METHODS = ["كاش", "تحويل بنكي", "منصة إيجار"]
 const PAYMENT_FREQUENCIES = [
   "شهري",
   "ربع سنوي",
+  "3 دفعات",
   "نصف سنوي",
   "سنوي",
-  "كل 6 أشهر",
 ] as const;
 
 const PAYMENT_METHODS_LIST_ID = "payment-methods-options";
@@ -507,12 +507,16 @@ export default function Contracts() {
                 />
               </Field>
               <Field label="تكرار الدفع">
-                <input
-                  className="form-input"
-                  list={PAYMENT_FREQUENCIES_LIST_ID}
+                <select
+                  className="form-select"
                   value={editing.paymentFrequency ?? ""}
                   onChange={(e) => setEditing({ ...editing, paymentFrequency: e.target.value })}
-                />
+                >
+                  <option value="">—</option>
+                  {PAYMENT_FREQUENCIES.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="الخدمات المشمولة">
                 <input
@@ -624,11 +628,6 @@ export default function Contracts() {
       <datalist id={PAYMENT_METHODS_LIST_ID}>
         {PAYMENT_METHODS.map((method) => (
           <option key={method} value={method} />
-        ))}
-      </datalist>
-      <datalist id={PAYMENT_FREQUENCIES_LIST_ID}>
-        {PAYMENT_FREQUENCIES.map((freq) => (
-          <option key={freq} value={freq} />
         ))}
       </datalist>
 
@@ -811,12 +810,16 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
                 />
               </Field>
               <Field label="تكرار الدفع">
-                <input
-                  className="form-input"
-                  list={PAYMENT_FREQUENCIES_LIST_ID}
+                <select
+                  className="form-select"
                   value={form.paymentFrequency || ""}
                   onChange={(e) => setForm({ ...form, paymentFrequency: e.target.value })}
-                />
+                >
+                  <option value="">—</option>
+                  {PAYMENT_FREQUENCIES.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="الخدمات المشمولة">
                 <input className="form-input" value={form.servicesIncluded || ""} onChange={(e) => setForm({ ...form, servicesIncluded: e.target.value })} />

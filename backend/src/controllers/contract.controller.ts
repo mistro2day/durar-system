@@ -113,6 +113,7 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
     const frequencyMap: Record<string, number> = {
       "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
       "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+      "3 دفعات": 4, "كل 4 أشهر": 4,
       "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
       "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
     };
@@ -272,8 +273,8 @@ export const updateContract = async (req: Request, res: Response) => {
     });
 
     // 💵 إعادة إنشاء الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
-    const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : currentContract.rentAmount;
-    const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
+    const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
+    const freqChanged = paymentFrequency && normalizeString(paymentFrequency) !== normalizeString(currentContract.paymentFrequency || "");
     const dateChanged = (startDate && new Date(startDate).getTime() !== new Date(currentContract.startDate).getTime()) ||
       (endDate && new Date(endDate).getTime() !== new Date(currentContract.endDate).getTime());
 
@@ -282,6 +283,7 @@ export const updateContract = async (req: Request, res: Response) => {
       const frequencyMap: Record<string, number> = {
         "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
         "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+        "3 دفعات": 4, "كل 4 أشهر": 4,
         "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
         "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
       };
@@ -667,6 +669,7 @@ export const renewContract = async (req: AuthedRequest, res: Response) => {
       const frequencyMap: Record<string, number> = {
         "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
         "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+        "3 دفعات": 4, "كل 4 أشهر": 4,
         "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
         "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
       };
