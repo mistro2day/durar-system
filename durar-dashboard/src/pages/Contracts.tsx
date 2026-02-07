@@ -77,6 +77,8 @@ export default function Contracts() {
   const [renewalFilter, setRenewalFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [endedPage, setEndedPage] = useState(1);
+  const [endedPageSize, setEndedPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [renewing, setRenewing] = useState<Contract | null>(null);
 
   const clearFilters = useCallback(() => {
@@ -194,6 +196,16 @@ export default function Contracts() {
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(activeSortedRows.length / pageSize)),
     [activeSortedRows.length, pageSize]
+  );
+
+  const pagedEndedRows = useMemo(() => {
+    const start = (endedPage - 1) * endedPageSize;
+    return endedSortedRows.slice(start, start + endedPageSize);
+  }, [endedSortedRows, endedPage, endedPageSize]);
+
+  const endedTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(endedSortedRows.length / endedPageSize)),
+    [endedSortedRows.length, endedPageSize]
   );
 
   async function handleDelete(id: number) {
@@ -355,7 +367,7 @@ export default function Contracts() {
             <div className="card overflow-x-auto">
               <h3 className="text-lg font-bold mb-4 text-slate-600 dark:text-slate-400">العقود المنتهية والملغاة</h3>
               <ContractTable
-                rows={endedSortedRows}
+                rows={pagedEndedRows}
                 sort={endedSort}
                 onSort={toggleEndedSort}
                 onView={setViewing}
@@ -363,7 +375,43 @@ export default function Contracts() {
                 propertyId={propertyId}
                 localeTag={localeTag}
               />
-              <p className="text-xs text-gray-400 mt-2">إجمالي العقود المؤرشفة: {endedSortedRows.length}</p>
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-600 dark:text-slate-400">عرض</span>
+                  <select
+                    className="form-select py-1 text-sm"
+                    value={endedPageSize}
+                    onChange={(e) => {
+                      setEndedPageSize(Number(e.target.value));
+                      setEndedPage(1);
+                    }}
+                  >
+                    {PAGE_SIZE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  <span className="text-gray-600 dark:text-slate-400">من أصل {endedSortedRows.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn-outline py-1 px-2 text-sm"
+                    disabled={endedPage <= 1}
+                    onClick={() => setEndedPage(endedPage - 1)}
+                  >
+                    السابق
+                  </button>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">
+                    {endedPage} / {endedTotalPages}
+                  </span>
+                  <button
+                    className="btn-outline py-1 px-2 text-sm"
+                    disabled={endedPage >= endedTotalPages}
+                    onClick={() => setEndedPage(endedPage + 1)}
+                  >
+                    التالي
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
