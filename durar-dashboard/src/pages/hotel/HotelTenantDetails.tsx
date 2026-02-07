@@ -387,7 +387,12 @@ export default function HotelTenantDetails() {
                           <StatusBadge status={contract.status} />
                         </td>
                         <td className="py-2 text-right">
-                          <RenewalBadge status={contract.renewalStatus} contractStatus={contract.status} endDate={contract.endDate} />
+                          <RenewalBadge
+                            status={contract.renewalStatus}
+                            contractStatus={contract.status}
+                            endDate={contract.endDate}
+                            onClick={() => navigate(`/contracts?editId=${contract.id}`)}
+                          />
                         </td>
 
                       </tr>
@@ -702,9 +707,9 @@ function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
-function RenewalBadge({ status, contractStatus, endDate }: { status?: string | null; contractStatus?: string; endDate?: string | null }) {
+function RenewalBadge({ status, contractStatus, endDate, onClick }: { status?: string | null; contractStatus?: string; endDate?: string | null; onClick?: () => void }) {
   if (status === "RENEWED") {
-    return <span className="badge-success">تم التجديد</span>;
+    return <span className="badge-success whitespace-nowrap">تم التجديد</span>;
   }
 
   if (contractStatus === "ENDED" || contractStatus === "CANCELLED") {
@@ -721,7 +726,10 @@ function RenewalBadge({ status, contractStatus, endDate }: { status?: string | n
         // Allow renewal within 30 days after contract end
         if (daysSinceEnd >= 0 && daysSinceEnd <= 30) {
           return (
-            <span className="px-2 py-0.5 rounded text-[10px] bg-blue-600 text-white font-bold">
+            <span
+              onClick={onClick}
+              className="px-2 py-0.5 rounded text-[10px] bg-blue-600 text-white font-bold whitespace-nowrap cursor-pointer hover:bg-blue-700 transition-colors"
+            >
               متاح للتجديد
             </span>
           );
@@ -731,7 +739,7 @@ function RenewalBadge({ status, contractStatus, endDate }: { status?: string | n
       }
     }
 
-    return <span className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200 px-2 py-0.5 rounded text-[10px]">منتهي</span>;
+    return <span className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200 px-2 py-0.5 rounded text-[10px] whitespace-nowrap">منتهي</span>;
   }
 
   const map: Record<string, { label: string; className: string }> = {
@@ -740,11 +748,12 @@ function RenewalBadge({ status, contractStatus, endDate }: { status?: string | n
   };
   const info = status ? map[status] : map["PENDING"];
   return (
-    <span className={`${info?.className || "badge-warning"}`}>
+    <span className={`${info?.className || "badge-warning"} whitespace-nowrap`}>
       {info?.label || "قيد الانتظار"}
     </span>
   );
 }
+
 
 
 function InvoiceBadge({ status }: { status?: string | null }) {
