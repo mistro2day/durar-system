@@ -375,11 +375,11 @@ export default function Contracts() {
                 propertyId={propertyId}
                 localeTag={localeTag}
               />
-              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-600 dark:text-slate-400">عرض</span>
+              <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-gray-500 dark:text-slate-400">عرض</span>
                   <select
-                    className="form-select py-1 text-sm"
+                    className="form-select py-1.5 px-3 text-sm min-w-[70px] rounded-lg bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-white/10"
                     value={endedPageSize}
                     onChange={(e) => {
                       setEndedPageSize(Number(e.target.value));
@@ -390,21 +390,23 @@ export default function Contracts() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
-                  <span className="text-gray-600 dark:text-slate-400">من أصل {endedSortedRows.length}</span>
+                  <span className="text-gray-500 dark:text-slate-400">من أصل <span className="font-semibold text-gray-700 dark:text-slate-200">{endedSortedRows.length}</span> عقد</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
-                    className="btn-outline py-1 px-2 text-sm"
+                    className="btn-soft btn-soft-primary py-1.5 px-3 text-sm rounded-lg disabled:opacity-40"
                     disabled={endedPage <= 1}
                     onClick={() => setEndedPage(endedPage - 1)}
                   >
                     السابق
                   </button>
-                  <span className="text-sm text-gray-700 dark:text-slate-300">
-                    {endedPage} / {endedTotalPages}
-                  </span>
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-slate-800 rounded-lg text-sm">
+                    <span className="font-semibold text-gray-700 dark:text-slate-200">{endedPage}</span>
+                    <span className="text-gray-400">/</span>
+                    <span className="text-gray-500 dark:text-slate-400">{endedTotalPages}</span>
+                  </div>
                   <button
-                    className="btn-outline py-1 px-2 text-sm"
+                    className="btn-soft btn-soft-primary py-1.5 px-3 text-sm rounded-lg disabled:opacity-40"
                     disabled={endedPage >= endedTotalPages}
                     onClick={() => setEndedPage(endedPage + 1)}
                   >
@@ -412,6 +414,7 @@ export default function Contracts() {
                   </button>
                 </div>
               </div>
+
             </div>
           )}
         </div>
