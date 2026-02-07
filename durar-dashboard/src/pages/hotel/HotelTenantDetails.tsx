@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
+import { Eye, PlusCircle } from "lucide-react";
 import api from "../../lib/api";
 import Currency from "../../components/Currency";
+import DateInput from "../../components/DateInput";
 import {
   TenantDetail,
   EMPTY_STATS,
@@ -15,6 +17,8 @@ import {
   mapRentalType,
   NATIONALITIES,
   CommunicationLog as CommunicationLogType,
+  TenantInvoice,
+  TenantPayment,
 } from "./tenantShared";
 import { getUser } from "../../lib/auth";
 import { getRole } from "../../lib/auth";
@@ -439,14 +443,8 @@ export default function HotelTenantDetails() {
                           onToggle={() => toggleInvoiceSort("dueDate")}
                         />
                       </th>
-                      <th className="py-2 text-right">
-                        <SortHeader
-                          label="الحالة"
-                          active={invoiceSort?.key === "status"}
-                          direction={invoiceSort?.key === "status" ? invoiceSort.direction : null}
-                          onToggle={() => toggleInvoiceSort("status")}
-                        />
-                      </th>
+                      <th className="py-2 text-right">الحالة</th>
+                      <th className="py-2 text-right">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/10">
@@ -465,6 +463,16 @@ export default function HotelTenantDetails() {
                         </td>
                         <td className="py-2 text-right">
                           <InvoiceBadge status={invoice.status} />
+                        </td>
+                        <td className="py-2 text-right">
+                          <div className="flex items-center gap-2">
+                            <Link to={`/invoices/${invoice.id}`} state={{ invoice }} className="btn-soft btn-soft-primary" title="عرض التفاصيل">
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                            {invoice.status !== 'PAID' && (
+                              <RecordPaymentModal invoice={invoice} onRecorded={loadTenant} />
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1002,5 +1010,92 @@ function AddInvoiceModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function RecordPaymentModal({ invoice, onRecorded }: { invoice: TenantInvoice, onRecorded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    amount: (Number(invoice.amount) - (invoice.payments || []).reduce((s: number, p: any) => s + p.amount, 0)).toFixed(2),
+    paidAt: new Date().toISOString().split('T')[0],
+    method: 'BANK_TRANSFER'
+  });
+
+  async function save() {
+    if (saving) return;
+    if (!form.amount || Number(form.amount) <= 0) return alert("المبلغ غير صحيح");
+
+    try {
+      setSaving(true);
+      await api.post(`/api/invoices/${invoice.id}/payments`, {
+        amount: Number(form.amount),
+        paidAt: form.paidAt,
+        method: form.method
+      });
+      setOpen(false);
+      onRecorded();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر تسجيل الدفعة");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        className="btn-soft btn-soft-success p-1"
+        onClick={() => setOpen(true)}
+        title="تسجيل دفعة"
+      >
+        <PlusCircle className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <div className="modal-backdrop">
+          <div className="card w-full max-w-md bg-white dark:bg-slate-900 border dark:border-white/10">
+            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">تسجيل دفعة للفاتورة #{invoice.id}</h3>
+
+            <div className="space-y-4 text-right">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 dark:text-slate-300 font-medium">المبلغ</span>
+                <input
+                  type="number"
+                  className="form-input text-right"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 dark:text-slate-300 font-medium">تاريخ الدفع</span>
+                <DateInput value={form.paidAt} onChange={(v) => setForm({ ...form, paidAt: v })} />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 dark:text-slate-300 font-medium">طريقة الدفع</span>
+                <select
+                  className="form-select text-right"
+                  value={form.method}
+                  onChange={(e) => setForm({ ...form, method: e.target.value })}
+                >
+                  <option value="CASH">نقدي</option>
+                  <option value="BANK_TRANSFER">تحويل بنكي</option>
+                  <option value="EJAR">إيجار</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button className="btn-outline" onClick={() => setOpen(false)} disabled={saving}>إلغاء</button>
+              <button className="btn-primary" onClick={save} disabled={saving}>
+                {saving ? "جارٍ الحفظ..." : "تسجيل الدفعة"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

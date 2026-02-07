@@ -34,7 +34,7 @@ export async function listTenants(req: Request, res: Response) {
       },
       invoices: {
         where: invoiceFilter,
-        select: { id: true, status: true, amount: true, dueDate: true },
+        select: { id: true, status: true, amount: true, dueDate: true, payments: true },
         orderBy: { dueDate: "desc" },
       },
     },
@@ -82,7 +82,7 @@ export async function getTenantById(req: Request, res: Response) {
       },
       invoices: {
         where: invoiceFilter,
-        select: { id: true, status: true, amount: true, dueDate: true },
+        select: { id: true, status: true, amount: true, dueDate: true, payments: true },
         orderBy: { dueDate: "desc" },
       },
       communicationLogs: {
@@ -221,7 +221,7 @@ type TenantWithRelations = {
   notes: string | null;
   createdAt: Date;
   contracts: Array<Contract & { unit: (Unit & { property: Property | null }) | null }>;
-  invoices: Array<Pick<Invoice, "id" | "status" | "amount" | "dueDate">>;
+  invoices: Array<Pick<Invoice, "id" | "status" | "amount" | "dueDate"> & { payments: any[] }>;
   communicationLogs?: Array<{ id: number; type: string; content: string; date: Date; performedBy: string | null }>;
 };
 
@@ -258,6 +258,12 @@ function enrichTenant(tenant: TenantWithRelations) {
     status: invoice.status,
     amount: invoice.amount,
     dueDate: invoice.dueDate ? invoice.dueDate.toISOString() : null,
+    payments: (invoice.payments || []).map(p => ({
+      id: p.id,
+      amount: p.amount,
+      method: p.method,
+      paidAt: p.paidAt.toISOString()
+    }))
   }));
 
   return {

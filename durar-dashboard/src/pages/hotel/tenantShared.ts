@@ -20,11 +20,19 @@ export type TenantContract = {
   renewalStatus?: string | null;
 };
 
+export type TenantPayment = {
+  id: number;
+  amount: number;
+  method: string;
+  paidAt: string;
+};
+
 export type TenantInvoice = {
   id: number;
   amount: number;
   status: string;
   dueDate?: string | null;
+  payments?: TenantPayment[];
 };
 
 export type CommunicationLog = {
