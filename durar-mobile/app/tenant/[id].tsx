@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Modal, TextInput, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -12,6 +12,9 @@ interface Contract {
     id: number;
     status: string;
     endDate?: string;
+    rentAmount?: number;
+    renewalStatus?: string;
+    paymentFrequency?: string;
     unit?: {
         number: string;
         property?: { name: string };
@@ -57,6 +60,8 @@ export default function TenantDetail() {
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
+    const [renewingContract, setRenewingContract] = useState<Contract | null>(null);
+    const [renewalLoading, setRenewalLoading] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -127,6 +132,59 @@ export default function TenantDetail() {
             <Text style={{ ...Typography.body, color: colors.textSecondary }}>{label}</Text>
         </View>
     );
+
+    // Check if contract is available for renewal (60-day grace period)
+    const getRenewalStatus = (contract: Contract) => {
+        if (contract.renewalStatus === 'RENEWED') {
+            return { canRenew: false, label: 'تم التجديد', color: colors.success };
+        }
+
+        if (contract.status === 'ENDED' && contract.endDate) {
+            const end = new Date(contract.endDate);
+            const now = new Date();
+            const diff = now.getTime() - end.getTime();
+            const daysSinceEnd = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+            // Allow renewal within 60 days after contract end
+            if (daysSinceEnd >= 0 && daysSinceEnd <= 60) {
+                return { canRenew: true, label: 'متاح للتجديد', color: colors.primary };
+            }
+        }
+
+        return null;
+    };
+
+    // Handle contract renewal
+    const handleRenewContract = async (startDate: string, endDate: string, amount: number) => {
+        if (!renewingContract) return;
+
+        setRenewalLoading(true);
+        try {
+            await api.post(`/api/contracts/${renewingContract.id}/renew`, {
+                startDate,
+                endDate,
+                amount,
+            });
+            Alert.alert('نجاح', 'تم تجديد العقد بنجاح');
+            setRenewingContract(null);
+            // Reload data
+            if (id) {
+                const contractsResponse = await api.get('/api/contracts');
+                const allContracts = Array.isArray(contractsResponse.data)
+                    ? contractsResponse.data
+                    : contractsResponse.data.items || [];
+                const tenantContracts = allContracts.filter(
+                    (c: any) => c.tenantId === Number(id) || c.tenant?.id === Number(id)
+                );
+                setContracts(tenantContracts);
+            }
+        } catch (error: any) {
+            Alert.alert('خطأ', error?.response?.data?.message || 'فشل تجديد العقد');
+        } finally {
+            setRenewalLoading(false);
+        }
+    };
+
 
     // Calculate invoice summary
     const pendingInvoices = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE');
@@ -314,38 +372,62 @@ export default function TenantDetail() {
                                 <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right', marginBottom: Spacing.md }}>
                                     العقود ({contracts.length})
                                 </Text>
-                                {contracts.map((contract, index) => (
-                                    <TouchableOpacity
-                                        key={contract.id}
-                                        onPress={() => router.push(`/contract/${contract.id}`)}
-                                        style={{
-                                            flexDirection: 'row',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            paddingVertical: Spacing.sm,
-                                            borderBottomWidth: index < contracts.length - 1 ? 1 : 0,
-                                            borderBottomColor: colors.separator,
-                                        }}
-                                    >
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                                            <Ionicons name="chevron-back" size={20} color={colors.textTertiary} />
-                                            <Badge
-                                                label={contract.status === 'ACTIVE' ? 'نشط' : 'منتهي'}
-                                                variant={contract.status === 'ACTIVE' ? 'success' : 'neutral'}
-                                            />
-                                        </View>
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={{ ...Typography.body, color: colors.text }}>
-                                                وحدة {contract.unit?.number || '-'}
-                                            </Text>
-                                            {contract.unit?.property?.name && (
-                                                <Text style={{ ...Typography.caption1, color: colors.textSecondary }}>
-                                                    {contract.unit.property.name}
+                                {contracts.map((contract, index) => {
+                                    const renewalInfo = getRenewalStatus(contract);
+                                    return (
+                                        <TouchableOpacity
+                                            key={contract.id}
+                                            onPress={() => router.push(`/contract/${contract.id}`)}
+                                            style={{
+                                                flexDirection: 'row',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                paddingVertical: Spacing.sm,
+                                                borderBottomWidth: index < contracts.length - 1 ? 1 : 0,
+                                                borderBottomColor: colors.separator,
+                                            }}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                                                <Ionicons name="chevron-back" size={20} color={colors.textTertiary} />
+                                                {renewalInfo?.canRenew ? (
+                                                    <TouchableOpacity
+                                                        onPress={(e) => {
+                                                            e.stopPropagation?.();
+                                                            setRenewingContract(contract);
+                                                        }}
+                                                        style={{
+                                                            backgroundColor: colors.primary,
+                                                            paddingHorizontal: Spacing.sm,
+                                                            paddingVertical: Spacing.xs,
+                                                            borderRadius: 12,
+                                                        }}
+                                                    >
+                                                        <Text style={{ ...Typography.caption2, color: '#FFFFFF', fontWeight: '600' }}>
+                                                            {renewalInfo.label}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ) : renewalInfo ? (
+                                                    <Badge label={renewalInfo.label} variant="success" />
+                                                ) : (
+                                                    <Badge
+                                                        label={contract.status === 'ACTIVE' ? 'نشط' : 'منتهي'}
+                                                        variant={contract.status === 'ACTIVE' ? 'success' : 'neutral'}
+                                                    />
+                                                )}
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ ...Typography.body, color: colors.text }}>
+                                                    وحدة {contract.unit?.number || '-'}
                                                 </Text>
-                                            )}
-                                        </View>
-                                    </TouchableOpacity>
-                                ))}
+                                                {contract.unit?.property?.name && (
+                                                    <Text style={{ ...Typography.caption1, color: colors.textSecondary }}>
+                                                        {contract.unit.property.name}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </Card>
                         )}
 
@@ -390,6 +472,189 @@ export default function TenantDetail() {
                     </ScrollView>
                 </SafeAreaView>
             )}
+
+            {/* Renewal Modal */}
+            <Modal
+                visible={!!renewingContract}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setRenewingContract(null)}
+            >
+                <View style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: Spacing.lg,
+                }}>
+                    <View style={{
+                        backgroundColor: colors.surface,
+                        borderRadius: 16,
+                        padding: Spacing.lg,
+                        width: '100%',
+                        maxWidth: 400,
+                    }}>
+                        <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'center', marginBottom: Spacing.lg }}>
+                            تجديد العقد
+                        </Text>
+
+                        {renewingContract && (
+                            <RenewalForm
+                                contract={renewingContract}
+                                onSubmit={handleRenewContract}
+                                onCancel={() => setRenewingContract(null)}
+                                loading={renewalLoading}
+                                colors={colors}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </>
+
+    );
+}
+
+// Renewal Form Component
+function RenewalForm({
+    contract,
+    onSubmit,
+    onCancel,
+    loading,
+    colors,
+}: {
+    contract: Contract;
+    onSubmit: (startDate: string, endDate: string, amount: number) => void;
+    onCancel: () => void;
+    loading: boolean;
+    colors: any;
+}) {
+    // Calculate default dates based on old contract
+    const getDefaultDates = () => {
+        if (!contract.endDate) {
+            const start = new Date();
+            const end = new Date();
+            end.setFullYear(end.getFullYear() + 1);
+            return {
+                start: start.toISOString().split('T')[0],
+                end: end.toISOString().split('T')[0],
+            };
+        }
+
+        const oldEnd = new Date(contract.endDate);
+        const oldStart = new Date(contract.endDate);
+        oldStart.setFullYear(oldStart.getFullYear() - 1); // Estimate old duration
+
+        const duration = oldEnd.getTime() - oldStart.getTime();
+        const newStart = new Date(oldEnd);
+        newStart.setDate(newStart.getDate() + 1);
+        const newEnd = new Date(newStart.getTime() + duration);
+
+        return {
+            start: newStart.toISOString().split('T')[0],
+            end: newEnd.toISOString().split('T')[0],
+        };
+    };
+
+    const defaults = getDefaultDates();
+    const [startDate, setStartDate] = useState(defaults.start);
+    const [endDate, setEndDate] = useState(defaults.end);
+    const [amount, setAmount] = useState((contract.rentAmount || 0).toString());
+
+    const formatDateDisplay = (dateStr: string) => {
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ar-SA');
+        } catch {
+            return dateStr;
+        }
+    };
+
+    return (
+        <View style={{ gap: Spacing.md }}>
+            {/* Start Date */}
+            <View style={{
+                backgroundColor: colors.background,
+                borderRadius: 12,
+                padding: Spacing.md,
+            }}>
+                <Text style={{ ...Typography.caption1, color: colors.textSecondary, textAlign: 'right', marginBottom: 4 }}>
+                    بداية العقد الجديد
+                </Text>
+                <Text style={{ ...Typography.body, color: colors.text, textAlign: 'right' }}>
+                    {formatDateDisplay(startDate)}
+                </Text>
+            </View>
+
+            {/* End Date */}
+            <View style={{
+                backgroundColor: colors.background,
+                borderRadius: 12,
+                padding: Spacing.md,
+            }}>
+                <Text style={{ ...Typography.caption1, color: colors.textSecondary, textAlign: 'right', marginBottom: 4 }}>
+                    نهاية العقد الجديد
+                </Text>
+                <Text style={{ ...Typography.body, color: colors.text, textAlign: 'right' }}>
+                    {formatDateDisplay(endDate)}
+                </Text>
+            </View>
+
+            {/* Amount */}
+            <View>
+                <Text style={{ ...Typography.caption1, color: colors.textSecondary, textAlign: 'right', marginBottom: 4 }}>
+                    مبلغ الإيجار (ريال)
+                </Text>
+                <TextInput
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="numeric"
+                    style={{
+                        backgroundColor: colors.background,
+                        borderRadius: 12,
+                        padding: Spacing.md,
+                        color: colors.text,
+                        textAlign: 'center',
+                        fontSize: 18,
+                        fontWeight: '600',
+                    }}
+                />
+                <Text style={{ ...Typography.caption2, color: colors.textTertiary, textAlign: 'center', marginTop: 4 }}>
+                    نفس المبلغ السابق افتراضياً، يمكنك تعديله.
+                </Text>
+            </View>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md }}>
+                <TouchableOpacity
+                    onPress={onCancel}
+                    style={{
+                        flex: 1,
+                        padding: Spacing.md,
+                        borderRadius: 12,
+                        backgroundColor: colors.separator,
+                        alignItems: 'center',
+                    }}
+                >
+                    <Text style={{ ...Typography.body, color: colors.text }}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => onSubmit(startDate, endDate, parseFloat(amount) || 0)}
+                    disabled={loading}
+                    style={{
+                        flex: 1,
+                        padding: Spacing.md,
+                        borderRadius: 12,
+                        backgroundColor: colors.primary,
+                        alignItems: 'center',
+                        opacity: loading ? 0.6 : 1,
+                    }}
+                >
+                    <Text style={{ ...Typography.body, color: '#FFFFFF', fontWeight: '600' }}>
+                        {loading ? 'جارٍ التجديد...' : 'تأكيد التجديد'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        </View>
     );
 }
