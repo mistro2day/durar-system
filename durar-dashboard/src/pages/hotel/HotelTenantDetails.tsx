@@ -387,8 +387,9 @@ export default function HotelTenantDetails() {
                           <StatusBadge status={contract.status} />
                         </td>
                         <td className="py-2 text-right">
-                          <RenewalBadge status={contract.renewalStatus} contractStatus={contract.status} />
+                          <RenewalBadge status={contract.renewalStatus} contractStatus={contract.status} endDate={contract.endDate} />
                         </td>
+
                       </tr>
                     ))}
                   </tbody>
@@ -701,11 +702,35 @@ function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
-function RenewalBadge({ status, contractStatus }: { status?: string | null; contractStatus?: string }) {
+function RenewalBadge({ status, contractStatus, endDate }: { status?: string | null; contractStatus?: string; endDate?: string | null }) {
   if (status === "RENEWED") {
     return <span className="badge-success">تم التجديد</span>;
   }
+
   if (contractStatus === "ENDED" || contractStatus === "CANCELLED") {
+    // Check if ended contract is within 30 days grace period for renewal
+    if (endDate && contractStatus === "ENDED") {
+      try {
+        const end = new Date(endDate);
+        const now = new Date();
+        const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+        const nowD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const diff = nowD.getTime() - endD.getTime();
+        const daysSinceEnd = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+        // Allow renewal within 30 days after contract end
+        if (daysSinceEnd >= 0 && daysSinceEnd <= 30) {
+          return (
+            <span className="px-2 py-0.5 rounded text-[10px] bg-blue-600 text-white font-bold">
+              متاح للتجديد
+            </span>
+          );
+        }
+      } catch (e) {
+        console.error("Date error:", e);
+      }
+    }
+
     return <span className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200 px-2 py-0.5 rounded text-[10px]">منتهي</span>;
   }
 
@@ -720,6 +745,7 @@ function RenewalBadge({ status, contractStatus }: { status?: string | null; cont
     </span>
   );
 }
+
 
 function InvoiceBadge({ status }: { status?: string | null }) {
   const map: Record<string, { label: string; className: string }> = {
