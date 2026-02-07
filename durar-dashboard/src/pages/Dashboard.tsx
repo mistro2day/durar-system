@@ -255,16 +255,27 @@ export default function Dashboard() {
       for (const inv of invoices) {
         const amount = Number(inv.amount || 0);
         const status = String(inv.status || "").toUpperCase();
+        const paidAmount = (inv.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        const remainingAmount = amount - paidAmount;
+
+        statusTotals.paid += paidAmount;
+
         switch (status) {
           case "PAID":
-            statusTotals.paid += amount;
+            // Already added to paidAmount
             break;
           case "OVERDUE":
-            statusTotals.overdue += amount;
+            statusTotals.overdue += remainingAmount;
             break;
+          case "PARTIAL":
           case "PENDING":
           default:
-            statusTotals.pending += amount;
+            const isLate = inv.dueDate && new Date(inv.dueDate) < new Date();
+            if (isLate) {
+              statusTotals.overdue += remainingAmount;
+            } else {
+              statusTotals.pending += remainingAmount;
+            }
             break;
         }
 
@@ -1311,9 +1322,23 @@ function LateInvoicesTable({
                     <span className="text-xs font-semibold text-red-600">متأخر {daysOverdue} يوم</span>
                   </div>
                 </td>
-                <td className="p-3 font-bold text-gray-800">{formatSAR(inv.amount)}</td>
+                <td className="p-3 font-bold text-gray-800 text-right">
+                  {inv.status === 'PARTIAL' || inv.status === 'partial' ? (
+                    <div className="flex flex-col items-start leading-tight">
+                      <span className="text-indigo-600 dark:text-indigo-400">
+                        {formatSAR(inv.amount - (inv.payments || []).reduce((sum: number, p: any) => sum + p.amount, 0))}
+                      </span>
+                      <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500 font-normal">
+                        <span>المتبقي من</span>
+                        <span>{formatSAR(inv.amount)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    formatSAR(inv.amount)
+                  )}
+                </td>
                 <td className="p-3 text-center">
-                  <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
+                  <InvoiceBadge status={inv.status} dueDate={inv.dueDate} />
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-1">
@@ -1446,9 +1471,23 @@ function UpcomingInvoicesTable({
                     )}
                   </div>
                 </td>
-                <td className="p-3 font-bold text-gray-800">{formatSAR(inv.amount)}</td>
+                <td className="p-3 font-bold text-gray-800 text-right">
+                  {inv.status === 'PARTIAL' || inv.status === 'partial' ? (
+                    <div className="flex flex-col items-start leading-tight">
+                      <span className="text-indigo-600 dark:text-indigo-400">
+                        {formatSAR(inv.amount - (inv.payments || []).reduce((sum: number, p: any) => sum + p.amount, 0))}
+                      </span>
+                      <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500 font-normal">
+                        <span>المتبقي من</span>
+                        <span>{formatSAR(inv.amount)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    formatSAR(inv.amount)
+                  )}
+                </td>
                 <td className="p-3 text-center">
-                  <InvoiceStatusSelect invoice={inv} onUpdate={onStatusUpdate} />
+                  <InvoiceBadge status={inv.status} dueDate={inv.dueDate} />
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-1">
@@ -1502,5 +1541,34 @@ function UpcomingInvoicesTable({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function InvoiceBadge({ status, dueDate }: { status?: string | null; dueDate?: string | null }) {
+  const isOverdue = () => {
+    if (status !== "PENDING" || !dueDate) return false;
+    const due = new Date(dueDate);
+    const now = new Date();
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return dueDay < today;
+  };
+
+  const currentStatus = isOverdue() ? "OVERDUE" : (status || "PENDING").toUpperCase();
+
+  const map: Record<string, { label: string; className: string }> = {
+    PENDING: { label: "معلق", className: "badge-warning shadow-sm" },
+    PAID: { label: "مدفوع", className: "badge-success shadow-sm" },
+    PARTIAL: { label: "سداد جزئي", className: "badge-partial shadow-sm" },
+    CANCELLED: { label: "ملغى", className: "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200" },
+    OVERDUE: { label: "متأخرة", className: "badge-overdue shadow-sm" },
+  };
+
+  const info = map[currentStatus] || { label: currentStatus, className: "badge-neutral" };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${info.className}`}>
+      {info.label}
+    </span>
   );
 }

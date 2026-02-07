@@ -13,12 +13,19 @@ export const getInvoices = async (req: Request, res: Response) => {
   }
 
   if (status === 'overdue') {
-    where.status = 'OVERDUE';
+    const today = new Date();
+    where.OR = [
+      { status: 'OVERDUE' },
+      {
+        status: { in: ['PENDING', 'PARTIAL'] },
+        dueDate: { lt: today }
+      }
+    ];
   } else if (status === 'upcoming') {
     const today = new Date();
     const future = new Date();
     future.setDate(today.getDate() + 30);
-    where.status = 'PENDING';
+    where.status = { in: ['PENDING', 'PARTIAL'] };
     where.dueDate = { gte: today, lte: future };
   } else if (status) {
     where.status = status.toUpperCase();

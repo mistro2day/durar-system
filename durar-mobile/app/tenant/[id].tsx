@@ -43,11 +43,13 @@ interface Invoice {
     dueDate: string;
     status: string;
     invoiceNumber?: string;
+    payments?: { amount: number }[];
 }
 
-const invoiceStatusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'neutral' }> = {
+const invoiceStatusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' }> = {
     PENDING: { label: 'مستحقة', variant: 'warning' },
     PAID: { label: 'مدفوعة', variant: 'success' },
+    PARTIAL: { label: 'سداد جزئي', variant: 'info' },
     OVERDUE: { label: 'متأخرة', variant: 'danger' },
     CANCELLED: { label: 'ملغية', variant: 'neutral' },
 };
@@ -438,7 +440,8 @@ export default function TenantDetail() {
                                     الفواتير ({invoices.length})
                                 </Text>
                                 {invoices.map((invoice, index) => {
-                                    const statusInfo = invoiceStatusLabels[invoice.status] || { label: invoice.status, variant: 'neutral' as const };
+                                    const statusKey = (invoice.status || '').toUpperCase();
+                                    const statusInfo = invoiceStatusLabels[statusKey] || { label: invoice.status, variant: 'neutral' as const };
                                     return (
                                         <TouchableOpacity
                                             key={invoice.id}
@@ -457,9 +460,20 @@ export default function TenantDetail() {
                                                 <Badge label={statusInfo.label} variant={statusInfo.variant} />
                                             </View>
                                             <View style={{ alignItems: 'flex-end' }}>
-                                                <Text style={{ ...Typography.body, color: colors.primary }}>
-                                                    {(invoice.amount || 0).toLocaleString()} ر.س
-                                                </Text>
+                                                {statusKey === 'PARTIAL' ? (
+                                                    <View style={{ alignItems: 'flex-end' }}>
+                                                        <Text style={{ ...Typography.body, color: colors.danger, fontWeight: 'bold' }}>
+                                                            {((invoice.amount || 0) - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س
+                                                        </Text>
+                                                        <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>
+                                                            متبقي من {invoice.amount.toLocaleString()}
+                                                        </Text>
+                                                    </View>
+                                                ) : (
+                                                    <Text style={{ ...Typography.body, color: colors.primary }}>
+                                                        {(invoice.amount || 0).toLocaleString()} ر.س
+                                                    </Text>
+                                                )}
                                                 <Text style={{ ...Typography.caption1, color: colors.textSecondary }}>
                                                     استحقاق: {formatDate(invoice.dueDate)}
                                                 </Text>

@@ -18,7 +18,7 @@ import {
   mapRentalType,
   NATIONALITIES,
   CommunicationLog as CommunicationLogType,
-  TenantInvoice,
+  TenantInvoice as TenantInvoiceModel,
   TenantPayment,
 } from "./tenantShared";
 import { getUser } from "../../lib/auth";
@@ -28,7 +28,7 @@ import SortHeader from "../../components/SortHeader";
 import { useTableSort } from "../../hooks/useTableSort";
 
 type TenantContract = NonNullable<TenantDetail["contracts"]>[number];
-type TenantInvoice = NonNullable<TenantDetail["invoices"]>[number];
+type TenantInvoice = TenantInvoiceModel;
 
 export default function HotelTenantDetails() {
   const { id, tenantId } = useParams();
@@ -465,7 +465,19 @@ export default function HotelTenantDetails() {
                           </Link>
                         </td>
                         <td className="py-2 text-right text-gray-700 dark:text-slate-200">
-                          <Currency amount={invoice.amount} />
+                          {invoice.status === 'PARTIAL' || invoice.status === 'partial' ? (
+                            <div className="flex flex-col items-start leading-tight">
+                              <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                <Currency amount={invoice.amount - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)} />
+                              </span>
+                              <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500">
+                                <span>المتبقي من</span>
+                                <Currency amount={invoice.amount} />
+                              </div>
+                            </div>
+                          ) : (
+                            <Currency amount={invoice.amount} />
+                          )}
                         </td>
                         <td className="py-2 text-right text-gray-600 dark:text-slate-300">
                           {formatDate(invoice.dueDate)}
@@ -792,6 +804,7 @@ function InvoiceBadge({ status, dueDate }: { status?: string | null; dueDate?: s
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: "معلق", className: "badge-warning shadow-sm" },
     PAID: { label: "مدفوع", className: "badge-success shadow-sm" },
+    PARTIAL: { label: "سداد جزئي", className: "badge-partial shadow-sm" },
     CANCELLED: { label: "ملغى", className: "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200" },
     OVERDUE: { label: "متأخرة", className: "badge-overdue shadow-sm" },
   };

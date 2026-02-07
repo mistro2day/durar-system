@@ -233,6 +233,10 @@
     @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-info]/15 text-[--color-info];
   }
 
+  .badge-partial {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white shadow-sm;
+  }
+
   .global-search-dropdown {
     background: var(--surface);
     border: 1px solid var(--border);
