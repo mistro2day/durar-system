@@ -390,7 +390,7 @@ export default function Contracts() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
-                  <span className="text-gray-500 dark:text-slate-400">من أصل <span className="font-semibold text-gray-700 dark:text-slate-200">{endedSortedRows.length}</span> عقد</span>
+                  <span className="text-gray-500 dark:text-slate-400 whitespace-nowrap">من أصل <strong className="text-gray-700 dark:text-slate-200">{endedSortedRows.length}</strong> عقد</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
