@@ -11,6 +11,7 @@ import api from '../../services/api';
 interface Contract {
     id: number;
     status: string;
+    endDate?: string;
     unit?: {
         number: string;
         property?: { name: string };
@@ -131,6 +132,30 @@ export default function TenantDetail() {
     const pendingInvoices = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE');
     const pendingTotal = pendingInvoices.reduce((sum, i) => sum + (i.amount || 0), 0);
 
+    // Calculate latest active contract remaining days
+    const activeContract = contracts.find(c => c.status === 'ACTIVE');
+    const remainingInfo = (() => {
+        if (!activeContract?.endDate) return null;
+        const end = new Date(activeContract.endDate);
+        const now = new Date();
+        const diff = end.getTime() - now.getTime();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+        let color = colors.success;
+        let label = `${days} يوم`;
+
+        if (days <= 0) {
+            color = colors.danger;
+            label = 'منتهي';
+        } else if (days <= 30) {
+            color = colors.danger;
+        } else if (days <= 60) {
+            color = colors.warning;
+        }
+
+        return { label, color };
+    })();
+
     return (
         <>
             <Stack.Screen
@@ -217,19 +242,30 @@ export default function TenantDetail() {
 
                             {/* Invoice Summary */}
                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingTop: Spacing.sm }}>
-                                <View style={{ alignItems: 'center' }}>
-                                    <Text style={{ ...Typography.title2, color: colors.primary }}>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ ...Typography.title3, color: colors.primary }}>
                                         {pendingTotal.toLocaleString()}
                                     </Text>
-                                    <Text style={{ ...Typography.caption1, color: colors.textSecondary }}>ر.س مستحق</Text>
+                                    <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>ر.س مستحق</Text>
                                 </View>
                                 <View style={{ width: 1, backgroundColor: colors.separator }} />
-                                <View style={{ alignItems: 'center' }}>
-                                    <Text style={{ ...Typography.title2, color: pendingInvoices.length > 0 ? colors.warning : colors.success }}>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ ...Typography.title3, color: pendingInvoices.length > 0 ? colors.warning : colors.success }}>
                                         {pendingInvoices.length}
                                     </Text>
-                                    <Text style={{ ...Typography.caption1, color: colors.textSecondary }}>فواتير مستحقة</Text>
+                                    <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>فواتير معلقة</Text>
                                 </View>
+                                {remainingInfo && (
+                                    <>
+                                        <View style={{ width: 1, backgroundColor: colors.separator }} />
+                                        <View style={{ alignItems: 'center', flex: 1 }}>
+                                            <Text style={{ ...Typography.title3, color: remainingInfo.color }}>
+                                                {remainingInfo.label}
+                                            </Text>
+                                            <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>باقي للعقد</Text>
+                                        </View>
+                                    </>
+                                )}
                             </View>
                         </Card>
 

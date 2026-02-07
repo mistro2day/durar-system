@@ -579,6 +579,30 @@ export default function HotelTenantDetails() {
               tone={stats.receivables > 0 ? "warning" : "default"}
             />
             <SummaryStat label="آخر استحقاق" value={formatDate(stats.lastInvoiceDueDate)} />
+            {stats.latestContract && stats.latestContract.status === 'ACTIVE' && (
+              (() => {
+                const end = new Date(stats.latestContract.endDate);
+                const now = new Date();
+                const diff = end.getTime() - now.getTime();
+                const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+                let label = `${daysLeft} يوم`;
+                let tone: "default" | "success" | "warning" | "danger" = "default";
+
+                if (daysLeft <= 0) {
+                  label = "منتهي";
+                  tone = "danger";
+                } else if (daysLeft <= 30) {
+                  tone = "danger";
+                } else if (daysLeft <= 60) {
+                  tone = "warning";
+                } else {
+                  tone = "success";
+                }
+
+                return <SummaryStat label="المدة المتبقية للعقد" value={label} tone={tone} />;
+              })()
+            )}
           </div>
         </aside>
       </section>
@@ -620,14 +644,16 @@ function SummaryStat({
 }: {
   label: string;
   value: React.ReactNode;
-  tone?: "default" | "success" | "warning";
+  tone?: "default" | "success" | "warning" | "danger";
 }) {
   const toneClass =
     tone === "success"
-      ? "text-[--color-success] bg-[--color-success]/10"
+      ? "text-success bg-success/15 px-2 py-0.5 rounded-lg w-fit inline-block"
       : tone === "warning"
-        ? "text-[--color-warning] bg-[--color-warning]/10"
-        : "text-gray-700 bg-white dark:bg-white/5 dark:text-slate-200";
+        ? "text-warning bg-warning/15 px-2 py-0.5 rounded-lg w-fit inline-block"
+        : tone === "danger"
+          ? "text-danger bg-danger/15 px-2 py-0.5 rounded-lg w-fit inline-block"
+          : "text-gray-700 dark:text-slate-200";
 
   return (
     <div className={`rounded-xl border border-gray-200/60 px-4 py-3 dark:border-white/10`}>
