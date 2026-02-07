@@ -471,7 +471,7 @@ export default function HotelTenantDetails() {
                           {formatDate(invoice.dueDate)}
                         </td>
                         <td className="py-2 text-right">
-                          <InvoiceBadge status={invoice.status} />
+                          <InvoiceBadge status={invoice.status} dueDate={invoice.dueDate} />
                         </td>
                         <td className="py-2 text-right">
                           <div className="flex items-center gap-2">
@@ -777,12 +777,34 @@ function RenewalBadge({ status, contractStatus, endDate, onClick }: { status?: s
 
 
 
-function InvoiceBadge({ status }: { status?: string | null }) {
+function InvoiceBadge({ status, dueDate }: { status?: string | null; dueDate?: string | null }) {
+  // Calculate if invoice is overdue
+  const isOverdue = () => {
+    if (status !== "PENDING" || !dueDate) return false;
+    const due = new Date(dueDate);
+    const now = new Date();
+    // Compare dates without time
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return dueDay < today;
+  };
+
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: "معلق", className: "badge-warning shadow-sm" },
     PAID: { label: "مدفوع", className: "badge-success shadow-sm" },
     CANCELLED: { label: "ملغى", className: "bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200" },
+    OVERDUE: { label: "متأخرة", className: "badge-overdue shadow-sm" },
   };
+
+  // Check if overdue first
+  if (isOverdue()) {
+    return (
+      <span className="badge-overdue shadow-sm">
+        متأخرة
+      </span>
+    );
+  }
+
   const info = status ? map[status] : undefined;
   if (!info) {
     return (

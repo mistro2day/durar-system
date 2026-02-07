@@ -223,6 +223,12 @@
     @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-danger]/15 text-[--color-danger];
   }
 
+  .badge-overdue {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold;
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+  }
+
   .badge-info {
     @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[--color-info]/15 text-[--color-info];
   }
