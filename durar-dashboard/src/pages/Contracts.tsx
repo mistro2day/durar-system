@@ -854,6 +854,35 @@ function mapStatus(v?: string) {
 function RenewalBadge({ status, endDate, contractStatus, onClick }: { status?: string | null; endDate?: string; contractStatus?: string; onClick: () => void }) {
   const isPending = !status || status === "PENDING";
 
+  // Check for 60-day grace period for ENDED contracts first (takes priority)
+  if (contractStatus === "ENDED" && endDate && status !== "RENEWED") {
+    try {
+      const end = new Date(endDate);
+      const now = new Date();
+      const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const nowD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const diff = nowD.getTime() - endD.getTime();
+      const daysSinceEnd = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+      // Allow renewal within 60 days after contract end
+      if (daysSinceEnd >= 0 && daysSinceEnd <= 60) {
+        return (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center bg-blue-600 text-white font-bold cursor-pointer hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all"
+          >
+            متاح للتجديد
+          </span>
+        );
+      }
+    } catch (e) {
+      console.error("Date error:", e);
+    }
+  }
+
   if (status === "RENEWED") {
     return (
       <span className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center badge-success">
@@ -863,35 +892,6 @@ function RenewalBadge({ status, endDate, contractStatus, onClick }: { status?: s
   }
 
   if (contractStatus === "ENDED" || contractStatus === "CANCELLED") {
-    // Check if ended contract is within 30 days grace period for renewal
-    if (endDate && contractStatus === "ENDED") {
-      try {
-        const end = new Date(endDate);
-        const now = new Date();
-        const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-        const nowD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const diff = nowD.getTime() - endD.getTime();
-        const daysSinceEnd = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-        // Allow renewal within 30 days after contract end
-        if (daysSinceEnd >= 0 && daysSinceEnd <= 30) {
-          return (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick();
-              }}
-              className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center bg-blue-600 text-white font-bold cursor-pointer hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all"
-            >
-              متاح للتجديد
-            </span>
-          );
-        }
-      } catch (e) {
-        console.error("Date error:", e);
-      }
-    }
-
     return (
       <span className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300 font-medium">
         منتهي
