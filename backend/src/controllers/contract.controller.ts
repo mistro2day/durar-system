@@ -255,7 +255,7 @@ export const updateContract = async (req: Request, res: Response) => {
       } as any,
     });
 
-    // 💵 تحديث مبالغ الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
+    // 💵 إعادة إنشاء الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
     const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : currentContract.rentAmount;
     const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
     const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
@@ -287,29 +287,56 @@ export const updateContract = async (req: Request, res: Response) => {
       const contractStart = startDate ? new Date(startDate) : currentContract.startDate;
       const contractEnd = endDate ? new Date(endDate) : currentContract.endDate;
 
-      let periods = 0;
+      // 1. حذف جميع الفواتير المعلقة
+      const pendingInvoices = currentContract.invoices.filter(inv => inv.status === "PENDING");
+      for (const inv of pendingInvoices) {
+        await prisma.invoice.delete({ where: { id: inv.id } });
+      }
+      console.log(`[ContractUpdate] Deleted ${pendingInvoices.length} pending invoices`);
+
+      // 2. إنشاء فواتير جديدة
+      const createdInvoices: any[] = [];
       if (monthStep > 0 && contractStart && contractEnd) {
+        let periods = 0;
         let tempDate = new Date(contractStart);
         while (tempDate < contractEnd) {
           periods++;
           tempDate.setMonth(tempDate.getMonth() + monthStep);
         }
-      }
-      if (periods === 0) periods = 1;
+        if (periods === 0) periods = 1;
+        const amountPerInvoice = Number(newRentAmount) / periods;
 
-      const newAmountPerInvoice = Number(newRentAmount) / periods;
-
-      // تحديث جميع الفواتير المعلقة
-      const pendingInvoices = currentContract.invoices.filter(inv => inv.status === "PENDING");
-      for (const inv of pendingInvoices) {
-        await prisma.invoice.update({
-          where: { id: inv.id },
-          data: { amount: newAmountPerInvoice }
+        let currentInvoiceDate = new Date(contractStart);
+        while (currentInvoiceDate < contractEnd) {
+          const inv = await prisma.invoice.create({
+            data: {
+              tenantId: currentContract.tenantId,
+              contractId: currentContract.id,
+              amount: amountPerInvoice,
+              dueDate: new Date(currentInvoiceDate),
+              status: "PENDING",
+            },
+          });
+          createdInvoices.push(inv);
+          currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+        }
+      } else {
+        // إذا لم يتم تحديد تكرار (دفعة واحدة)
+        const inv = await prisma.invoice.create({
+          data: {
+            tenantId: currentContract.tenantId,
+            contractId: currentContract.id,
+            amount: Number(newRentAmount),
+            dueDate: contractStart ? new Date(contractStart) : new Date(),
+            status: "PENDING",
+          },
         });
+        createdInvoices.push(inv);
       }
 
-      console.log(`[ContractUpdate] Updated ${pendingInvoices.length} pending invoices to ${newAmountPerInvoice} each`);
+      console.log(`[ContractUpdate] Created ${createdInvoices.length} new invoices with amount ${createdInvoices[0]?.amount || 0} each`);
     }
+
 
     res.json({ message: "✅ تم تحديث بيانات العقد بنجاح", contract });
   } catch (error: any) {
