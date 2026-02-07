@@ -63,9 +63,16 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     include: { unit: { select: { number: true } } },
   });
 
+  const statusMap: Record<string, string> = {
+    NEW: "جديد",
+    IN_PROGRESS: "قيد التنفيذ",
+    COMPLETED: "مكتمل",
+    CANCELLED: "ملغي",
+  };
+
   await logActivity(prisma, req, {
     action: "MAINTENANCE_STATUS_UPDATE",
-    description: `تحديث حالة بلاغ الصيانة #${id} إلى ${status} للوحدة ${updated.unit?.number ?? updated.unitId}`,
+    description: `تحديث حالة بلاغ الصيانة #${id} إلى ${statusMap[status] || status} للوحدة ${updated.unit?.number ?? updated.unitId}`,
   });
 
   res.json(updated);

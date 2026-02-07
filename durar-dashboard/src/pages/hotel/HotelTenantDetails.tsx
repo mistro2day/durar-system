@@ -383,7 +383,7 @@ export default function HotelTenantDetails() {
                           <StatusBadge status={contract.status} />
                         </td>
                         <td className="py-2 text-right">
-                          <RenewalBadge status={contract.renewalStatus} />
+                          <RenewalBadge status={contract.renewalStatus} contractStatus={contract.status} />
                         </td>
                       </tr>
                     ))}
@@ -667,25 +667,22 @@ function StatusBadge({ status }: { status?: string | null }) {
   );
 }
 
-function RenewalBadge({ status }: { status?: string | null }) {
+function RenewalBadge({ status, contractStatus }: { status?: string | null; contractStatus?: string }) {
+  if (status === "RENEWED") {
+    return <span className="badge-success">تم التجديد</span>;
+  }
+  if (contractStatus === "ENDED" || contractStatus === "CANCELLED") {
+    return <span className="bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200 px-2 py-0.5 rounded text-[10px]">منتهي</span>;
+  }
+
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: {
-      label: "قيد الانتظار",
-      className: "badge-warning",
-    },
-    RENEWED: {
-      label: "تم التجديد",
-      className: "badge-success",
-    },
-    NOT_RENEWING: {
-      label: "لن يتم التجديد",
-      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
-    },
+    PENDING: { label: "قيد الانتظار", className: "badge-warning" },
+    NOT_RENEWING: { label: "لن يتم التجديد", className: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200" },
   };
   const info = status ? map[status] : map["PENDING"];
   return (
-    <span className={`${info.className}`}>
-      {info.label}
+    <span className={`${info?.className || "badge-warning"}`}>
+      {info?.label || "قيد الانتظار"}
     </span>
   );
 }

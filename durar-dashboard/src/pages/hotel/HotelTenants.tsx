@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../lib/api";
+import { X } from "lucide-react";
 import Currency from "../../components/Currency";
 import SortHeader from "../../components/SortHeader";
 import { useTableSort } from "../../hooks/useTableSort";
@@ -17,6 +18,14 @@ export default function HotelTenants() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return search !== "";
+  }, [search]);
 
   useEffect(() => {
     if (!id) return;
@@ -116,6 +125,17 @@ export default function HotelTenants() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            title="مسح جميع الفلاتر"
+          >
+            <X className="w-4 h-4" />
+            <span>إزالة الفلترة</span>
+          </button>
+        )}
       </div>
 
       {loading ? (

@@ -46,4 +46,24 @@ export const startInvoiceScheduler = () => {
 
     console.log("✅ تم فحص وإنشاء الفواتير الشهرية بنجاح.");
   });
+
+  // ⏰ فحص الفواتير المتأخرة يومياً عند منتصف الليل
+  cron.schedule("0 0 * * *", async () => {
+    console.log("🕒 فحص الفواتير المتأخرة...");
+    const today = new Date();
+
+    const overdueInvoices = await prisma.invoice.updateMany({
+      where: {
+        status: "PENDING",
+        dueDate: { lt: today },
+      },
+      data: {
+        status: "OVERDUE",
+      },
+    });
+
+    if (overdueInvoices.count > 0) {
+      console.log(`✅ تم تحديث ${overdueInvoices.count} فاتورة إلى حالة "متأخرة".`);
+    }
+  });
 };

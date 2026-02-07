@@ -56,7 +56,7 @@ export type SiteSettings = {
 };
 
 const STORAGE_KEY = "siteSettings";
-export const DEFAULT_DATE_LOCALE = "ar-u-ca-gregory";
+export const DEFAULT_DATE_LOCALE = "ar-SA-u-nu-latn-ca-gregory";
 
 function mergePermissionMaps(
   defaults: Record<RoleKey, PermissionKey[] | "*">,

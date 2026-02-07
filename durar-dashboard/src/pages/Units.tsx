@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
 import { useParams, Link } from "react-router-dom";
-import { Wrench, Plus, Edit, ChevronDown, ChevronRight } from "lucide-react";
+import { Wrench, Plus, Edit, ChevronDown, ChevronRight, X } from "lucide-react";
 import SortHeader from "../components/SortHeader";
 import type { SortDirection } from "../hooks/useTableSort";
 
@@ -28,6 +28,16 @@ export default function Units() {
   const [filterFloor, setFilterFloor] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [modal, setModal] = useState<null | { mode: 'add' | 'edit'; data?: Partial<Unit> }>(null);
+
+  const clearFilters = useCallback(() => {
+    setFilterProperty("");
+    setFilterFloor("");
+    setSearch("");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return filterProperty !== "" || filterFloor !== "" || search !== "";
+  }, [filterProperty, filterFloor, search]);
   const [openProps, setOpenProps] = useState<Record<string, boolean>>({});
   const [openFloors, setOpenFloors] = useState<Record<string, Record<number, boolean>>>({});
   const [unitSort, setUnitSort] = useState<{ key: UnitSortKey; direction: SortDirection } | null>(null);
@@ -253,6 +263,17 @@ export default function Units() {
           {propertyId ? (
             <button className="btn-soft btn-soft-danger" onClick={handleWipeUnits}>حذف جميع الوحدات</button>
           ) : null}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              title="مسح جميع الفلاتر"
+            >
+              <X className="w-4 h-4" />
+              <span>إزالة الفلترة</span>
+            </button>
+          )}
         </div>
       </div>
 

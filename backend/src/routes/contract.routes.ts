@@ -6,6 +6,7 @@ import {
   updateContract,
   deleteContract,
   endContract,
+  renewContract,
   importContractsCsv
 } from "../controllers/contract.controller.js";
 import { authGuard } from "../middlewares/auth.js";
@@ -19,6 +20,7 @@ router.post("/", authGuard, requirePermission("contracts.edit"), createContract)
 router.put("/:id", authGuard, requirePermission("contracts.edit"), updateContract);
 router.delete("/:id", authGuard, requirePermission("contracts.delete"), deleteContract);
 router.patch("/:id/end", authGuard, requirePermission("contracts.end"), endContract);
+router.post("/:id/renew", authGuard, requirePermission("contracts.edit"), renewContract);
 router.post("/import", authGuard, requirePermission("contracts.edit"), upload.single('file'), importContractsCsv);
 
 

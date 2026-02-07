@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw, X } from "lucide-react";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
 import SortHeader from "../components/SortHeader";
@@ -40,16 +40,27 @@ type ActivityResponse = {
 type ActivitySortKey = "action" | "user" | "property" | "unit" | "createdAt";
 
 const ACTION_LABELS: Record<string, string> = {
-  CONTRACT_CREATE: "إنشاء عقد",
+  CONTRACT_CREATE: "انشاء عقد",
   CONTRACT_UPDATE: "تعديل عقد",
   CONTRACT_DELETE: "حذف عقد",
   CONTRACT_END: "إنهاء عقد",
-  INVOICE_CREATE: "إنشاء فاتورة",
+  "End Contract": "إنهاء عقد",
+  INVOICE_CREATE: "انشاء فاتورة",
   INVOICE_UPDATE: "تعديل فاتورة",
+  INVOICE_STATUS_UPDATE: "تغيير حالة فاتورة",
   INVOICE_DELETE: "حذف فاتورة",
-  MAINTENANCE_CREATE: "إنشاء تذكرة صيانة",
-  MAINTENANCE_UPDATE: "تحديث تذكرة صيانة",
-  MAINTENANCE_CLOSE: "إغلاق تذكرة صيانة",
+  MAINTENANCE_CREATE: "اضافة بلاغ صيانة",
+  MAINTENANCE_UPDATE: "تحديث بلاغ صيانة",
+  MAINTENANCE_STATUS_UPDATE: "تغيير حالة الصيانة",
+  MAINTENANCE_ACTION_ADD: "اضافة إجراء صيانة",
+  MAINTENANCE_CLOSE: "إغلاق بلاغ صيانة",
+  MAINTENANCE_DELETE: "حذف بلاغ صيانة",
+  PROPERTY_CREATE: "اضافة عقار",
+  PROPERTY_UPDATE: "تحديث عقار",
+  PROPERTY_DELETE: "حذف عقار",
+  PAYMENT_RECORD: "تسجيل دفعة",
+  PAYMENT_UPDATE: "تعديل دفعة",
+  PAYMENT_DELETE: "حذف دفعة",
 };
 
 export default function ActivityLog() {
@@ -66,6 +77,23 @@ export default function ActivityLog() {
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [refreshToken, setRefreshToken] = useState(0);
+
+  const clearFilters = useCallback(() => {
+    setSearchInput("");
+    setDebouncedSearch("");
+    setActionFilter("ALL");
+    setFromDate("");
+    setToDate("");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      searchInput !== "" ||
+      actionFilter !== "ALL" ||
+      fromDate !== "" ||
+      toDate !== ""
+    );
+  }, [searchInput, actionFilter, fromDate, toDate]);
 
   const localeTag = useLocaleTag();
   useEffect(() => {
@@ -171,10 +199,10 @@ export default function ActivityLog() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <LoadingOverlay visible={loading} text="جارٍ تحميل سجل النشاطات..." />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">سجل النشاطات</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -184,7 +212,7 @@ export default function ActivityLog() {
         </div>
         <button
           type="button"
-          className="btn-outline"
+          className="refresh-button"
           onClick={() => setRefreshToken((value) => value + 1)}
           disabled={loading}
         >
@@ -193,9 +221,9 @@ export default function ActivityLog() {
         </button>
       </div>
 
-      <div className="card grid gap-4 md:grid-cols-4">
+      <div className="card grid gap-4 md:grid-cols-4 w-full">
         <label className="flex flex-col gap-1 text-sm md:col-span-2">
-          <span className="text-gray-600">بحث</span>
+          <span className="text-gray-600 font-medium">بحث</span>
           <input
             className="form-input"
             placeholder="ابحث باسم المستخدم أو وصف النشاط أو نوع العملية"
@@ -205,7 +233,7 @@ export default function ActivityLog() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-gray-600">نوع النشاط</span>
+          <span className="text-gray-600 font-medium">نوع النشاط</span>
           <select
             className="form-select"
             value={actionFilter}
@@ -220,9 +248,9 @@ export default function ActivityLog() {
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-3 md:col-span-2">
+        <div className="grid grid-cols-2 gap-3 md:col-span-1">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-gray-600">من تاريخ</span>
+            <span className="text-gray-600 font-medium">من تاريخ</span>
             <input
               type="date"
               className="form-input"
@@ -231,7 +259,7 @@ export default function ActivityLog() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-gray-600">إلى تاريخ</span>
+            <span className="text-gray-600 font-medium">إلى تاريخ</span>
             <input
               type="date"
               className="form-input"
@@ -241,15 +269,18 @@ export default function ActivityLog() {
           </label>
         </div>
 
-        <div className="md:col-span-2 flex items-end gap-2">
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={handleResetDates}
-            disabled={!fromDate && !toDate}
-          >
-            مسح التواريخ
-          </button>
+        <div className="md:col-span-4 flex items-center justify-end gap-3 mt-2">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              onClick={clearFilters}
+              title="مسح جميع الفلاتر"
+            >
+              <X className="w-4 h-4" />
+              <span>إزالة الفلترة</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -258,118 +289,127 @@ export default function ActivityLog() {
           <span>{error}</span>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="table min-w-[960px]">
-            <thead>
-              <tr>
-                <th>
-                  <SortHeader
-                    label="العملية"
-                    active={sortState?.key === "action"}
-                    direction={sortState?.key === "action" ? sortState.direction : null}
-                    onToggle={() => toggleSort("action")}
-                    align="right"
-                  />
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-700">الوصف</th>
-                <th>
-                  <SortHeader
-                    label="المستخدم"
-                    active={sortState?.key === "user"}
-                    direction={sortState?.key === "user" ? sortState.direction : null}
-                    onToggle={() => toggleSort("user")}
-                    align="right"
-                  />
-                </th>
-                <th>
-                  <SortHeader
-                    label="العقار"
-                    active={sortState?.key === "property"}
-                    direction={sortState?.key === "property" ? sortState.direction : null}
-                    onToggle={() => toggleSort("property")}
-                    align="right"
-                  />
-                </th>
-                <th>
-                  <SortHeader
-                    label="الوحدة"
-                    active={sortState?.key === "unit"}
-                    direction={sortState?.key === "unit" ? sortState.direction : null}
-                    onToggle={() => toggleSort("unit")}
-                    align="right"
-                  />
-                </th>
-                <th>
-                  <SortHeader
-                    label="التاريخ"
-                    active={sortState?.key === "createdAt"}
-                    direction={sortState?.key === "createdAt" ? sortState.direction : null}
-                    onToggle={() => toggleSort("createdAt")}
-                    align="right"
-                  />
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {sortedItems.length === 0 ? (
+        <>
+          <div className="card overflow-x-auto w-full !p-0">
+            <table className="table w-full">
+              <thead className="bg-gray-50/50">
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-gray-500">
-                    لا توجد نشاطات مطابقة للمعايير الحالية.
-                  </td>
+                  <th className="w-[140px] text-right p-4">
+                    <SortHeader
+                      label="العملية"
+                      active={sortState?.key === "action"}
+                      direction={sortState?.key === "action" ? sortState.direction : null}
+                      onToggle={() => toggleSort("action")}
+                    />
+                  </th>
+                  <th className="min-w-[250px] text-right p-4 !whitespace-normal">الوصف</th>
+                  <th className="w-[160px] text-right p-4">
+                    <SortHeader
+                      label="المستخدم"
+                      active={sortState?.key === "user"}
+                      direction={sortState?.key === "user" ? sortState.direction : null}
+                      onToggle={() => toggleSort("user")}
+                    />
+                  </th>
+                  <th className="w-[160px] text-right p-4">
+                    <SortHeader
+                      label="العقار"
+                      active={sortState?.key === "property"}
+                      direction={sortState?.key === "property" ? sortState.direction : null}
+                      onToggle={() => toggleSort("property")}
+                    />
+                  </th>
+                  <th className="w-[100px] text-right p-4">
+                    <SortHeader
+                      label="الوحدة"
+                      active={sortState?.key === "unit"}
+                      direction={sortState?.key === "unit" ? sortState.direction : null}
+                      onToggle={() => toggleSort("unit")}
+                    />
+                  </th>
+                  <th className="w-[180px] text-right p-4">
+                    <SortHeader
+                      label="التاريخ"
+                      active={sortState?.key === "createdAt"}
+                      direction={sortState?.key === "createdAt" ? sortState.direction : null}
+                      onToggle={() => toggleSort("createdAt")}
+                    />
+                  </th>
                 </tr>
-              ) : (
-                sortedItems.map((row) => (
-                  <tr key={row.id}>
-                    <td className="p-3 text-gray-800">
-                      <span className={actionBadgeClass(row.action)}>{mapActionLabel(row.action)}</span>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sortedItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-12 text-center text-gray-500">
+                      لا توجد نشاطات مطابقة للمعايير الحالية.
                     </td>
-                    <td className="p-3 text-gray-600 whitespace-pre-wrap" title={row.description || undefined}>
-                      {row.description || "-"}
-                    </td>
-                    <td className="p-3 text-gray-800">
-                      <div className="flex flex-col">
-                        <span>{row.user?.name || "غير محدد"}</span>
-                        <span className="text-xs text-gray-500">
-                          {row.user?.role ? roleLabel(row.user.role) : ""}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-gray-800">
-                      {row.contract?.propertyName || "-"}
-                    </td>
-                    <td className="p-3 text-gray-800">{row.contract?.unitNumber || "-"}</td>
-                    <td className="p-3 text-gray-800">{formatDateTime(row.createdAt)}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                ) : (
+                  sortedItems.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="p-4 align-top">
+                        <span className={`${actionBadgeClass(row.action)} whitespace-nowrap`}>
+                          {mapActionLabel(row.action)}
+                        </span>
+                      </td>
+                      <td className="p-4 align-top !whitespace-normal min-w-[250px] text-gray-700 leading-relaxed text-sm">
+                        {row.description || "-"}
+                      </td>
+                      <td className="p-4 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-gray-900 line-clamp-1">
+                            {row.user?.name || "غير محدد"}
+                          </span>
+                          {row.user?.role && (
+                            <span className="text-[11px] text-gray-500 font-medium">
+                              {roleLabel(row.user.role)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 align-top">
+                        <span className="text-gray-600 line-clamp-1">{row.contract?.propertyName || "-"}</span>
+                      </td>
+                      <td className="p-4 align-top">
+                        <span className="text-gray-600">{row.contract?.unitNumber || "-"}</span>
+                      </td>
+                      <td className="p-4 align-top">
+                        <span className="text-gray-500 text-xs font-medium bg-gray-100/50 px-2 py-1 rounded-md inline-block">
+                          {formatDateTime(row.createdAt)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm text-gray-500">
-          صفحة {page} من {Math.max(totalPages, 1)}
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            disabled={page === 1 || loading}
-          >
-            السابق
-          </button>
-          <button
-            type="button"
-            className="btn-soft btn-soft-primary"
-            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={page >= totalPages || loading}
-          >
-            التالي
-          </button>
-        </div>
-      </div>
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-2 px-1">
+            <span className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm">
+              صفحة {page} من {Math.max(totalPages, 1)}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn-outline h-10 px-4"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1 || loading}
+              >
+                السابق
+              </button>
+              <button
+                type="button"
+                className="refresh-button h-10 px-4 !bg-indigo-600 !text-white !border-none hover:!bg-indigo-700 disabled:!bg-gray-200 disabled:!text-gray-400"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages || loading}
+              >
+                التالي
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

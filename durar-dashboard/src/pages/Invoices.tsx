@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { Eye } from "lucide-react";
+import { Eye, PlusCircle, X } from "lucide-react";
 import api from "../lib/api";
 import DateInput from "../components/DateInput";
 import { useLocaleTag } from "../lib/settings-react";
 import Currency from "../components/Currency";
 import SortHeader from "../components/SortHeader";
 import { useTableSort } from "../hooks/useTableSort";
+
+type Payment = {
+  id: number;
+  amount: number;
+  method: string;
+  paidAt: string;
+};
 
 type Invoice = {
   id: number;
@@ -26,9 +33,10 @@ type Invoice = {
       } | null;
     } | null;
   } | null;
+  payments?: Payment[];
 };
 
-type InvoiceSortKey = "id" | "tenant" | "unit" | "property" | "amount" | "status" | "dueDate";
+type InvoiceSortKey = "id" | "tenant" | "unit" | "property" | "amount" | "paid" | "balance" | "status" | "dueDate";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
@@ -44,6 +52,23 @@ export default function Invoices() {
   const [to, setTo] = useState<string>("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+
+  const clearFilters = useCallback(() => {
+    setTenantSearch("");
+    setStatusFilter("ALL");
+    setFrom("");
+    setTo("");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      tenantSearch !== "" ||
+      statusFilter !== "ALL" ||
+      from !== "" ||
+      to !== ""
+    );
+  }, [tenantSearch, statusFilter, from, to]);
+
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
 
@@ -84,6 +109,8 @@ export default function Invoices() {
       unit: (inv) => inv.contract?.unit?.number || "",
       property: (inv) => inv.contract?.unit?.property?.name || "",
       amount: (inv) => Number(inv.amount || 0),
+      paid: (inv) => (inv.payments || []).reduce((sum, p) => sum + p.amount, 0),
+      balance: (inv) => Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0),
       status: (inv) => inv.status || "",
       dueDate: (inv) => inv.dueDate || "",
     }),
@@ -162,6 +189,7 @@ export default function Invoices() {
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-select">
             <option value="ALL">الكل</option>
             <option value="PAID">مدفوعة</option>
+            <option value="PARTIAL">سداد جزئي</option>
             <option value="PENDING">معلّقة</option>
             <option value="OVERDUE">متأخرة</option>
           </select>
@@ -188,11 +216,24 @@ export default function Invoices() {
             ))}
           </select>
         </div>
-        <div className="ml-auto text-sm text-gray-700">
-          الإجمالي: <strong><Currency amount={total} locale={localeTag} /></strong>
-        </div>
-        <div className="ml-2">
-          <AddInvoiceButton onAdded={load} />
+        <div className="ml-auto flex items-center gap-3">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ms-auto"
+              title="مسح جميع الفلاتر"
+            >
+              <X className="w-4 h-4" />
+              <span>إزالة الفلترة</span>
+            </button>
+          )}
+          <div className="text-sm text-gray-700">
+            الإجمالي: <strong><Currency amount={total} locale={localeTag} /></strong>
+          </div>
+          <div className="ml-2">
+            <AddInvoiceButton onAdded={load} />
+          </div>
         </div>
       </div>
 
@@ -249,6 +290,22 @@ export default function Invoices() {
                 </th>
                 <th className="text-right p-3 font-semibold text-gray-700">
                   <SortHeader
+                    label="المدفوع"
+                    active={invoiceSort?.key === "paid"}
+                    direction={invoiceSort?.key === "paid" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("paid")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
+                    label="المتبقي"
+                    active={invoiceSort?.key === "balance"}
+                    direction={invoiceSort?.key === "balance" ? invoiceSort.direction : null}
+                    onToggle={() => toggleInvoiceSort("balance")}
+                  />
+                </th>
+                <th className="text-right p-3 font-semibold text-gray-700">
+                  <SortHeader
                     label="الحالة"
                     active={invoiceSort?.key === "status"}
                     direction={invoiceSort?.key === "status" ? invoiceSort.direction : null}
@@ -279,26 +336,46 @@ export default function Invoices() {
                   <Td>{inv.contract?.unit?.property?.name || "-"}</Td>
                   <Td><Currency amount={Number(inv.amount || 0)} locale={localeTag} /></Td>
                   <Td>
+                    <Currency
+                      amount={(inv.payments || []).reduce((sum, p) => sum + p.amount, 0)}
+                      locale={localeTag}
+                      className="text-green-600 font-medium"
+                    />
+                  </Td>
+                  <Td>
+                    <Currency
+                      amount={Math.max(0, Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0))}
+                      locale={localeTag}
+                      className="text-red-600 font-medium"
+                    />
+                  </Td>
+                  <Td>
                     <select
-                      className={`transition-colors appearance-none cursor-pointer ${inv.status === 'PAID' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
-                        inv.status === 'OVERDUE' ? 'text-xs border rounded px-2 py-1 font-semibold text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
-                          'badge-warning'
+                      className={`transition-colors appearance-none cursor-pointer text-xs border rounded px-2 py-1 font-semibold ${inv.status === 'PAID' ? 'text-[--color-success] bg-[--color-success]/10 border-[--color-success]/20' :
+                        inv.status === 'PARTIAL' ? 'text-indigo-600 bg-indigo-50 border-indigo-200' :
+                          inv.status === 'OVERDUE' ? 'text-[--color-danger] bg-[--color-danger]/10 border-[--color-danger]/20' :
+                            'text-[#7c2d12] bg-[#fff7ed] border-[#fed7aa]'
                         } ${savingId === inv.id ? "opacity-60" : ""}`}
                       value={inv.status}
                       onChange={(e) => updateStatus(inv.id, e.target.value)}
                       disabled={savingId === inv.id}
                     >
-                      <option value="PAID" className="bg-white text-green-700 dark:bg-slate-800 dark:text-green-300">مدفوعة</option>
-                      <option value="PENDING" className="bg-white text-[#7c2d12] dark:bg-slate-800 dark:text-amber-300">معلّقة</option>
-                      <option value="OVERDUE" className="bg-white text-red-700 dark:bg-slate-800 dark:text-red-300">متأخرة</option>
+                      <option value="PAID" className="bg-white text-green-700">مدفوعة</option>
+                      <option value="PARTIAL" className="bg-white text-indigo-700">سداد جزئي</option>
+                      <option value="PENDING" className="bg-white text-[#7c2d12]">معلّقة</option>
+                      <option value="OVERDUE" className="bg-white text-red-700">متأخرة</option>
                     </select>
                   </Td>
                   <Td>{fmtDate(inv.dueDate)}</Td>
                   <Td>
-                    <Link to={`/invoices/${inv.id}`} state={{ invoice: inv }} className="btn-soft btn-soft-primary" title="عرض التفاصيل">
-                      <Eye className="w-4 h-4" />
-                      <span className="hidden sm:inline">عرض</span>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link to={`/invoices/${inv.id}`} state={{ invoice: inv }} className="btn-soft btn-soft-primary" title="عرض التفاصيل">
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                      {inv.status !== 'PAID' && (
+                        <RecordPaymentModal invoice={inv} onRecorded={load} />
+                      )}
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -485,3 +562,89 @@ function AddInvoiceButton({ onAdded }: { onAdded: () => void }) {
   );
 }
 
+function RecordPaymentModal({ invoice, onRecorded }: { invoice: Invoice, onRecorded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    amount: (Number(invoice.amount) - (invoice.payments || []).reduce((s, p) => s + p.amount, 0)).toFixed(2),
+    paidAt: new Date().toISOString().split('T')[0],
+    method: 'BANK_TRANSFER'
+  });
+
+  async function save() {
+    if (saving) return;
+    if (!form.amount || Number(form.amount) <= 0) return alert("المبلغ غير صحيح");
+
+    try {
+      setSaving(true);
+      await api.post(`/api/invoices/${invoice.id}/payments`, {
+        amount: Number(form.amount),
+        paidAt: form.paidAt,
+        method: form.method
+      });
+      setOpen(false);
+      onRecorded();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر تسجيل الدفعة");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        className="btn-soft btn-soft-success"
+        onClick={() => setOpen(true)}
+        title="تسجيل دفعة"
+      >
+        <PlusCircle className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <div className="modal-backdrop">
+          <div className="card w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">تسجيل دفعة للفاتورة #{invoice.id}</h3>
+
+            <div className="space-y-4">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 font-medium">المبلغ</span>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 font-medium">تاريخ الدفع</span>
+                <DateInput value={form.paidAt} onChange={(v) => setForm({ ...form, paidAt: v })} />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-gray-600 font-medium">طريقة الدفع</span>
+                <select
+                  className="form-select"
+                  value={form.method}
+                  onChange={(e) => setForm({ ...form, method: e.target.value })}
+                >
+                  <option value="CASH">نقدي</option>
+                  <option value="BANK_TRANSFER">تحويل بنكي</option>
+                  <option value="EJAR">إيجار</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button className="btn-outline" onClick={() => setOpen(false)} disabled={saving}>إلغاء</button>
+              <button className="btn-primary" onClick={save} disabled={saving}>
+                {saving ? "جارٍ الحفظ..." : "تسجيل الدفعة"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

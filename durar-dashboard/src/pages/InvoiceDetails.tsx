@@ -8,6 +8,15 @@ import { getSettings, DEFAULT_DATE_LOCALE } from "../lib/settings";
 import { useLocaleTag } from "../lib/settings-react";
 import { formatSAR, CURRENCY_SYMBOL } from "../lib/currency";
 import Currency from "../components/Currency";
+import { Edit2, Trash2, Plus } from "lucide-react";
+import DateInput from "../components/DateInput";
+
+type Payment = {
+  id: number;
+  amount: number;
+  method: string;
+  paidAt: string;
+};
 
 type Invoice = {
   id: number;
@@ -16,6 +25,7 @@ type Invoice = {
   dueDate: string;
   contract?: { id: number; tenantName?: string } | null;
   contractId?: number;
+  payments?: Payment[];
 };
 
 export default function InvoiceDetails() {
@@ -317,6 +327,181 @@ export default function InvoiceDetails() {
         <footer className="mt-8 text-center text-xs text-gray-500">
           العنوان: {COMPANY_ADDRESS} — الهاتف: {COMPANY_PHONE} — البريد: {COMPANY_EMAIL}
         </footer>
+      </div>
+
+      {/* سجل الدفعات - خارج المساحة المطبوعة */}
+      <div className="mt-8 print:hidden mx-auto" style={{ maxWidth: 794 }}>
+        <h3 className="text-xl font-bold text-gray-800 mb-4 px-4 sm:px-0">سجل الدفعات</h3>
+        <PaymentHistory invoice={invoice} onUpdate={() => {
+          // Re-fetch invoice data
+          api.get<Invoice[]>("/api/invoices").then(res => {
+            const found = res.data.find((x) => String(x.id) === String(id));
+            if (found) setInvoice(found);
+          });
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function PaymentHistory({ invoice, onUpdate }: { invoice: Invoice; onUpdate: () => void }) {
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const localeTag = useLocaleTag();
+
+  async function handleDelete(paymentId: number) {
+    if (!confirm("هل أنت متأكد من حذف هذه الدفعة؟")) return;
+    try {
+      await api.delete(`/api/invoices/payments/${paymentId}`);
+      onUpdate();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر حذف الدفعة");
+    }
+  }
+
+  const totalPaid = (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0);
+  const remaining = Math.max(0, invoice.amount - totalPaid);
+
+  return (
+    <div className="card shadow-sm border border-gray-100 p-0 overflow-hidden">
+      <div className="p-4 bg-gray-50/50 flex justify-between items-center border-b">
+        <div className="flex gap-4">
+          <div className="text-sm">
+            <span className="text-gray-500">إجمالي المدفوع: </span>
+            <span className="font-bold text-green-600"><Currency amount={totalPaid} locale={localeTag} /></span>
+          </div>
+          <div className="text-sm">
+            <span className="text-gray-500">المتبقي: </span>
+            <span className="font-bold text-red-600"><Currency amount={remaining} locale={localeTag} /></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-right">
+          <thead className="bg-gray-50 text-gray-600 font-medium">
+            <tr>
+              <th className="p-3">التاريخ</th>
+              <th className="p-3">المبلغ</th>
+              <th className="p-3">الطريقة</th>
+              <th className="p-3 text-center">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {!(invoice.payments?.length) ? (
+              <tr>
+                <td colSpan={4} className="p-8 text-center text-gray-400">لا توجد دفعات مسجلة بعد.</td>
+              </tr>
+            ) : (
+              invoice.payments.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="p-3">{new Date(p.paidAt).toLocaleDateString(localeTag)}</td>
+                  <td className="p-3 font-semibold text-gray-800"><Currency amount={p.amount} locale={localeTag} /></td>
+                  <td className="p-3">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-700 border border-blue-100">
+                      {p.method === 'CASH' ? 'نقدي' : p.method === 'BANK_TRANSFER' ? 'تحويل بنكي' : 'إيجار'}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => setEditingPayment(p)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="تعديل"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {editingPayment && (
+        <EditPaymentModal
+          payment={editingPayment}
+          onClose={() => setEditingPayment(null)}
+          onUpdated={onUpdate}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditPaymentModal({ payment, onClose, onUpdated }: { payment: Payment; onClose: () => void; onUpdated: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    amount: payment.amount.toString(),
+    paidAt: new Date(payment.paidAt).toISOString().split('T')[0],
+    method: payment.method
+  });
+
+  async function save() {
+    if (saving) return;
+    if (!form.amount || Number(form.amount) <= 0) return alert("المبلغ غير صحيح");
+
+    try {
+      setSaving(true);
+      await api.patch(`/api/invoices/payments/${payment.id}`, {
+        amount: Number(form.amount),
+        paidAt: form.paidAt,
+        method: form.method
+      });
+      onUpdated();
+      onClose();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر تحديث الدفعة");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <div className="card w-full max-w-md">
+        <h3 className="text-xl font-bold mb-4">تعديل الدفعة</h3>
+        <div className="space-y-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-gray-600 font-medium">المبلغ</span>
+            <input
+              type="number"
+              className="form-input"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-gray-600 font-medium">تاريخ الدفع</span>
+            <DateInput value={form.paidAt} onChange={(v) => setForm({ ...form, paidAt: v })} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-gray-600 font-medium">طريقة الدفع</span>
+            <select
+              className="form-select"
+              value={form.method}
+              onChange={(e) => setForm({ ...form, method: e.target.value })}
+            >
+              <option value="CASH">نقدي</option>
+              <option value="BANK_TRANSFER">تحويل بنكي</option>
+              <option value="EJAR">إيجار</option>
+            </select>
+          </label>
+        </div>
+        <div className="mt-8 flex justify-end gap-3">
+          <button className="btn-outline" onClick={onClose} disabled={saving}>إلغاء</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
+            {saving ? "جاري الحفظ..." : "حفظ التغييرات"}
+          </button>
+        </div>
       </div>
     </div>
   );

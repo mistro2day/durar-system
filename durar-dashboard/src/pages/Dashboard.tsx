@@ -17,6 +17,7 @@ import { useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import LoadingOverlay from "../components/LoadingOverlay";
 import { InvoiceStatusSelect } from "../components/InvoiceStatusSelect";
+import { RenewContractModal } from "../components/RenewContractModal";
 
 type DashboardResponse = {
   summary: {
@@ -1238,107 +1239,6 @@ function getSmsLink(phone?: string | null) {
   return `sms:${phone}`;
 }
 
-function RenewContractModal({ contract, onClose, onSuccess }: { contract: any; onClose: () => void; onSuccess: () => void }) {
-  const [amount, setAmount] = useState<string>(String(contract.rentAmount || contract.amount || ""));
-  const [loading, setLoading] = useState(false);
-
-  // Calculate new dates
-  const { newStartDate, newEndDate } = useMemo(() => {
-    if (!contract.startDate || !contract.endDate) return { newStartDate: new Date(), newEndDate: new Date() };
-
-    const oldStart = new Date(contract.startDate);
-    const oldEnd = new Date(contract.endDate);
-    const durationTime = oldEnd.getTime() - oldStart.getTime();
-
-    // New start = Old end + 1 day
-    const start = new Date(oldEnd);
-    start.setDate(start.getDate() + 1);
-
-    // New end = New start + duration
-    const end = new Date(start.getTime() + durationTime);
-
-    return { newStartDate: start, newEndDate: end };
-  }, [contract]);
-
-  const handleConfirm = async () => {
-    if (!amount) return alert("الرجاء إدخال مبلغ الإيجار");
-
-    setLoading(true);
-    try {
-      // 1. Create New Contract
-      await api.post("/api/contracts", {
-        tenantName: contract.tenantName || contract.tenant?.name,
-        unitId: contract.unitId,
-        startDate: newStartDate,
-        endDate: newEndDate,
-        amount: Number(amount),
-        rentAmount: Number(amount),
-        paymentFrequency: contract.paymentFrequency,
-        rentalType: contract.rentalType,
-        paymentMethod: contract.paymentMethod,
-        notes: `تجديد للعقد رقم ${contract.id}`,
-      });
-
-      // 2. Update Old Contract Status
-      await api.patch(`/api/contracts/${contract.id}`, { renewalStatus: "RENEWED" });
-
-      onSuccess();
-    } catch (e: any) {
-      alert(e.response?.data?.message || "فشل التجديد");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative">
-        <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-          <X className="w-5 h-5" />
-        </button>
-
-        <h3 className="text-xl font-bold mb-6 text-gray-800 dark:text-gray-100">تجديد العقد</h3>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
-              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-1">بداية العقد الجديد</label>
-              <div className="font-semibold text-gray-800 dark:text-gray-200" dir="ltr">{newStartDate.toLocaleDateString('en-CA')}</div>
-            </div>
-            <div className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded-lg">
-              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-1">نهاية العقد الجديد</label>
-              <div className="font-semibold text-gray-800 dark:text-gray-200" dir="ltr">{newEndDate.toLocaleDateString('en-CA')}</div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">مبلغ الإيجار (ريال)</label>
-            <input
-              type="number"
-              className="input w-full dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-            />
-            <p className="text-xs text-gray-500 mt-1">نفس المبلغ السابق افتراضياً، يمكنك تعديله.</p>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 mt-8">
-          <button onClick={onClose} className="btn-ghost" disabled={loading}>إلغاء</button>
-          <button onClick={handleConfirm} className="btn-primary flex items-center gap-2" disabled={loading}>
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>جاري التجديد...</span>
-              </>
-            ) : (
-              "تأكيد التجديد"
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function LateInvoicesTable({
   items, localeTag, page, pageSize, total, onPageChange, onStatusUpdate

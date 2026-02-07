@@ -74,6 +74,7 @@ model Tenant {
   bookings              Booking[]
   contracts             Contract[]
   invoices              Invoice[]
+  telegramChatId        String?
   communicationLogs     CommunicationLog[]
 
   @@index([name], map: "idx_Tenant_name")
@@ -284,6 +285,8 @@ enum ContractStatus {
 enum InvoiceStatus {
   PENDING
   PAID
+  PARTIAL
+  OVERDUE
   CANCELLED
 }
 

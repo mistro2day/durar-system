@@ -52,11 +52,17 @@ const ACTIVITY_ACTION_LABELS: Record<string, string> = {
   "PROPERTY_CREATE": "إضافة عقار",
   "PROPERTY_UPDATE": "تحديث عقار",
   "MAINTENANCE_CREATE": "إضافة بلاغ صيانة",
-  "MAINTENANCE_STATUS_UPDATE": "تحديث حالة بلاغ صيانة",
-  "MAINTENANCE_ACTION_ADD": "إضافة إجراء لصيانة",
+  "MAINTENANCE_STATUS_UPDATE": "تغيير حالة الصيانة",
+  "MAINTENANCE_ACTION_ADD": "إضافة إجراء صيانة",
   "MAINTENANCE_DELETE": "حذف بلاغ صيانة",
-  "INVOICE_CREATE": "إصدار فاتورة",
-  "INVOICE_STATUS_UPDATE": "تحديث حالة فاتورة"
+  "INVOICE_CREATE": "إنشاء فاتورة",
+  "INVOICE_STATUS_UPDATE": "تغيير حالة فاتورة",
+  "PAYMENT_RECORD": "تسجيل دفعة",
+  "PAYMENT_UPDATE": "تعديل دفعة",
+  "PAYMENT_DELETE": "حذف دفعة",
+  "CONTRACT_CREATE": "إنشاء عقد",
+  "CONTRACT_UPDATE": "تعديل عقد",
+  "TENANT_CREATE": "إضافة مستأجر"
 };
 
 function translateActivityAction(action: string) {

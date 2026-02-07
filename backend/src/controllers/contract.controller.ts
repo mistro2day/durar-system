@@ -87,18 +87,27 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
 
     // 💵 حساب الفواتير بناءً على تكرار الدفع
     const frequencyMap: Record<string, number> = {
-      "شهري": 1, "MONTHLY": 1,
-      "ربع سنوي": 3, "QUARTERLY": 3,
-      "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6,
-      "سنوي": 12, "YEARLY": 12,
+      "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
+      "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+      "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
+      "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
     };
 
     const freqKey = (normalizeString(paymentFrequency) || "").toUpperCase();
 
-    // ترتيب المفاتيح بالأطول أولاً لتجنب تطابق "سنوي" داخل "نصف سنوي"
+    // 🔍 تحسين البحث عن الكلمات المفتاحية
     const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
-    const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k) || k === freqKey);
-    const monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+    const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
+    let monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+
+    // 🔍 محاولة استخراج رقم إذا لم يتم العثور على كلمة مفتاحية (مثلاً "كل 4 أشهر")
+    if (monthStep === 0 && freqKey) {
+      const match = freqKey.match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > 0 && num <= 12) monthStep = num;
+      }
+    }
 
     console.log(`[InvoiceDebug] Input: "${paymentFrequency}", Matched: "${matchedKey}", Steps: ${monthStep}`);
 
@@ -253,6 +262,19 @@ export const deleteContract = async (req: Request, res: Response) => {
 
     if (!contract) {
       return res.status(404).json({ message: "❌ العقد غير موجود" });
+    }
+
+    // 🔄 إذا كان هذا العقد تجديداً لعقد سابق، قم بإعادة العقد السابق للحالة النشطة عند الحذف
+    const renewalNoteMatch = contract.notes?.match(/تجديد للعقد رقم (\d+)/);
+    if (renewalNoteMatch) {
+      const parentId = Number(renewalNoteMatch[1]);
+      await prisma.contract.updateMany({
+        where: { id: parentId, renewalStatus: "RENEWED" },
+        data: {
+          renewalStatus: "PENDING",
+          status: "ACTIVE"
+        }
+      });
     }
 
     await prisma.contract.delete({ where: { id: Number(id) } });
@@ -486,5 +508,129 @@ export const importContractsCsv = async (req: Request, res: Response) => {
   } catch (e: any) {
     console.error(e);
     res.status(500).json({ message: e?.message || 'فشل استيراد العقود' });
+  }
+};
+// 🔄 تجديد عقد (إنشاء عقد جديد + تحديث حالة العقد القديم)
+export const renewContract = async (req: AuthedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate, amount } = req.body;
+
+    const oldContract = await prisma.contract.findUnique({
+      where: { id: Number(id) },
+      include: { unit: true },
+    });
+
+    if (!oldContract) {
+      return res.status(404).json({ message: "❌ العقد غير موجود" });
+    }
+
+    if (oldContract.renewalStatus === "RENEWED") {
+      return res.status(400).json({ message: "❌ هذا العقد تم تجديده بالفعل، يوجد عقد ساري" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. إنشاء العقد الجديد
+      const newContract = await tx.contract.create({
+        data: {
+          tenantId: oldContract.tenantId,
+          tenantName: oldContract.tenantName,
+          unitId: oldContract.unitId,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          amount: Number(amount),
+          rentAmount: Number(amount),
+          rentalType: oldContract.rentalType,
+          paymentFrequency: oldContract.paymentFrequency,
+          paymentMethod: oldContract.paymentMethod,
+          deposit: oldContract.deposit,
+          notes: `تجديد للعقد رقم ${oldContract.id}`,
+          status: "ACTIVE",
+          renewalStatus: "PENDING",
+        },
+      });
+
+      // 2. تحديث حالة العقد القديم إلى منتهي + تم تجديده
+      await tx.contract.update({
+        where: { id: oldContract.id },
+        data: {
+          renewalStatus: "RENEWED",
+          status: "ENDED" // إنهاء العقد القديم
+        },
+      });
+
+      // 3. حساب الفواتير بناءً على تكرار الدفع
+      const frequencyMap: Record<string, number> = {
+        "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
+        "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+        "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
+        "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
+      };
+
+      const freqKey = (normalizeString(oldContract.paymentFrequency) || "").toUpperCase();
+      const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
+      const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
+      let monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+
+      // 🔍 محاولة استخراج رقم إذا لم يتم العثور على كلمة مفتاحية
+      if (monthStep === 0 && freqKey) {
+        const match = freqKey.match(/(\d+)/);
+        if (match) {
+          const num = parseInt(match[1]);
+          if (num > 0 && num <= 12) monthStep = num;
+        }
+      }
+
+      if (monthStep > 0) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        let periods = 0;
+        let tempDate = new Date(start);
+        while (tempDate < end) {
+          periods++;
+          tempDate.setMonth(tempDate.getMonth() + monthStep);
+        }
+        if (periods === 0) periods = 1;
+        const amountPerInvoice = Number(amount) / periods;
+
+        let currentInvoiceDate = new Date(start);
+        while (currentInvoiceDate < end) {
+          await tx.invoice.create({
+            data: {
+              tenantId: oldContract.tenantId,
+              contractId: newContract.id,
+              amount: amountPerInvoice,
+              dueDate: new Date(currentInvoiceDate),
+              status: "PENDING",
+            },
+          });
+          currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+        }
+      } else {
+        await tx.invoice.create({
+          data: {
+            tenantId: oldContract.tenantId,
+            contractId: newContract.id,
+            amount: Number(amount),
+            dueDate: new Date(startDate),
+            status: "PENDING",
+          },
+        });
+      }
+
+      // 4. تسجيل النشاط
+      await logActivity(tx, req, {
+        action: "CONTRACT_RENEWAL",
+        description: `تجديد العقد رقم ${oldContract.id} بعقد جديد رقم ${newContract.id} للوحدة ${oldContract.unit?.number}`,
+        contractId: newContract.id,
+      });
+
+      return newContract;
+    });
+
+    res.json({ message: "✅ تم تجديد العقد بنجاح", contract: result });
+  } catch (error: any) {
+    console.error("❌ خطأ أثناء تجديد العقد:", error);
+    res.status(500).json({ message: error.message });
   }
 };

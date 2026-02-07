@@ -3,7 +3,8 @@ import { useLocation, useParams, Link } from "react-router-dom";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import { DEFAULT_DATE_LOCALE } from "../lib/settings";
-import { Eye, Pencil, Trash2, Flag, Loader2, MessageCircle, MessageSquare } from "lucide-react";
+import { Eye, Pencil, Trash2, Flag, Loader2, MessageCircle, MessageSquare, X, RefreshCw } from "lucide-react";
+import { RenewContractModal } from "../components/RenewContractModal";
 import DateInput from "../components/DateInput";
 import { toDateInput, fromDateInput } from "../components/date-input-helpers";
 import Currency from "../components/Currency";
@@ -76,6 +77,17 @@ export default function Contracts() {
   const [renewalFilter, setRenewalFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [renewing, setRenewing] = useState<Contract | null>(null);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setRenewalFilter("ALL");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return search !== "" || renewalFilter !== "ALL";
+  }, [search, renewalFilter]);
+
   const params = useParams();
   const propertyId = (params as any)?.id as string | undefined;
   const location = useLocation();
@@ -120,10 +132,9 @@ export default function Contracts() {
     return `sms:${phone}`;
   };
 
-  const rows = useMemo(() => {
+  const { activeRows, endedRows } = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter((c) => {
+    const filtered = items.filter((c) => {
       const tenant = (c.tenantName || "").toLowerCase();
       const ejar = (c.ejarContractNumber || "").toLowerCase();
       const unitNumber = (c.unit?.unitNumber || c.unit?.number || "").toLowerCase();
@@ -138,6 +149,11 @@ export default function Contracts() {
       if (renewalFilter === "ALL") return true;
       return (c.renewalStatus || "PENDING") === renewalFilter;
     });
+
+    return {
+      activeRows: filtered.filter(c => c.status === 'ACTIVE'),
+      endedRows: filtered.filter(c => c.status === 'ENDED' || c.status === 'CANCELLED')
+    };
   }, [items, search, renewalFilter]);
 
   const contractSortAccessors = useMemo<Record<ContractSortKey, (c: Contract) => unknown>>(
@@ -159,30 +175,26 @@ export default function Contracts() {
   );
 
   const {
-    sortedItems: sortedRows,
-    sortState: contractSort,
-    toggleSort: toggleContractSort,
-  } = useTableSort<Contract, ContractSortKey>(rows, contractSortAccessors);
+    sortedItems: activeSortedRows,
+    sortState: activeSort,
+    toggleSort: toggleActiveSort,
+  } = useTableSort<Contract, ContractSortKey>(activeRows, contractSortAccessors);
+
+  const {
+    sortedItems: endedSortedRows,
+    sortState: endedSort,
+    toggleSort: toggleEndedSort,
+  } = useTableSort<Contract, ContractSortKey>(endedRows, contractSortAccessors);
+
+  const pagedActiveRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return activeSortedRows.slice(start, start + pageSize);
+  }, [activeSortedRows, page, pageSize]);
 
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(sortedRows.length / pageSize)),
-    [sortedRows.length, pageSize]
+    () => Math.max(1, Math.ceil(activeSortedRows.length / pageSize)),
+    [activeSortedRows.length, pageSize]
   );
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, pageSize, items.length]);
-
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
-
-  const pagedRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sortedRows.slice(start, start + pageSize);
-  }, [sortedRows, page, pageSize]);
 
   async function handleDelete(id: number) {
     if (!confirm("هل تريد حذف العقد؟")) return;
@@ -278,7 +290,18 @@ export default function Contracts() {
             ))}
           </select>
         </div>
-        <div className="md:ms-auto">
+        <div className="md:ms-auto flex items-center gap-3">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ms-auto"
+              title="مسح جميع الفلاتر"
+            >
+              <X className="w-4 h-4" />
+              <span>إزالة الفلترة</span>
+            </button>
+          )}
           <AddContractButton onAdded={load} propertyId={propertyId} />
         </div>
       </div>
@@ -288,210 +311,61 @@ export default function Contracts() {
       ) : error ? (
         <div className="card text-center text-red-600">{error}</div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="table sticky">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="text-right p-3 font-semibold text-gray-700">تفاصيل</th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="المستأجر"
-                    active={contractSort?.key === "tenant"}
-                    direction={contractSort?.key === "tenant" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("tenant")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="رقم الوحدة"
-                    active={contractSort?.key === "unit"}
-                    direction={contractSort?.key === "unit" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("unit")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="العقار"
-                    active={contractSort?.key === "property"}
-                    direction={contractSort?.key === "property" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("property")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="نوع الإيجار"
-                    active={contractSort?.key === "rentalType"}
-                    direction={contractSort?.key === "rentalType" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("rentalType")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="الحالة"
-                    active={contractSort?.key === "status"}
-                    direction={contractSort?.key === "status" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("status")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="قيمة الإيجار"
-                    active={contractSort?.key === "rentAmount"}
-                    direction={contractSort?.key === "rentAmount" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("rentAmount")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="التأمين"
-                    active={contractSort?.key === "deposit"}
-                    direction={contractSort?.key === "deposit" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("deposit")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="رقم إيجار"
-                    active={contractSort?.key === "ejar"}
-                    direction={contractSort?.key === "ejar" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("ejar")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="الدفع"
-                    active={contractSort?.key === "payment"}
-                    direction={contractSort?.key === "payment" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("payment")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="البداية"
-                    active={contractSort?.key === "startDate"}
-                    direction={contractSort?.key === "startDate" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("startDate")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="النهاية"
-                    active={contractSort?.key === "endDate"}
-                    direction={contractSort?.key === "endDate" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("endDate")}
-                  />
-                </th>
-                <th className="text-right p-3 font-semibold text-gray-700">
-                  <SortHeader
-                    label="قرار التجديد"
-                    active={contractSort?.key === "renewalStatus"}
-                    direction={contractSort?.key === "renewalStatus" ? contractSort.direction : null}
-                    onToggle={() => toggleContractSort("renewalStatus")}
-                  />
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {pagedRows.map((c) => {
-                const tenantId = c.tenant?.id;
-                const propertySegment = propertyId ?? (c.unit?.propertyId !== undefined ? String(c.unit.propertyId) : undefined);
-                const tenantHref = tenantId && propertySegment ? `/hotel/${propertySegment}/tenants/${tenantId}` : null;
-                return (
-                  <tr key={c.id} className="odd:bg-white even:bg-gray-50">
-                    <Td>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setViewing(c)} className="btn-soft btn-soft-info" title="عرض التفاصيل">
-                          <Eye className="w-4 h-4" />
-                          <span className="hidden sm:inline">عرض</span>
-                        </button>
-                        {c.tenant?.phone ? (
-                          <>
-                            <a
-                              href={getWhatsAppLink(c.tenant.phone) || "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10"
-                              title="واتساب"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </a>
-                            <a
-                              href={getSmsLink(c.tenant.phone) || "#"}
-                              className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10"
-                              title="رسالة نصية"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                            </a>
-                          </>
-                        ) : null}
-                      </div>
-                    </Td>
-                    <Td>
-                      {tenantHref ? (
-                        <Link to={tenantHref} className="font-semibold text-gray-900 hover:text-primary hover:underline transition-colors dark:text-white">
-                          {c.tenantName}
-                        </Link>
-                      ) : (
-                        <span className="font-semibold text-gray-900 dark:text-white">{c.tenantName}</span>
-                      )}
-                      {c.notes ? <div className="text-xs text-gray-500 mt-1">{c.notes}</div> : null}
-                    </Td>
-                    <Td>
-                      {c.unit?.id ? (
-                        <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
-                          {c.unit?.unitNumber || c.unit?.number || "-"}
-                        </Link>
-                      ) : (
-                        c.unit?.unitNumber || c.unit?.number || "-"
-                      )}
-                    </Td>
-                    <Td>{c.unit?.property?.name || "-"}</Td>
-                    <Td>{mapRentalType(c.rentalType)}</Td>
-                    <Td>
-                      <span className={`px-2 py-1 rounded text-xs ${statusClass(c.status)}`}>{mapStatus(c.status)}</span>
-                    </Td>
-                    <Td>{typeof c.rentAmount === "number" ? <Currency amount={c.rentAmount} /> : "-"}</Td>
-                    <Td>{typeof c.deposit === "number" && c.deposit > 0 ? <Currency amount={c.deposit} /> : "-"}</Td>
-                    <Td>{c.ejarContractNumber || "-"}</Td>
-                    <Td>
-                      <div>{c.paymentMethod || "-"}</div>
-                      {c.paymentFrequency ? <div className="text-xs text-gray-500">التكرار: {c.paymentFrequency}</div> : null}
-                    </Td>
-                    <Td>{formatDate(c.startDate, localeTag)}</Td>
-                    <Td>{formatDate(c.endDate, localeTag)}</Td>
-                    <Td>
-                      <RenewalBadge status={c.renewalStatus} />
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <div>
-              عرض {(page - 1) * pageSize + 1}-
-              {Math.min(page * pageSize, sortedRows.length)} من {sortedRows.length}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="btn-soft btn-soft-secondary"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page <= 1}
-              >
-                السابق
-              </button>
-              <span>
-                صفحة {page} من {totalPages}
-              </span>
-              <button
-                className="btn-soft btn-soft-secondary"
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={page >= totalPages}
-              >
-                التالي
-              </button>
+        <div className="space-y-8">
+          <div className="card overflow-x-auto">
+            <h3 className="text-lg font-bold mb-4 text-emerald-700 dark:text-emerald-400">العقود النشطة</h3>
+            <ContractTable
+              rows={pagedActiveRows}
+              sort={activeSort}
+              onSort={toggleActiveSort}
+              onView={setViewing}
+              onRenew={setRenewing}
+              propertyId={propertyId}
+              localeTag={localeTag}
+            />
+
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+              <div>
+                عرض {(page - 1) * pageSize + 1}-
+                {Math.min(page * pageSize, activeSortedRows.length)} من {activeSortedRows.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-soft btn-soft-secondary"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                >
+                  السابق
+                </button>
+                <span>
+                  صفحة {page} من {totalPages}
+                </span>
+                <button
+                  className="btn-soft btn-soft-secondary"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page >= totalPages}
+                >
+                  التالي
+                </button>
+              </div>
             </div>
           </div>
+
+          {endedSortedRows.length > 0 && (
+            <div className="card overflow-x-auto">
+              <h3 className="text-lg font-bold mb-4 text-slate-600 dark:text-slate-400">العقود المنتهية والملغاة</h3>
+              <ContractTable
+                rows={endedSortedRows}
+                sort={endedSort}
+                onSort={toggleEndedSort}
+                onView={setViewing}
+                onRenew={setRenewing}
+                propertyId={propertyId}
+                localeTag={localeTag}
+              />
+              <p className="text-xs text-gray-400 mt-2">إجمالي العقود المؤرشفة: {endedSortedRows.length}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -659,6 +533,18 @@ export default function Contracts() {
                 <Pencil className="w-4 h-4" />
                 تعديل
               </button>
+              {viewing.status === 'ACTIVE' && viewing.renewalStatus !== 'RENEWED' && (
+                <button
+                  onClick={() => {
+                    setViewing(null);
+                    setRenewing(viewing);
+                  }}
+                  className="btn-soft btn-soft-success inline-flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  تجديد
+                </button>
+              )}
               <button
                 onClick={async () => {
                   await handleEnd(viewing.id);
@@ -694,6 +580,17 @@ export default function Contracts() {
           <option key={freq} value={freq} />
         ))}
       </datalist>
+
+      {renewing && (
+        <RenewContractModal
+          contract={renewing}
+          onClose={() => setRenewing(null)}
+          onSuccess={() => {
+            setRenewing(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -903,26 +800,276 @@ function mapStatus(v?: string) {
 }
 
 
-function RenewalBadge({ status }: { status?: string | null }) {
-  const map: Record<string, { label: string; className: string }> = {
-    PENDING: {
-      label: "قيد الانتظار",
-      className: "badge-warning",
-    },
-    RENEWED: {
-      label: "تم التجديد",
-      className: "badge-success",
-    },
-    NOT_RENEWING: {
-      label: "لن يتم التجديد",
-      className: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
-    },
-  };
-  const info = status ? map[status] : map["PENDING"];
+function RenewalBadge({ status, endDate, contractStatus, onClick }: { status?: string | null; endDate?: string; contractStatus?: string; onClick: () => void }) {
+  const isPending = !status || status === "PENDING";
+
+  if (status === "RENEWED") {
+    return (
+      <span className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center badge-success">
+        تم التجديد
+      </span>
+    );
+  }
+
+  if (contractStatus === "ENDED" || contractStatus === "CANCELLED") {
+    return (
+      <span className="px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300 font-medium">
+        منتهي
+      </span>
+    );
+  }
+
+  let label = "قيد الانتظار";
+  let className = "badge-warning cursor-pointer hover:scale-105 active:scale-95 transition-transform";
+
+  if (isPending && endDate) {
+    try {
+      const end = new Date(endDate);
+      const now = new Date();
+      const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const nowD = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const diff = endD.getTime() - nowD.getTime();
+      const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+      if (daysLeft < 60) {
+        label = "تجديد أو إنهاء";
+        className = "bg-orange-600 text-white font-bold border-orange-700 shadow-sm cursor-pointer hover:bg-orange-700 hover:scale-105 active:scale-95 transition-all";
+      }
+    } catch (e) {
+      console.error("Date error:", e);
+    }
+  }
+
+  if (status === "NOT_RENEWING") {
+    label = "لن يتم التجديد";
+    className = "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200 font-bold";
+  }
+
   return (
-    <span className={`${info.className}`}>
-      {info.label}
+    <span
+      onClick={(e) => {
+        if (isPending) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className={`px-2 py-1 rounded-full text-[10px] inline-flex items-center justify-center min-w-[90px] text-center ${className}`}
+    >
+      {label}
     </span>
+  );
+}
+
+function ContractTable({
+  rows,
+  sort,
+  onSort,
+  onView,
+  onRenew,
+  propertyId,
+  localeTag
+}: {
+  rows: Contract[];
+  sort: any;
+  onSort: (key: ContractSortKey) => void;
+  onView: (c: Contract) => void;
+  onRenew: (c: Contract) => void;
+  propertyId?: string;
+  localeTag: string;
+}) {
+  const getWhatsAppLink = (phone?: string | null) => {
+    if (!phone) return null;
+    let p = phone.replace(/[^\d]/g, "");
+    if (!p) return null;
+    if (p.startsWith("0")) p = "966" + p.substring(1);
+    return `https://wa.me/${p}`;
+  };
+
+  const getSmsLink = (phone?: string | null) => {
+    if (!phone) return null;
+    return `sms:${phone}`;
+  };
+
+  return (
+    <table className="table sticky">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="text-right p-3 font-semibold text-gray-700">تفاصيل</th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="المستأجر"
+              active={sort?.key === "tenant"}
+              direction={sort?.key === "tenant" ? sort.direction : null}
+              onToggle={() => onSort("tenant")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="رقم الوحدة"
+              active={sort?.key === "unit"}
+              direction={sort?.key === "unit" ? sort.direction : null}
+              onToggle={() => onSort("unit")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="العقار"
+              active={sort?.key === "property"}
+              direction={sort?.key === "property" ? sort.direction : null}
+              onToggle={() => onSort("property")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="نوع الإيجار"
+              active={sort?.key === "rentalType"}
+              direction={sort?.key === "rentalType" ? sort.direction : null}
+              onToggle={() => onSort("rentalType")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="الحالة"
+              active={sort?.key === "status"}
+              direction={sort?.key === "status" ? sort.direction : null}
+              onToggle={() => onSort("status")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="قيمة الإيجار"
+              active={sort?.key === "rentAmount"}
+              direction={sort?.key === "rentAmount" ? sort.direction : null}
+              onToggle={() => onSort("rentAmount")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="التأمين"
+              active={sort?.key === "deposit"}
+              direction={sort?.key === "deposit" ? sort.direction : null}
+              onToggle={() => onSort("deposit")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="رقم عقد إيجار"
+              active={sort?.key === "ejar"}
+              direction={sort?.key === "ejar" ? sort.direction : null}
+              onToggle={() => onSort("ejar")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="الدفع"
+              active={sort?.key === "payment"}
+              direction={sort?.key === "payment" ? sort.direction : null}
+              onToggle={() => onSort("payment")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="البداية"
+              active={sort?.key === "startDate"}
+              direction={sort?.key === "startDate" ? sort.direction : null}
+              onToggle={() => onSort("startDate")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="النهاية"
+              active={sort?.key === "endDate"}
+              direction={sort?.key === "endDate" ? sort.direction : null}
+              onToggle={() => onSort("endDate")}
+            />
+          </th>
+          <th className="text-right p-3 font-semibold text-gray-700">
+            <SortHeader
+              label="قرار التجديد"
+              active={sort?.key === "renewalStatus"}
+              direction={sort?.key === "renewalStatus" ? sort.direction : null}
+              onToggle={() => onSort("renewalStatus")}
+            />
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {rows.map((c) => {
+          const tenantId = c.tenant?.id;
+          const propertySegment = propertyId ?? (c.unit?.propertyId !== undefined ? String(c.unit.propertyId) : undefined);
+          const tenantHref = tenantId && propertySegment ? `/hotel/${propertySegment}/tenants/${tenantId}` : null;
+          return (
+            <tr key={c.id} className="odd:bg-white even:bg-gray-50 hover:bg-emerald-50/30 transition-colors">
+              <Td>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onView(c)} className="btn-soft btn-soft-info" title="عرض التفاصيل">
+                    <Eye className="w-4 h-4" />
+                    <span className="hidden sm:inline">عرض</span>
+                  </button>
+                  {c.tenant?.phone ? (
+                    <>
+                      <a
+                        href={getWhatsAppLink(c.tenant.phone) || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10"
+                        title="واتساب"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </a>
+                      <a
+                        href={getSmsLink(c.tenant.phone) || "#"}
+                        className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10"
+                        title="رسالة نصية"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </a>
+                    </>
+                  ) : null}
+                </div>
+              </Td>
+              <Td>
+                {tenantHref ? (
+                  <Link to={tenantHref} className="font-semibold text-gray-900 hover:text-primary hover:underline transition-colors dark:text-white">
+                    {c.tenantName}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-gray-900 dark:text-white">{c.tenantName}</span>
+                )}
+                {c.notes ? <div className="text-xs text-gray-500 mt-1">{c.notes}</div> : null}
+              </Td>
+              <Td>
+                {c.unit?.id ? (
+                  <Link to={`/units/${c.unit.id}`} className="text-primary hover:underline">
+                    {c.unit?.unitNumber || c.unit?.number || "-"}
+                  </Link>
+                ) : (
+                  c.unit?.unitNumber || c.unit?.number || "-"
+                )}
+              </Td>
+              <Td>{c.unit?.property?.name || "-"}</Td>
+              <Td>{mapRentalType(c.rentalType)}</Td>
+              <Td>
+                <span className={`px-2 py-1 rounded text-xs ${statusClass(c.status)}`}>{mapStatus(c.status)}</span>
+              </Td>
+              <Td>{typeof c.rentAmount === "number" ? <Currency amount={c.rentAmount} /> : "-"}</Td>
+              <Td>{typeof c.deposit === "number" && c.deposit > 0 ? <Currency amount={c.deposit} /> : "-"}</Td>
+              <Td>{c.ejarContractNumber || "-"}</Td>
+              <Td>
+                <div>{c.paymentMethod || "-"}</div>
+                {c.paymentFrequency ? <div className="text-xs text-gray-500">التكرار: {c.paymentFrequency}</div> : null}
+              </Td>
+              <Td>{formatDate(c.startDate, localeTag)}</Td>
+              <Td>{formatDate(c.endDate, localeTag)}</Td>
+              <Td>
+                <RenewalBadge status={c.renewalStatus} endDate={c.endDate} contractStatus={c.status} onClick={() => onRenew(c)} />
+              </Td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { FileText, Receipt, Wrench, AlertCircle } from "lucide-react";
+import { FileText, Receipt, Wrench, AlertCircle, X } from "lucide-react";
 import api from "../lib/api";
 import { useLocaleTag } from "../lib/settings-react";
 import Currency from "../components/Currency";
@@ -125,6 +125,33 @@ export default function Reports() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setContractsPropertyFilter("");
+    setFinancialDateFrom("");
+    setFinancialDateTo("");
+    setFinancialPropertyFilter("");
+    setFinancialStatusFilter("");
+  }, []);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      search !== "" ||
+      contractsPropertyFilter !== "" ||
+      financialDateFrom !== "" ||
+      financialDateTo !== "" ||
+      financialPropertyFilter !== "" ||
+      financialStatusFilter !== ""
+    );
+  }, [
+    search,
+    contractsPropertyFilter,
+    financialDateFrom,
+    financialDateTo,
+    financialPropertyFilter,
+    financialStatusFilter,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -607,6 +634,18 @@ export default function Reports() {
                 </label>
               </div>
             ) : null}
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                title="مسح جميع الفلاتر"
+              >
+                <X className="w-4 h-4" />
+                <span>إزالة الفلترة</span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 md:min-w-[240px]">
