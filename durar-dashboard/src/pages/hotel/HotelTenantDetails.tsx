@@ -4,6 +4,7 @@ import { Eye, PlusCircle } from "lucide-react";
 import api from "../../lib/api";
 import Currency from "../../components/Currency";
 import DateInput from "../../components/DateInput";
+import { RenewContractModal } from "../../components/RenewContractModal";
 import {
   TenantDetail,
   EMPTY_STATS,
@@ -41,6 +42,7 @@ export default function HotelTenantDetails() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
   const [addingInvoice, setAddingInvoice] = useState(false);
+  const [renewingContract, setRenewingContract] = useState<TenantContract | null>(null);
 
   const role = getRole();
   const site = getSettings();
@@ -391,9 +393,10 @@ export default function HotelTenantDetails() {
                             status={contract.renewalStatus}
                             contractStatus={contract.status}
                             endDate={contract.endDate}
-                            onClick={() => navigate(`/contracts?editId=${contract.id}`)}
+                            onClick={() => setRenewingContract(contract)}
                           />
                         </td>
+
 
                       </tr>
                     ))}
@@ -638,7 +641,24 @@ export default function HotelTenantDetails() {
           saving={addingInvoice}
         />
       )}
+
+      {renewingContract && (
+        <RenewContractModal
+          contract={{
+            id: renewingContract.id,
+            endDate: renewingContract.endDate,
+            rentAmount: renewingContract.rentAmount,
+            paymentFrequency: renewingContract.paymentFrequency,
+          }}
+          onClose={() => setRenewingContract(null)}
+          onSuccess={() => {
+            setRenewingContract(null);
+            loadTenant();
+          }}
+        />
+      )}
     </div>
+
   );
 }
 
