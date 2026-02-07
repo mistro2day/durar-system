@@ -273,6 +273,8 @@ export const updateContract = async (req: Request, res: Response) => {
     });
 
     // 💵 إعادة إنشاء الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
+    const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : Number(currentContract.rentAmount || 0);
+    const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
     const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
     const freqChanged = paymentFrequency && normalizeString(paymentFrequency) !== normalizeString(currentContract.paymentFrequency || "");
     const dateChanged = (startDate && new Date(startDate).getTime() !== new Date(currentContract.startDate).getTime()) ||
