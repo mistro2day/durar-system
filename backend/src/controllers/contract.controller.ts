@@ -226,6 +226,16 @@ export const updateContract = async (req: Request, res: Response) => {
       renewalStatus,
     } = req.body;
 
+    // Get current contract to check if rentAmount or paymentFrequency changed
+    const currentContract = await prisma.contract.findUnique({
+      where: { id: Number(id) },
+      include: { invoices: true }
+    });
+
+    if (!currentContract) {
+      return res.status(404).json({ message: "❌ العقد غير موجود" });
+    }
+
     const contract = await prisma.contract.update({
       where: { id: Number(id) },
       data: {
@@ -245,11 +255,68 @@ export const updateContract = async (req: Request, res: Response) => {
       } as any,
     });
 
+    // 💵 تحديث مبالغ الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
+    const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : currentContract.rentAmount;
+    const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
+    const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
+    const freqChanged = paymentFrequency && normalizeString(paymentFrequency) !== normalizeString(currentContract.paymentFrequency || "");
+
+    if ((rentChanged || freqChanged) && newRentAmount) {
+      // حساب المبلغ الجديد لكل فاتورة
+      const frequencyMap: Record<string, number> = {
+        "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
+        "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
+        "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
+        "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
+      };
+
+      const freqKey = (normalizeString(newPaymentFrequency) || "").toUpperCase();
+      const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
+      const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
+      let monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
+
+      if (monthStep === 0 && freqKey) {
+        const match = freqKey.match(/(\d+)/);
+        if (match) {
+          const num = parseInt(match[1]);
+          if (num > 0 && num <= 12) monthStep = num;
+        }
+      }
+
+      // حساب عدد الدفعات
+      const contractStart = startDate ? new Date(startDate) : currentContract.startDate;
+      const contractEnd = endDate ? new Date(endDate) : currentContract.endDate;
+
+      let periods = 0;
+      if (monthStep > 0 && contractStart && contractEnd) {
+        let tempDate = new Date(contractStart);
+        while (tempDate < contractEnd) {
+          periods++;
+          tempDate.setMonth(tempDate.getMonth() + monthStep);
+        }
+      }
+      if (periods === 0) periods = 1;
+
+      const newAmountPerInvoice = Number(newRentAmount) / periods;
+
+      // تحديث جميع الفواتير المعلقة
+      const pendingInvoices = currentContract.invoices.filter(inv => inv.status === "PENDING");
+      for (const inv of pendingInvoices) {
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: { amount: newAmountPerInvoice }
+        });
+      }
+
+      console.log(`[ContractUpdate] Updated ${pendingInvoices.length} pending invoices to ${newAmountPerInvoice} each`);
+    }
+
     res.json({ message: "✅ تم تحديث بيانات العقد بنجاح", contract });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // 🗑️ حذف عقد
 export const deleteContract = async (req: Request, res: Response) => {
