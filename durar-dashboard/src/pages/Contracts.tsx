@@ -34,7 +34,8 @@ type Contract = {
   paymentFrequency?: string | null;
   servicesIncluded?: string | null;
   notes?: string | null;
-  renewalStatus?: string | null;
+  amountBeforeTax?: number | null;
+  taxAmount?: number | null;
 };
 
 type ContractSortKey =
@@ -228,6 +229,8 @@ export default function Contracts() {
     }
   }
 
+  const [includeTax, setIncludeTax] = useState((editing?.taxAmount || 0) > 0);
+
   async function handleSave() {
     if (!editing) return;
     setSaving(true);
@@ -250,6 +253,8 @@ export default function Contracts() {
       if (editing.servicesIncluded !== undefined)
         body.servicesIncluded = editing.servicesIncluded?.trim() ? editing.servicesIncluded.trim() : null;
       if (editing.notes !== undefined) body.notes = editing.notes?.trim() ? editing.notes.trim() : null;
+      if (editing.amountBeforeTax !== undefined) body.amountBeforeTax = editing.amountBeforeTax;
+      if (editing.taxAmount !== undefined) body.taxAmount = editing.taxAmount;
       await api.put(`/api/contracts/${editing.id}`, body);
       setEditing(null);
       await load();
@@ -265,56 +270,68 @@ export default function Contracts() {
     <div>
       <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">العقود</h2>
 
-      <div className="card mb-4 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-sm text-gray-600">بحث</span>
-          <input
-            className="form-input w-full md:w-64"
-            placeholder="المستأجر أو رقم الوحدة..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>قرار التجديد</span>
-          <select
-            className="form-select"
-            value={renewalFilter}
-            onChange={(e) => setRenewalFilter(e.target.value)}
-          >
-            <option value="ALL">الكل</option>
-            <option value="PENDING">قيد الانتظار</option>
-            <option value="RENEWED">تم التجديد</option>
-            <option value="NOT_RENEWING">لن يتم التجديد</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>عدد النتائج:</span>
-          <select
-            className="form-select"
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            {PAGE_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="md:ms-auto flex items-center gap-3">
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ms-auto"
-              title="مسح جميع الفلاتر"
+      <div className="card mb-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="flex-1 min-w-[320px]">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">بحث بالعقود:</label>
+            <div className="relative group">
+              <input
+                className="form-input w-full pr-10 border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-primary/20 transition-all"
+                placeholder="البحث باسم المستأجر، رقم الوحدة، أو رقم عقد إيجار..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">قرار التجديد:</span>
+            <select
+              className="form-select min-w-[150px] bg-gray-50/50 dark:bg-white/5"
+              value={renewalFilter}
+              onChange={(e) => setRenewalFilter(e.target.value)}
             >
-              <X className="w-4 h-4" />
-              <span>إزالة الفلترة</span>
-            </button>
-          )}
-          <AddContractButton onAdded={load} propertyId={propertyId} />
+              <option value="ALL">الكل</option>
+              <option value="PENDING">قيد الانتظار</option>
+              <option value="RENEWED">تم التجديد</option>
+              <option value="NOT_RENEWING">لن يتم التجديد</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-gray-500 dark:text-slate-400 whitespace-nowrap">عرض:</span>
+            <select
+              className="form-select min-w-[90px] bg-gray-50/50 dark:bg-white/5"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3 ms-auto">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                title="مسح جميع الفلاتر"
+              >
+                <X className="w-4 h-4" />
+                <span>إزالة الفلترة</span>
+              </button>
+            )}
+            <AddContractButton onAdded={load} propertyId={propertyId} />
+          </div>
         </div>
       </div>
 
@@ -452,32 +469,6 @@ export default function Contracts() {
               <Field label="تاريخ النهاية">
                 <DateInput value={toDateInput(editing.endDate)} onChange={(v) => setEditing({ ...editing, endDate: fromDateInput(v) })} />
               </Field>
-              <Field label="إجمالي العقد">
-                <input
-                  className="form-input"
-                  type="number"
-                  value={editing.amount !== undefined && editing.amount !== null ? String(editing.amount) : ""}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      amount: e.target.value === "" ? undefined : Number(e.target.value),
-                    })
-                  }
-                />
-              </Field>
-              <Field label="قيمة الإيجار">
-                <input
-                  className="form-input"
-                  type="number"
-                  value={editing.rentAmount !== undefined && editing.rentAmount !== null ? String(editing.rentAmount) : ""}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      rentAmount: e.target.value === "" ? undefined : Number(e.target.value),
-                    })
-                  }
-                />
-              </Field>
               <Field label="التأمين">
                 <input
                   className="form-input"
@@ -533,6 +524,77 @@ export default function Contracts() {
                   onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
                 />
               </label>
+
+              {/* Edit Financial Breakdown Section */}
+              <div className="md:col-span-2 space-y-4">
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-white/5 pb-2">التفاصيل المالية:</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10">
+                  <Field label="قيمة الإيجار (قبل الضريبة)">
+                    <input
+                      className="form-input font-bold"
+                      type="number"
+                      value={editing.amountBeforeTax !== undefined ? String(editing.amountBeforeTax) : ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        const tax = includeTax ? Math.round(val * 0.15 * 100) / 100 : (editing.taxAmount || 0);
+                        setEditing({
+                          ...editing,
+                          amountBeforeTax: val,
+                          rentAmount: val,
+                          taxAmount: tax,
+                          amount: val + tax
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="مبلغ الضريبة">
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={editing.taxAmount !== undefined ? String(editing.taxAmount) : ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setEditing({
+                          ...editing,
+                          taxAmount: val,
+                          amount: (editing.amountBeforeTax || 0) + val
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="المبلغ الإجمالي (شامل الضريبة)">
+                    <input
+                      className="form-input bg-emerald-50/50 dark:bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 font-bold border-emerald-100 dark:border-emerald-500/20"
+                      type="number"
+                      readOnly
+                      value={editing.amount !== undefined ? String(editing.amount) : ""}
+                    />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-2 p-3 bg-blue-50/50 dark:bg-blue-500/5 rounded-lg border border-blue-100 dark:border-blue-500/10">
+                  <input
+                    type="checkbox"
+                    id="editIncludeTax"
+                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                    checked={includeTax}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIncludeTax(checked);
+                      if (!checked) {
+                        setEditing({ ...editing, taxAmount: 0, amount: editing.amountBeforeTax || 0 });
+                      } else {
+                        const val = editing.amountBeforeTax || 0;
+                        const tax = Math.round(val * 0.15 * 100) / 100;
+                        setEditing({ ...editing, taxAmount: tax, amount: val + tax });
+                      }
+                    }}
+                  />
+                  <label htmlFor="editIncludeTax" className="text-sm font-medium text-blue-700 dark:text-blue-300 cursor-pointer">
+                    تفعيل حساب ضريبة القيمة المضافة (15%)
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
               <button className="btn-soft btn-soft-secondary" onClick={() => setEditing(null)}>إلغاء</button>
@@ -574,6 +636,12 @@ export default function Contracts() {
               </Info>
               <Info label="التأمين">
                 {typeof viewing.deposit === "number" ? <Currency amount={viewing.deposit} /> : "—"}
+              </Info>
+              <Info label="المبلغ قبل الضريبة">
+                {typeof viewing.amountBeforeTax === "number" ? <Currency amount={viewing.amountBeforeTax} /> : "—"}
+              </Info>
+              <Info label="مبلغ الضريبة">
+                {typeof viewing.taxAmount === "number" ? <Currency amount={viewing.taxAmount} /> : "—"}
               </Info>
               <Info label="ملاحظات">{viewing.notes || "—"}</Info>
             </div>
@@ -623,7 +691,8 @@ export default function Contracts() {
             </div>
           </div>
         </div>
-      ) : null}
+      ) : null
+      }
 
       <datalist id={PAYMENT_METHODS_LIST_ID}>
         {PAYMENT_METHODS.map((method) => (
@@ -631,17 +700,19 @@ export default function Contracts() {
         ))}
       </datalist>
 
-      {renewing && (
-        <RenewContractModal
-          contract={renewing}
-          onClose={() => setRenewing(null)}
-          onSuccess={() => {
-            setRenewing(null);
-            load();
-          }}
-        />
-      )}
-    </div>
+      {
+        renewing && (
+          <RenewContractModal
+            contract={renewing}
+            onClose={() => setRenewing(null)}
+            onSuccess={() => {
+              setRenewing(null);
+              load();
+            }}
+          />
+        )
+      }
+    </div >
   );
 }
 
@@ -685,6 +756,8 @@ type ContractFormState = {
   paymentFrequency?: string;
   servicesIncluded?: string;
   notes?: string;
+  amountBeforeTax?: number;
+  taxAmount?: number;
 };
 
 function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; propertyId?: string }) {
@@ -692,11 +765,15 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
   const [units, setUnits] = useState<Array<{ id: number; unitNumber: string }>>([]);
   const [form, setForm] = useState<ContractFormState>({ tenantName: '', rentalType: 'MONTHLY' });
   const [saving, setSaving] = useState(false);
+  const [includeTax, setIncludeTax] = useState(true);
 
   useEffect(() => {
     if (!open) return;
     const qp = propertyId ? `?propertyId=${propertyId}` : '';
-    api.get(`/api/units${qp}`).then(r => setUnits((r.data || []).map((u: any) => ({ id: u.id, unitNumber: (u.unitNumber || u.number) }))))
+    api.get(`/api/units${qp}`).then(r => {
+      const availableOnly = (r.data || []).filter((u: any) => u.status === 'AVAILABLE');
+      setUnits(availableOnly.map((u: any) => ({ id: u.id, unitNumber: (u.unitNumber || u.number) })));
+    })
       .catch(() => { });
   }, [open, propertyId]);
 
@@ -737,6 +814,8 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
       if (form.paymentFrequency) payload.paymentFrequency = form.paymentFrequency.trim();
       if (form.servicesIncluded) payload.servicesIncluded = form.servicesIncluded.trim();
       if (form.notes) payload.notes = form.notes.trim();
+      if (form.amountBeforeTax !== undefined) payload.amountBeforeTax = form.amountBeforeTax;
+      if (form.taxAmount !== undefined) payload.taxAmount = form.taxAmount;
       await api.post('/api/contracts', payload);
       closeModal();
       onAdded();
@@ -768,22 +847,6 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
               </Field>
               <Field label="تاريخ البداية"><DateInput value={form.startDate || ''} onChange={(v) => setForm({ ...form, startDate: v })} /></Field>
               <Field label="تاريخ النهاية"><DateInput value={form.endDate || ''} onChange={(v) => setForm({ ...form, endDate: v })} /></Field>
-              <Field label="المبلغ الإجمالي">
-                <input
-                  className="form-input"
-                  type="number"
-                  value={form.amount !== undefined && form.amount !== null ? String(form.amount) : ""}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value === "" ? undefined : Number(e.target.value) })}
-                />
-              </Field>
-              <Field label="قيمة الإيجار">
-                <input
-                  className="form-input"
-                  type="number"
-                  value={form.rentAmount !== undefined && form.rentAmount !== null ? String(form.rentAmount) : ""}
-                  onChange={(e) => setForm({ ...form, rentAmount: e.target.value === "" ? undefined : Number(e.target.value) })}
-                />
-              </Field>
               <Field label="نوع الإيجار">
                 <select className="form-select" value={form.rentalType} onChange={(e) => setForm({ ...form, rentalType: e.target.value })}>
                   <option value="MONTHLY">شهري</option>
@@ -828,6 +891,78 @@ function AddContractButton({ onAdded, propertyId }: { onAdded: () => void; prope
                 <span className="text-gray-600">ملاحظات</span>
                 <textarea className="form-input h-24" value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </label>
+
+              {/* Financial Breakdown Section */}
+              <div className="md:col-span-2 space-y-4">
+                <div className="text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-white/5 pb-2">التفاصيل المالية:</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10">
+                  <Field label="قيمة الإيجار (قبل الضريبة)">
+                    <input
+                      className="form-input font-bold"
+                      type="number"
+                      value={form.amountBeforeTax !== undefined ? String(form.amountBeforeTax) : ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        const tax = includeTax ? Math.round(val * 0.15 * 100) / 100 : (form.taxAmount || 0);
+                        setForm({
+                          ...form,
+                          amountBeforeTax: val,
+                          rentAmount: val,
+                          taxAmount: tax,
+                          amount: val + tax
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="مبلغ الضريبة">
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={form.taxAmount !== undefined ? String(form.taxAmount) : ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setForm({
+                          ...form,
+                          taxAmount: val,
+                          amount: (form.amountBeforeTax || 0) + val
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="المبلغ الإجمالي (شامل الضريبة)">
+                    <input
+                      className="form-input bg-emerald-50/50 dark:bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 font-bold border-emerald-100 dark:border-emerald-500/20"
+                      type="number"
+                      readOnly
+                      value={form.amount !== undefined ? String(form.amount) : ""}
+                    />
+                  </Field>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 bg-blue-50/50 dark:bg-blue-500/5 rounded-lg border border-blue-100 dark:border-blue-500/10">
+                  <input
+                    type="checkbox"
+                    id="includeTax"
+                    className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                    checked={includeTax}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIncludeTax(checked);
+                      if (!checked) {
+                        const val = form.amountBeforeTax || 0;
+                        setForm({ ...form, taxAmount: 0, amount: val });
+                      } else {
+                        const val = form.amountBeforeTax || 0;
+                        const tax = Math.round(val * 0.15 * 100) / 100;
+                        setForm({ ...form, taxAmount: tax, amount: val + tax });
+                      }
+                    }}
+                  />
+                  <label htmlFor="includeTax" className="text-sm font-medium text-blue-700 dark:text-blue-300 cursor-pointer">
+                    تفعيل حساب ضريبة القيمة المضافة (15%)
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
               <button className="btn-outline disabled:opacity-60" onClick={closeModal} disabled={saving}>إلغاء</button>

@@ -233,47 +233,64 @@ export default function Units() {
       <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">الوحدات</h2>
 
       {/* فلاتر وإضافة */}
-      <div className="card mb-4 flex flex-wrap items-end gap-3">
-        {!propertyId && (
-          <div className="flex flex-col text-sm">
-            <label className="text-gray-600 mb-1">العقار</label>
-            <select className="form-select" value={filterProperty} onChange={(e) => setFilterProperty(e.target.value)}>
-              <option value="">الكل</option>
-              {properties.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
-            </select>
-          </div>
-        )}
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">الدور</label>
-          <input className="form-input" type="number" value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} placeholder="مثال: 3" />
-        </div>
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">بحث بالوحدة</label>
-          <input className="form-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="رقم/اسم الوحدة" />
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <button className="btn-soft btn-soft-primary" onClick={() => setModal({ mode: 'add', data: { propertyId: propertyId ? Number(propertyId) : undefined } })}>
-            <Plus className="w-4 h-4" /> إضافة وحدة
-          </button>
-          <button className="btn-soft btn-soft-info" onClick={exportCsvLocal}>تصدير CSV</button>
-          <label className="btn-soft btn-soft-primary cursor-pointer">
-            استيراد CSV
-            <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
-          </label>
-          {propertyId ? (
-            <button className="btn-soft btn-soft-danger" onClick={handleWipeUnits}>حذف جميع الوحدات</button>
-          ) : null}
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-              title="مسح جميع الفلاتر"
-            >
-              <X className="w-4 h-4" />
-              <span>إزالة الفلترة</span>
-            </button>
+      <div className="card mb-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          {!propertyId && (
+            <div className="w-64">
+              <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">العقار:</label>
+              <select className="form-select w-full bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10" value={filterProperty} onChange={(e) => setFilterProperty(e.target.value)}>
+                <option value="">الكل</option>
+                {properties.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
+              </select>
+            </div>
           )}
+
+          <div className="w-32">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">الدور:</label>
+            <input className="form-input w-full bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10" type="number" value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} placeholder="مثال: 3" />
+          </div>
+
+          <div className="flex-1 min-w-[280px]">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">بحث بالوحدة:</label>
+            <div className="relative group">
+              <input
+                className="form-input w-full pr-10 border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-primary/20 transition-all"
+                placeholder="رقم أو اسم الوحدة..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 ms-auto pt-5">
+            <button className="btn-soft btn-soft-primary" onClick={() => setModal({ mode: 'add', data: { propertyId: propertyId ? Number(propertyId) : undefined } })}>
+              <Plus className="w-4 h-4" /> إضافة وحدة
+            </button>
+            <button className="btn-soft btn-soft-info" onClick={exportCsvLocal}>تصدير CSV</button>
+            <label className="btn-soft btn-soft-primary cursor-pointer">
+              استيراد CSV
+              <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+            </label>
+            {propertyId ? (
+              <button className="btn-soft btn-soft-danger" onClick={handleWipeUnits}>حذف جميع الوحدات</button>
+            ) : null}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                title="مسح جميع الفلاتر"
+              >
+                <X className="w-4 h-4" />
+                <span>إزالة الفلترة</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

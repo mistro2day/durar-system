@@ -230,8 +230,32 @@ function enrichTenant(tenant: TenantWithRelations) {
 
   const activeContracts = contracts.filter((c) => c.status === "ACTIVE");
   const latestContract = contracts[0] || null;
-  const pendingInvoices = invoices.filter((inv) => inv.status === "PENDING");
-  const receivables = pendingInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // اجمالي المديونية (كل الفواتير غير المدفوعة أو المدفوعة جزئياً)
+  const totalReceivables = invoices
+    .filter((inv) => inv.status !== "PAID" && inv.status !== "CANCELLED")
+    .reduce((sum, inv) => {
+      const paid = (inv.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const balance = Number((inv.amount - paid).toFixed(2));
+      return sum + Math.max(0, balance);
+    }, 0);
+
+  // المستحق حالياً (الفواتير المتأخرة أو التي تاريخ استحقاقها اليوم أو قبل)
+  const dueReceivables = invoices
+    .filter((inv) =>
+      (inv.status !== "PAID" && inv.status !== "CANCELLED") &&
+      inv.dueDate && new Date(inv.dueDate) <= today
+    )
+    .reduce((sum, inv) => {
+      const paid = (inv.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const balance = Number((inv.amount - paid).toFixed(2));
+      return sum + Math.max(0, balance);
+    }, 0);
+
+  const pendingInvoicesCount = invoices.filter((inv) => inv.status === "PENDING").length;
   const lastInvoice = invoices[0] || null;
 
   const contractPayload = contracts.map((contract) => ({
@@ -274,9 +298,10 @@ function enrichTenant(tenant: TenantWithRelations) {
       totalContracts: contracts.length,
       activeContracts: activeContracts.length,
       totalInvoices: invoices.length,
-      pendingInvoices: pendingInvoices.length,
+      pendingInvoices: pendingInvoicesCount,
       lastInvoiceDueDate: lastInvoice?.dueDate ? lastInvoice.dueDate.toISOString() : null,
-      receivables,
+      receivables: totalReceivables,
+      dueReceivables: dueReceivables,
       latestContract: latestContract
         ? {
           id: latestContract.id,

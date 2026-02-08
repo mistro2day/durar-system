@@ -110,7 +110,7 @@ export default function Invoices() {
       property: (inv) => inv.contract?.unit?.property?.name || "",
       amount: (inv) => Number(inv.amount || 0),
       paid: (inv) => (inv.payments || []).reduce((sum, p) => sum + p.amount, 0),
-      balance: (inv) => Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0),
+      balance: (inv) => Number((Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0)).toFixed(2)),
       status: (inv) => inv.status || "",
       dueDate: (inv) => inv.dueDate || "",
     }),
@@ -174,64 +174,80 @@ export default function Invoices() {
     <div>
       <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">الفواتير</h2>
 
-      <div className="card mb-4 flex flex-wrap items-end gap-3">
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">اسم المستأجر</label>
-          <input
-            className="form-input"
-            placeholder="ابحث باسم المستأجر"
-            value={tenantSearch}
-            onChange={(e) => setTenantSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">الحالة</label>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="form-select">
-            <option value="ALL">الكل</option>
-            <option value="PAID">مدفوعة</option>
-            <option value="PARTIAL">سداد جزئي</option>
-            <option value="PENDING">معلّقة</option>
-            <option value="OVERDUE">متأخرة</option>
-          </select>
-        </div>
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">من تاريخ</label>
-          <DateInput value={from} onChange={setFrom} />
-        </div>
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">إلى تاريخ</label>
-          <DateInput value={to} onChange={setTo} />
-        </div>
-        <div className="flex flex-col text-sm">
-          <label className="text-gray-600 mb-1">عدد النتائج</label>
-          <select
-            className="form-select"
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            {PAGE_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ms-auto"
-              title="مسح جميع الفلاتر"
-            >
-              <X className="w-4 h-4" />
-              <span>إزالة الفلترة</span>
-            </button>
-          )}
-          <div className="text-sm text-gray-700">
-            الإجمالي: <strong><Currency amount={total} locale={localeTag} /></strong>
+      <div className="card mb-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          <div className="flex-1 min-w-[280px]">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">بحث بالمستأجر:</label>
+            <div className="relative group">
+              <input
+                className="form-input w-full pr-10 border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-primary/20 transition-all"
+                placeholder="اسم المستأجر..."
+                value={tenantSearch}
+                onChange={(e) => setTenantSearch(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
+            </div>
           </div>
-          <div className="ml-2">
+
+          <div className="w-40">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">الحالة:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="form-select w-full bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+            >
+              <option value="ALL">الكل</option>
+              <option value="PAID">مدفوعة</option>
+              <option value="PARTIAL">سداد جزئي</option>
+              <option value="PENDING">معلّقة</option>
+              <option value="OVERDUE">متأخرة</option>
+            </select>
+          </div>
+
+          <div className="w-44">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">من تاريخ:</label>
+            <DateInput value={from} onChange={setFrom} />
+          </div>
+
+          <div className="w-44">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">إلى تاريخ:</label>
+            <DateInput value={to} onChange={setTo} />
+          </div>
+
+          <div className="w-24">
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 block">عرض:</label>
+            <select
+              className="form-select w-full bg-gray-50/50 dark:bg-white/5 border-gray-200 dark:border-white/10"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 md:flex-none flex items-center justify-end gap-3 ms-auto pt-5">
+            <div className="text-sm font-medium text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-white/5 px-3 py-2 rounded-lg border border-gray-100 dark:border-white/10">
+              إجمالي المعروض: <span className="text-gray-900 dark:text-white font-bold ms-1"><Currency amount={total} locale={localeTag} /></span>
+            </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                title="مسح جميع الفلاتر"
+              >
+                <X className="w-4 h-4" />
+                <span>إزالة الفلترة</span>
+              </button>
+            )}
             <AddInvoiceButton onAdded={load} />
           </div>
         </div>
@@ -344,7 +360,7 @@ export default function Invoices() {
                   </Td>
                   <Td>
                     <Currency
-                      amount={Math.max(0, Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0))}
+                      amount={Number((Math.max(0, Number(inv.amount || 0) - (inv.payments || []).reduce((sum, p) => sum + p.amount, 0))).toFixed(2))}
                       locale={localeTag}
                       className="text-red-600 font-medium"
                     />

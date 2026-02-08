@@ -139,13 +139,16 @@ export const recordPayment = async (req: Request, res: Response) => {
     });
 
     // Calculate new status
-    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0) + paymentAmount;
+    const totalPaid = Number((invoice.payments.reduce((sum, p) => sum + p.amount, 0) + paymentAmount).toFixed(2));
+    const invoiceAmount = Number(invoice.amount.toFixed(2));
     let newStatus = invoice.status;
 
-    if (totalPaid >= invoice.amount) {
+    if (totalPaid >= invoiceAmount) {
       newStatus = "PAID";
     } else if (totalPaid > 0) {
       newStatus = "PARTIAL";
+    } else {
+      newStatus = "PENDING";
     }
 
     if (newStatus !== invoice.status) {
@@ -213,10 +216,11 @@ export const updatePayment = async (req: Request, res: Response) => {
     });
 
     if (invoice) {
-      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+      const totalPaid = Number(invoice.payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2));
+      const invoiceAmount = Number(invoice.amount.toFixed(2));
       let newStatus: any = invoice.status;
 
-      if (totalPaid >= invoice.amount) {
+      if (totalPaid >= invoiceAmount) {
         newStatus = "PAID";
       } else if (totalPaid > 0) {
         newStatus = "PARTIAL";
@@ -269,10 +273,11 @@ export const deletePayment = async (req: Request, res: Response) => {
     });
 
     if (invoice) {
-      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+      const totalPaid = Number(invoice.payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2));
+      const invoiceAmount = Number(invoice.amount.toFixed(2));
       let newStatus: any = invoice.status;
 
-      if (totalPaid >= invoice.amount) {
+      if (totalPaid >= invoiceAmount) {
         newStatus = "PAID";
       } else if (totalPaid > 0) {
         newStatus = "PARTIAL";

@@ -468,7 +468,7 @@ export default function HotelTenantDetails() {
                           {invoice.status === 'PARTIAL' || invoice.status === 'partial' ? (
                             <div className="flex flex-col items-start leading-tight">
                               <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                                <Currency amount={invoice.amount - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)} />
+                                <Currency amount={Number((invoice.amount - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)).toFixed(2))} />
                               </span>
                               <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500">
                                 <span>المتبقي من</span>
@@ -603,9 +603,14 @@ export default function HotelTenantDetails() {
             <SummaryStat label="عقود نشطة" value={stats.activeContracts} tone={stats.activeContracts ? "success" : "default"} />
             <SummaryStat label="إجمالي العقود" value={stats.totalContracts} />
             <SummaryStat
-              label="الرصيد المستحق"
+              label="الرصيد المتبقي بالعقد"
               value={<Currency amount={stats.receivables} />}
               tone={stats.receivables > 0 ? "warning" : "default"}
+            />
+            <SummaryStat
+              label="المستحق حالياً"
+              value={<Currency amount={stats.dueReceivables} />}
+              tone={stats.dueReceivables > 0 ? "danger" : "default"}
             />
             <SummaryStat label="آخر استحقاق" value={formatDate(stats.lastInvoiceDueDate)} />
             {stats.latestContract && stats.latestContract.status === 'ACTIVE' && (

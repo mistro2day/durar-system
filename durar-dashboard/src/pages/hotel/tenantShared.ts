@@ -50,6 +50,7 @@ export type TenantStats = {
   pendingInvoices: number;
   lastInvoiceDueDate?: string | null;
   receivables: number;
+  dueReceivables: number;
   latestContract: TenantContract | null;
 };
 
@@ -144,6 +145,7 @@ export const EMPTY_STATS: TenantStats = {
   pendingInvoices: 0,
   lastInvoiceDueDate: null,
   receivables: 0,
+  dueReceivables: 0,
   latestContract: null,
 };
 

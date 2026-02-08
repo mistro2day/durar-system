@@ -21,19 +21,61 @@ function calculateInstallmentCount(start: Date, end: Date, stepMonths: number): 
   if (stepMonths <= 0) return 1;
   const s = new Date(start);
   const e = new Date(end);
-
-  // Calculate total months difference
   const diffMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
   const diffDays = e.getDate() - s.getDate();
   const totalMonths = diffMonths + (diffDays / 30);
-
   if (totalMonths <= 0) return 1;
-
-  // Use rounding to decide installment count
-  // e.g., 12.6 months / 6 month step = 2.1 cycles -> 2 installments
-  // e.g., 15 months / 6 month step = 2.5 cycles -> 3 installments
   const count = Math.round(totalMonths / stepMonths);
   return Math.max(1, count);
+}
+
+function getInvoiceSchedule(start: Date, end: Date, frequency: string) {
+  const s = new Date(start);
+  const e = new Date(end);
+  const diffMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  const diffDays = e.getDate() - s.getDate();
+  const totalMonths = Math.max(0.1, diffMonths + (diffDays / 30));
+  const freqKey = (normalizeString(frequency) || "").toUpperCase();
+
+  const countMap: Record<string, number> = {
+    "دفعة واحدة": 1, "ONE PAYMENT": 1,
+    "دفعتين": 2, "TWO PAYMENTS": 2, "دفعتان": 2,
+    "3 دفعات": 3, "ثلاث دفعات": 3, "THREE PAYMENTS": 3,
+    "4 دفعات": 4, "أربع دفعات": 4, "اربع دفعات": 4, "FOUR PAYMENTS": 4,
+    "6 دفعات": 6, "ست دفعات": 6, "SIX PAYMENTS": 6,
+    "12 دفعة": 12, "اثني عشر دفعة": 12, "TWELVE PAYMENTS": 12,
+  };
+
+  for (const [key, count] of Object.entries(countMap)) {
+    if (freqKey.includes(key.toUpperCase())) {
+      return { periods: count, monthStep: totalMonths / count };
+    }
+  }
+
+  const stepMap: Record<string, number> = {
+    "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
+    "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3,
+    "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6,
+    "سنوي": 12, "YEARLY": 12, "كل سنة": 12,
+  };
+
+  const matchedStepKey = Object.keys(stepMap).find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
+  let monthStep = matchedStepKey ? stepMap[matchedStepKey] : 0;
+
+  if (monthStep === 0 && freqKey) {
+    const match = freqKey.match(/(\d+)/);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > 0 && num <= 12) monthStep = num;
+    }
+  }
+
+  if (monthStep > 0) {
+    const periods = Math.round(totalMonths / monthStep);
+    return { periods: Math.max(1, periods), monthStep };
+  }
+
+  return { periods: 1, monthStep: totalMonths };
 }
 
 // 📝 إنشاء عقد جديد + إنشاء المستأجر تلقائيًا + إصدار أول فاتورة
@@ -53,6 +95,8 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
       paymentFrequency,
       servicesIncluded,
       notes,
+      amountBeforeTax,
+      taxAmount,
     } = req.body;
 
     // 🔍 تحقق من وجود الوحدة
@@ -105,59 +149,62 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
         paymentFrequency: normalizeString(paymentFrequency),
         servicesIncluded: normalizeString(servicesIncluded),
         notes: normalizeString(notes),
+        amountBeforeTax: amountBeforeTax !== undefined ? Number(amountBeforeTax) : 0,
+        taxAmount: taxAmount !== undefined ? Number(taxAmount) : 0,
       },
       include: { unit: true, tenant: true },
     });
 
+    // 🏢 تحديث حالة الوحدة إلى "مشغولة"
+    await prisma.unit.update({
+      where: { id: Number(unitId) },
+      data: { status: "OCCUPIED" },
+    });
+
     // 💵 حساب الفواتير بناءً على تكرار الدفع
-    const frequencyMap: Record<string, number> = {
-      "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
-      "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
-      "3 دفعات": 4, "كل 4 أشهر": 4,
-      "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
-      "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
-    };
-
-    const freqKey = (normalizeString(paymentFrequency) || "").toUpperCase();
-
-    // 🔍 تحسين البحث عن الكلمات المفتاحية
-    const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
-    const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
-    let monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
-
-    // 🔍 محاولة استخراج رقم إذا لم يتم العثور على كلمة مفتاحية (مثلاً "كل 4 أشهر")
-    if (monthStep === 0 && freqKey) {
-      const match = freqKey.match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > 0 && num <= 12) monthStep = num;
-      }
-    }
-
-    console.log(`[InvoiceDebug] Input: "${paymentFrequency}", Matched: "${matchedKey}", Steps: ${monthStep}`);
-
+    const { periods, monthStep } = getInvoiceSchedule(new Date(startDate), new Date(endDate), paymentFrequency || "");
     const createdInvoices: any[] = [];
 
-    if (monthStep > 0) {
-      // حساب عدد الدفعات وتوزيع المبلغ
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const periods = calculateInstallmentCount(start, end, monthStep);
-      const amountPerInvoice = totalAmount / periods;
+    // 💳 إنشاء فاتورة التأمين إذا وُجد
+    if (deposit && Number(deposit) > 0) {
+      const depositInv = await prisma.invoice.create({
+        data: {
+          tenantId: tenant.id,
+          contractId: contract.id,
+          amount: Number(deposit),
+          dueDate: new Date(startDate),
+          status: "PENDING",
+        },
+      });
+      createdInvoices.push(depositInv);
+    }
 
-      let currentInvoiceDate = new Date(start);
+    if (periods > 1) {
+      // حساب عدد الدفعات وتوزيع المبلغ
+      const amountPerInvoice = totalAmount / periods;
+      const amountBeforeTaxPerInvoice = (amountBeforeTax ? Number(amountBeforeTax) : 0) / periods;
+      const taxAmountPerInvoice = (taxAmount ? Number(taxAmount) : 0) / periods;
+
+      let currentInvoiceDate = new Date(startDate);
       for (let i = 0; i < periods; i++) {
         const inv = await prisma.invoice.create({
           data: {
             tenantId: tenant.id,
             contractId: contract.id,
             amount: amountPerInvoice,
+            amountBeforeTax: amountBeforeTaxPerInvoice,
+            taxAmount: taxAmountPerInvoice,
             dueDate: new Date(currentInvoiceDate),
             status: "PENDING",
           },
         });
         createdInvoices.push(inv);
-        currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+        // إضافة الشهور (أو الكسور) لتاريخ الفاتورة القادمة
+        if (Number.isInteger(monthStep)) {
+          currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + Number(monthStep));
+        } else {
+          currentInvoiceDate.setDate(currentInvoiceDate.getDate() + Math.round(Number(monthStep) * 30.44));
+        }
       }
     } else {
       // إذا لم يتم تحديد تكرار (دفعة واحدة)
@@ -166,6 +213,8 @@ export const createContract = async (req: AuthedRequest, res: Response) => {
           tenantId: tenant.id,
           contractId: contract.id,
           amount: totalAmount,
+          amountBeforeTax: amountBeforeTax ? Number(amountBeforeTax) : totalAmount,
+          taxAmount: taxAmount ? Number(taxAmount) : 0,
           dueDate: new Date(startDate),
           status: "PENDING",
         },
@@ -241,6 +290,8 @@ export const updateContract = async (req: Request, res: Response) => {
       servicesIncluded,
       notes,
       renewalStatus,
+      amountBeforeTax,
+      taxAmount,
     } = req.body;
 
     // Get current contract to check if rentAmount or paymentFrequency changed
@@ -269,43 +320,32 @@ export const updateContract = async (req: Request, res: Response) => {
         servicesIncluded: normalizeString(servicesIncluded),
         notes: normalizeString(notes),
         renewalStatus,
+        amountBeforeTax: amountBeforeTax !== undefined ? Number(amountBeforeTax) : undefined,
+        taxAmount: taxAmount !== undefined ? Number(taxAmount) : undefined,
       } as any,
     });
 
     // 💵 إعادة إنشاء الفواتير المعلقة إذا تغير مبلغ الإيجار أو تكرار الدفع
+    const newTotalAmount = amount !== undefined ? Number(amount) : Number(currentContract.amount || 0);
     const newRentAmount = rentAmount !== undefined ? Number(rentAmount) : Number(currentContract.rentAmount || 0);
+
+    // المبلغ الذي سيتم تقسيمه (الأولوية للمبلغ الإجمالي، ثم قيمة الإيجار)
+    const baseAmount = newTotalAmount > 0 ? newTotalAmount : newRentAmount;
+
     const newPaymentFrequency = paymentFrequency || currentContract.paymentFrequency;
-    const rentChanged = rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount);
+    const amountChanged = (amount !== undefined && Number(amount) !== Number(currentContract.amount)) ||
+      (rentAmount !== undefined && Number(rentAmount) !== Number(currentContract.rentAmount));
     const freqChanged = paymentFrequency && normalizeString(paymentFrequency) !== normalizeString(currentContract.paymentFrequency || "");
     const dateChanged = (startDate && new Date(startDate).getTime() !== new Date(currentContract.startDate).getTime()) ||
       (endDate && new Date(endDate).getTime() !== new Date(currentContract.endDate).getTime());
 
-    if ((rentChanged || freqChanged || dateChanged) && newRentAmount) {
-      // حساب المبلغ الجديد لكل فاتورة
-      const frequencyMap: Record<string, number> = {
-        "شهري": 1, "MONTHLY": 1, "كل شهر": 1,
-        "ربع سنوي": 3, "QUARTERLY": 3, "كل 3 أشهر": 3, "3 أشهر": 3, "3 شهور": 3, "أربع دفعات": 3, "اربع دفعات": 3,
-        "3 دفعات": 4, "كل 4 أشهر": 4,
-        "نصف سنوي": 6, "HALF_YEARLY": 6, "HALF-YEARLY": 6, "كل 6 أشهر": 6, "6 أشهر": 6, "6 شهور": 6, "دفعتين": 6,
-        "سنوي": 12, "YEARLY": 12, "كل سنة": 12, "دفعة واحدة": 12,
-      };
-
-      const freqKey = (normalizeString(newPaymentFrequency) || "").toUpperCase();
-      const sortedFreqKeys = Object.keys(frequencyMap).sort((a, b) => b.length - a.length);
-      const matchedKey = sortedFreqKeys.find(k => freqKey.includes(k.toUpperCase()) || k.toUpperCase() === freqKey);
-      let monthStep = matchedKey ? frequencyMap[matchedKey] : 0;
-
-      if (monthStep === 0 && freqKey) {
-        const match = freqKey.match(/(\d+)/);
-        if (match) {
-          const num = parseInt(match[1]);
-          if (num > 0 && num <= 12) monthStep = num;
-        }
-      }
-
+    if ((amountChanged || freqChanged || dateChanged) && baseAmount > 0) {
       // حساب عدد الدفعات
       const contractStart = startDate ? new Date(startDate) : currentContract.startDate;
       const contractEnd = endDate ? new Date(endDate) : currentContract.endDate;
+
+      const { periods, monthStep } = getInvoiceSchedule(contractStart, contractEnd, newPaymentFrequency || "");
+      console.log(`[ContractUpdate] Freq: "${newPaymentFrequency}", Periods: ${periods}, Steps: ${monthStep}`);
 
       // 1. حذف جميع الفواتير المعلقة
       const pendingInvoices = currentContract.invoices.filter(inv => inv.status === "PENDING");
@@ -316,9 +356,13 @@ export const updateContract = async (req: Request, res: Response) => {
 
       // 2. إنشاء فواتير جديدة
       const createdInvoices: any[] = [];
-      if (monthStep > 0 && contractStart && contractEnd) {
-        const periods = calculateInstallmentCount(contractStart, contractEnd, monthStep);
-        const amountPerInvoice = Number(newRentAmount) / periods;
+      if (periods > 1) {
+        const amountPerInvoice = Number(baseAmount) / periods;
+        const totalBeforeTax = amountBeforeTax !== undefined ? Number(amountBeforeTax) : Number(currentContract.amountBeforeTax || 0);
+        const totalTax = taxAmount !== undefined ? Number(taxAmount) : Number(currentContract.taxAmount || 0);
+
+        const amountBeforeTaxPerInvoice = totalBeforeTax / periods;
+        const taxAmountPerInvoice = totalTax / periods;
 
         let currentInvoiceDate = new Date(contractStart);
         for (let i = 0; i < periods; i++) {
@@ -327,12 +371,18 @@ export const updateContract = async (req: Request, res: Response) => {
               tenantId: currentContract.tenantId,
               contractId: currentContract.id,
               amount: amountPerInvoice,
+              amountBeforeTax: amountBeforeTaxPerInvoice,
+              taxAmount: taxAmountPerInvoice,
               dueDate: new Date(currentInvoiceDate),
               status: "PENDING",
             },
           });
           createdInvoices.push(inv);
-          currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + monthStep);
+          if (Number.isInteger(monthStep)) {
+            currentInvoiceDate.setMonth(currentInvoiceDate.getMonth() + Number(monthStep));
+          } else {
+            currentInvoiceDate.setDate(currentInvoiceDate.getDate() + Math.round(Number(monthStep) * 30.44));
+          }
         }
       } else {
         // إذا لم يتم تحديد تكرار (دفعة واحدة)
@@ -340,7 +390,9 @@ export const updateContract = async (req: Request, res: Response) => {
           data: {
             tenantId: currentContract.tenantId,
             contractId: currentContract.id,
-            amount: Number(newRentAmount),
+            amount: Number(baseAmount),
+            amountBeforeTax: amountBeforeTax !== undefined ? Number(amountBeforeTax) : Number(currentContract.amountBeforeTax || baseAmount),
+            taxAmount: taxAmount !== undefined ? Number(taxAmount) : Number(currentContract.taxAmount || 0),
             dueDate: contractStart ? new Date(contractStart) : new Date(),
             status: "PENDING",
           },
@@ -348,9 +400,8 @@ export const updateContract = async (req: Request, res: Response) => {
         createdInvoices.push(inv);
       }
 
-      console.log(`[ContractUpdate] Created ${createdInvoices.length} new invoices with amount ${createdInvoices[0]?.amount || 0} each`);
+      console.log(`[ContractUpdate] Created ${createdInvoices.length} new invoices`);
     }
-
 
     res.json({ message: "✅ تم تحديث بيانات العقد بنجاح", contract });
   } catch (error: any) {

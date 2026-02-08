@@ -112,6 +112,8 @@ model Invoice {
   booking    Booking?      @relation(fields: [bookingId], references: [id])
   contract   Contract?     @relation(fields: [contractId], references: [id])
   tenant     Tenant?       @relation(fields: [tenantId], references: [id])
+  amountBeforeTax Float?    @default(0)
+  taxAmount       Float?    @default(0)
   payments   Payment[]
 
   @@index([bookingId], map: "idx_Invoice_bookingId")
@@ -188,6 +190,8 @@ model Contract {
   servicesIncluded   String?
   notes              String?
   renewalStatus      RenewalStatus  @default(PENDING)
+  amountBeforeTax    Float?         @default(0)
+  taxAmount          Float?         @default(0)
   activityLogs       ActivityLog[]
   tenant             Tenant?        @relation(fields: [tenantId], references: [id])
   unit               Unit           @relation(fields: [unitId], references: [id])
