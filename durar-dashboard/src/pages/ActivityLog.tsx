@@ -61,6 +61,7 @@ const ACTION_LABELS: Record<string, string> = {
   PAYMENT_RECORD: "تسجيل دفعة",
   PAYMENT_UPDATE: "تعديل دفعة",
   PAYMENT_DELETE: "حذف دفعة",
+  INVOICE_REMINDER: "تم ارسال رسالة تذكير",
 };
 
 export default function ActivityLog() {

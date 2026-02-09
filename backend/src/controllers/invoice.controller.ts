@@ -379,8 +379,8 @@ export const sendInvoiceReminder = async (req: Request, res: Response) => {
     });
 
     await logActivity(prisma, req, {
-      action: "INVOICE_REMINDER",
-      description: `إرسال تذكير للفاتورة #${invoiceId}`,
+      action: "تم ارسال رسالة تذكير",
+      description: `إرسال تذكير للفاتورة #${invoiceId} للمستأجر: ${invoice.tenant.name} - وحدة رقم: ${unitNumber} - عقار: ${propertyName}`,
       contractId: invoice.contractId ?? null,
     });
 
