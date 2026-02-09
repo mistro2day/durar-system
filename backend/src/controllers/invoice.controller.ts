@@ -299,8 +299,95 @@ export const deletePayment = async (req: Request, res: Response) => {
       });
     }
 
+
     res.json({ message: "تم حذف الدفعة بنجاح" });
   } catch (e: any) {
     res.status(500).json({ message: e?.message || "تعذر حذف الدفعة" });
   }
 };
+
+
+import { sendWhatsAppMessage } from "../lib/twilio.js";
+
+
+export const sendInvoiceReminder = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoiceId = Number(id);
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        tenant: true,
+        contract: {
+          include: {
+            unit: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: "الفاتورة غير موجودة" });
+    }
+
+    if (!invoice.tenantId || !invoice.tenant) {
+      return res.status(400).json({ message: "الفاتورة غير مرتبطة بمستأجر" });
+    }
+
+    const tenantPhone = invoice.tenant.phone;
+    if (!tenantPhone) {
+      return res.status(400).json({ message: "لا يوجد رقم هاتف للمستأجر" });
+    }
+
+    const dueDate = invoice.dueDate ? invoice.dueDate.toLocaleDateString('en-GB') : 'غير محدد';
+    const amount = invoice.amount.toLocaleString('en-US');
+
+    // Extract unit and property details safely
+    const unitNumber = invoice.contract?.unit?.unitNumber || invoice.contract?.unit?.number || '---';
+    const propertyName = invoice.contract?.unit?.property?.name || '---';
+
+    // Twilio Content Template SID
+    const contentSid = 'HX117e775f046636e6ee0a3e6cb468fca4';
+    const contentVariables = {
+      "1": invoice.tenant.name,
+      "2": amount,
+      "3": dueDate,
+      "4": unitNumber,
+      "5": propertyName
+    };
+
+    // Send WhatsApp message using Template
+    try {
+      await sendWhatsAppMessage(tenantPhone, contentSid, contentVariables);
+    } catch (msgError) {
+      console.error("Failed to send WhatsApp:", msgError);
+    }
+
+    const log = await prisma.communicationLog.create({
+      data: {
+        tenantId: invoice.tenantId,
+        type: "تذكير",
+        content: `تم إرسال تذكير (واتساب): مرحبًا ${invoice.tenant.name}، نود تذكيركم بسداد قيمة الإيجار البالغة ${amount} ريال، والمستحقة بتاريخ ${dueDate}، وذلك عن الوحدة رقم ${unitNumber} في ${propertyName}.`,
+        performedBy: (req as any).user?.name || "النظام",
+        date: new Date(),
+      },
+    });
+
+    await logActivity(prisma, req, {
+      action: "INVOICE_REMINDER",
+      description: `إرسال تذكير للفاتورة #${invoiceId}`,
+      contractId: invoice.contractId ?? null,
+    });
+
+    res.json({ message: "تم إرسال التذكير بنجاح", log });
+  } catch (e: any) {
+    res.status(500).json({ message: e?.message || "تعذر إرسال التذكير" });
+  }
+};
+
+

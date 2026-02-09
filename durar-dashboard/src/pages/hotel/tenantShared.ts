@@ -164,6 +164,24 @@ export function formatDate(value?: string | null) {
   }
 }
 
+export function formatDateTime(value?: string | null | Date) {
+  if (!value) return "—";
+  try {
+    const date = new Date(value);
+    return date.toLocaleString(DEFAULT_DATE_LOCALE, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return value?.toString();
+  }
+}
+
+
 export function formatBirth(value?: string | null) {
   if (!value) return "—";
   const date = formatDate(value);

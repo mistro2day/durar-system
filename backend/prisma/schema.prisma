@@ -8,26 +8,30 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+
+
 model User {
-  id           Int             @id @default(autoincrement())
-  name         String
-  email        String          @unique
-  password     String
-  role         Role            @default(USER)
-  createdAt    DateTime        @default(now())
-  activityLogs ActivityLog[]
-  resets       PasswordReset[]
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  password       String
+  role           Role            @default(USER)
+  createdAt      DateTime        @default(now())
+  
+  activityLogs   ActivityLog[]
+  resets         PasswordReset[]
 
   @@index([createdAt], map: "idx_User_createdAt")
 }
 
 model Property {
-  id        Int          @id @default(autoincrement())
-  name      String       @unique
-  type      PropertyType
-  address   String?
-  createdAt DateTime     @default(now())
-  units     Unit[]
+  id             Int          @id @default(autoincrement())
+  name           String       @unique
+  type           PropertyType
+  address        String?
+  createdAt      DateTime     @default(now())
+  
+  units          Unit[]
 
   @@index([type], map: "idx_Property_type")
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
-import { Eye, PlusCircle } from "lucide-react";
+import { Eye, PlusCircle, Bell } from "lucide-react";
 import api from "../../lib/api";
 import Currency from "../../components/Currency";
 import DateInput from "../../components/DateInput";
@@ -13,7 +13,9 @@ import {
   mapGender,
   buildAddress,
   buildEmergency,
+
   formatDate,
+  formatDateTime,
   formatRange,
   mapRentalType,
   NATIONALITIES,
@@ -202,8 +204,21 @@ export default function HotelTenantDetails() {
       alert("تم إضافة الفاتورة بنجاح");
     } catch (e: any) {
       alert(e?.response?.data?.message || "تعذر إضافة الفاتورة");
+
     } finally {
       setAddingInvoice(false);
+    }
+  }
+
+  async function handleSendReminder(invoiceId: number) {
+    if (!tenantId) return;
+    if (!confirm("هل أنت متأكد من إرسال تذكير لهذه الفاتورة؟")) return;
+    try {
+      await api.post(`/api/invoices/${invoiceId}/reminder`);
+      alert("تم إرسال التذكير بنجاح");
+      await loadTenant();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إرسال التذكير");
     }
   }
 
@@ -493,6 +508,15 @@ export default function HotelTenantDetails() {
                             {invoice.status !== 'PAID' && (
                               <RecordPaymentModal invoice={invoice} onRecorded={loadTenant} />
                             )}
+                            {(invoice.status === 'OVERDUE' || (invoice.dueDate && new Date(invoice.dueDate) < new Date() && invoice.status !== 'PAID')) && (
+                              <button
+                                onClick={() => handleSendReminder(invoice.id)}
+                                className="btn-soft btn-soft-warning"
+                                title="إرسال تذكير"
+                              >
+                                <Bell className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -554,7 +578,7 @@ export default function HotelTenantDetails() {
                     <div className="flex-1">
                       <p className="text-gray-800 dark:text-slate-200">{log.content}</p>
                       <div className="mt-1 flex gap-3 text-xs text-gray-400">
-                        <span>{formatDate(log.date)}</span>
+                        <span>{formatDateTime(log.date)}</span>
                         {log.performedBy && <span>بواسطة: {log.performedBy}</span>}
                       </div>
                     </div>

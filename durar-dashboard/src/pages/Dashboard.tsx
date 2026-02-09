@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
-import { RefreshCw, FileText, Building2, Wrench, Coins, Phone, RotateCcw, MessageCircle, MessageSquare, X } from "lucide-react";
+import { RefreshCw, FileText, Building2, Wrench, Coins, Phone, RotateCcw, MessageCircle, MessageSquare, X, Bell } from "lucide-react";
 // حمّل مكونات الرسوم بشكل كسول لتقليل وزن حزمة التحميل الأولى
 const Line = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Line })));
 const Doughnut = lazy(() => import("react-chartjs-2").then(m => ({ default: m.Doughnut })));
@@ -397,6 +397,16 @@ export default function Dashboard() {
       setUpcomingInvoicesTotal(prev => Math.max(0, prev - 1));
     }
     fetchSummary();
+  }
+
+  async function handleSendReminder(id: number) {
+    if (!confirm("هل أنت متأكد من إرسال تذكير لهذه الفاتورة؟")) return;
+    try {
+      await api.post(`/api/invoices/${id}/reminder`);
+      alert("تم إرسال التذكير بنجاح");
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إرسال التذكير");
+    }
   }
 
   function handleRefresh() {
@@ -886,6 +896,7 @@ export default function Dashboard() {
             total={lateInvoicesTotal}
             onPageChange={fetchLateInvoices}
             onStatusUpdate={handleLateInvoiceStatusUpdate}
+            onSendReminder={handleSendReminder}
           />
         </div>
       )}
@@ -904,6 +915,7 @@ export default function Dashboard() {
             total={upcomingInvoicesTotal}
             onPageChange={fetchUpcomingInvoices}
             onStatusUpdate={handleUpcomingInvoiceStatusUpdate}
+            onSendReminder={handleSendReminder}
           />
         </div>
       )}
@@ -1260,7 +1272,9 @@ function LateInvoicesTable({
   pageSize?: number;
   total?: number;
   onPageChange?: (p: number) => void;
+  onPageChange?: (p: number) => void;
   onStatusUpdate: (id: number, status: string) => void;
+  onSendReminder: (id: number) => void;
 }) {
   if (!items.length) return <p className="text-sm text-gray-500">لا يوجد فواتير متأخرة.</p>;
 
@@ -1355,9 +1369,13 @@ function LateInvoicesTable({
                           <a href={wa || '#'} target="_blank" rel="noopener noreferrer" className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10" title="واتساب">
                             <MessageCircle className="w-4 h-4" />
                           </a>
-                          <a href={sms || '#'} className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10" title="رسالة نصية">
-                            <MessageSquare className="w-4 h-4" />
-                          </a>
+                          <button
+                            onClick={() => onSendReminder(inv.id)}
+                            className="btn-icon-soft text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                            title="إرسال تذكير"
+                          >
+                            <Bell className="w-4 h-4" />
+                          </button>
                         </>
                       );
                     })()}
@@ -1404,7 +1422,9 @@ function UpcomingInvoicesTable({
   pageSize?: number;
   total?: number;
   onPageChange?: (p: number) => void;
+  onPageChange?: (p: number) => void;
   onStatusUpdate: (id: number, status: string) => void;
+  onSendReminder: (id: number) => void;
 }) {
   if (!items.length) return <p className="text-sm text-gray-500">لا توجد فواتير مستحقة قريباً.</p>;
 
@@ -1504,9 +1524,13 @@ function UpcomingInvoicesTable({
                           <a href={wa || '#'} target="_blank" rel="noopener noreferrer" className="btn-icon-soft text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10" title="واتساب">
                             <MessageCircle className="w-4 h-4" />
                           </a>
-                          <a href={sms || '#'} className="btn-icon-soft text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-500/10" title="رسالة نصية">
-                            <MessageSquare className="w-4 h-4" />
-                          </a>
+                          <button
+                            onClick={() => onSendReminder(inv.id)}
+                            className="btn-icon-soft text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                            title="إرسال تذكير"
+                          >
+                            <Bell className="w-4 h-4" />
+                          </button>
                         </>
                       );
                     })()}
