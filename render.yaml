@@ -13,7 +13,7 @@ services:
       npm --prefix ../durar-dashboard run build
       npx prisma generate
     # preDeployCommand is not supported on Free plan; run migrations at start (idempotent)
-    startCommand: npx prisma migrate deploy && node --enable-source-maps --loader ts-node/esm src/index.ts
+    startCommand: (npx prisma migrate deploy || true) && node --enable-source-maps --loader ts-node/esm src/index.ts
     envVars:
       - key: NODE_VERSION
         value: 20
