@@ -34,6 +34,26 @@ export const uploadAttachment = async (req: Request, res: Response) => {
     }
 };
 
+export const updateAttachment = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { fileType, description } = req.body;
+
+        const attachment = await prisma.tenantAttachment.update({
+            where: { id: parseInt(id) },
+            data: {
+                fileType,
+                description,
+            },
+        });
+
+        res.json(attachment);
+    } catch (error: any) {
+        console.error("Error updating attachment:", error);
+        res.status(500).json({ message: "Error updating attachment", error: error.message });
+    }
+};
+
 export const getAttachments = async (req: Request, res: Response) => {
     try {
         const { tenantId } = req.params;

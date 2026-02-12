@@ -54,6 +54,7 @@ app.use("/api/reports", reportsRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/attachments", attachmentRoutes);
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/api/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 
 // Healthcheck for quick connectivity tests
@@ -106,8 +107,8 @@ app.use(express.static(clientDist, {
     }
   },
 }));
-// أي مسار ليس ضمن /api يعاد توجيهه إلى index.html لدعم SPA Router
-app.get(/^(?!\/api\/).*/, (_req, res) => {
+// أي مسار ليس ضمن /api أو /uploads يعاد توجيهه إلى index.html لدعم SPA Router
+app.get(/^(?!\/api\/|\/uploads\/).*/, (_req, res) => {
   res.sendFile(path.join(clientDist, "index.html"));
 });
 

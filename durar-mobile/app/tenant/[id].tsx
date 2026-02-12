@@ -87,66 +87,72 @@ export default function TenantDetail() {
     const [invoicePage, setInvoicePage] = useState(1);
     const INVOICE_PAGE_SIZE = 5;
     const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
+    const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+    const [editDescription, setEditDescription] = useState('');
+    const [editType, setEditType] = useState('');
+    const [updateLoading, setUpdateLoading] = useState(false);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            // Fetch tenant
+            const tenantResponse = await api.get(`/api/tenants/${id}`);
+            setTenant(tenantResponse.data);
+
+            // Fetch contracts for this tenant
+            const contractsResponse = await api.get('/api/contracts');
+            const allContracts = Array.isArray(contractsResponse.data)
+                ? contractsResponse.data
+                : contractsResponse.data.items || [];
+            // Filter contracts for this tenant
+            const tenantContracts = allContracts.filter(
+                (c: any) => c.tenantId === Number(id) || c.tenant?.id === Number(id)
+            );
+            setContracts(tenantContracts);
+
+            // Fetch invoices for this tenant
+            const invoicesResponse = await api.get('/api/invoices');
+            const allInvoices = Array.isArray(invoicesResponse.data)
+                ? invoicesResponse.data
+                : invoicesResponse.data.items || [];
+            // Filter invoices for this tenant
+            const tenantInvoices = allInvoices.filter(
+                (inv: any) => inv.tenantId === Number(id) || inv.tenant?.id === Number(id)
+            );
+
+            // Sort invoices: PAID > OVERDUE > PARTIAL > PENDING > others
+            tenantInvoices.sort((a: any, b: any) => {
+                const getScore = (status: string) => {
+                    const s = status?.toUpperCase() || "";
+                    if (s === "PAID") return 3;
+                    if (s === "OVERDUE") return 2;
+                    if (s === "PARTIAL") return 1.5;
+                    if (s === "PENDING") return 1;
+                    return 0;
+                };
+                const scoreA = getScore(a.status);
+                const scoreB = getScore(b.status);
+                if (scoreA !== scoreB) {
+                    return scoreB - scoreA;
+                }
+                // Secondary sort by due date (descending)
+                return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+            });
+
+            setInvoices(tenantInvoices);
+
+            // Fetch Attachments
+            const attachmentsResponse = await api.get(`/api/attachments/${id}`);
+            setAttachments(attachmentsResponse.data);
+
+        } catch (error) {
+            console.log('[TenantDetail] Error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch tenant
-                const tenantResponse = await api.get(`/api/tenants/${id}`);
-                setTenant(tenantResponse.data);
-
-                // Fetch contracts for this tenant
-                const contractsResponse = await api.get('/api/contracts');
-                const allContracts = Array.isArray(contractsResponse.data)
-                    ? contractsResponse.data
-                    : contractsResponse.data.items || [];
-                // Filter contracts for this tenant
-                const tenantContracts = allContracts.filter(
-                    (c: any) => c.tenantId === Number(id) || c.tenant?.id === Number(id)
-                );
-                setContracts(tenantContracts);
-
-                // Fetch invoices for this tenant
-                const invoicesResponse = await api.get('/api/invoices');
-                const allInvoices = Array.isArray(invoicesResponse.data)
-                    ? invoicesResponse.data
-                    : invoicesResponse.data.items || [];
-                // Filter invoices for this tenant
-                const tenantInvoices = allInvoices.filter(
-                    (inv: any) => inv.tenantId === Number(id) || inv.tenant?.id === Number(id)
-                );
-
-                // Sort invoices: PAID > OVERDUE > PARTIAL > PENDING > others
-                tenantInvoices.sort((a: any, b: any) => {
-                    const getScore = (status: string) => {
-                        const s = status?.toUpperCase() || "";
-                        if (s === "PAID") return 3;
-                        if (s === "OVERDUE") return 2;
-                        if (s === "PARTIAL") return 1.5;
-                        if (s === "PENDING") return 1;
-                        return 0;
-                    };
-                    const scoreA = getScore(a.status);
-                    const scoreB = getScore(b.status);
-                    if (scoreA !== scoreB) {
-                        return scoreB - scoreA;
-                    }
-                    // Secondary sort by due date (descending)
-                    return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-                });
-
-                setInvoices(tenantInvoices);
-
-                // Fetch Attachments
-                const attachmentsResponse = await api.get(`/api/attachments/${id}`);
-                setAttachments(attachmentsResponse.data);
-
-            } catch (error) {
-                console.log('[TenantDetail] Error:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
         if (id) fetchData();
     }, [id]);
 
@@ -180,10 +186,10 @@ export default function TenantDetail() {
         const normalizedPath = filePath.replace(/\\/g, '/');
         const parts = normalizedPath.split('uploads/');
         const relativePath = parts.length > 1 ? parts[1] : normalizedPath;
-        // Use the base URL from api instance logic (needs manual construction here or use api.defaults.baseURL if accessible, assuming fixed known or dynamic)
-        // Since we are inside component, we can assume relative path works if backend is proxy, BUT in React Native we need absolute URL.
-        // We will fallback to a default dev IP if not set, same as in api.ts
-        const baseUrl = "http://192.168.1.21:8080"; // Ideally import from constants
+
+        // Use the base URL from api instance
+        const baseUrl = api.defaults.baseURL || "";
+        // Ensure we don't double up or miss the uploads segment
         return `${baseUrl}/uploads/${relativePath}`;
     };
 
@@ -461,7 +467,17 @@ export default function TenantDetail() {
                                             borderBottomColor: colors.separator,
                                         }}>
                                             <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-                                                {/* View/Download Actions */}
+                                                {/* Actions */}
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        setEditingAttachment(att);
+                                                        setEditDescription(att.description || '');
+                                                        setEditType(att.fileType || 'OTHER');
+                                                    }}
+                                                    style={{ padding: 4 }}
+                                                >
+                                                    <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+                                                </TouchableOpacity>
                                                 <TouchableOpacity
                                                     onPress={() => {
                                                         if (isPdf) {
@@ -535,6 +551,111 @@ export default function TenantDetail() {
                                         style={{ width: '100%', height: '80%', resizeMode: 'contain' }}
                                     />
                                 )}
+                            </View>
+                        </Modal>
+
+                        {/* Edit Attachment Modal */}
+                        <Modal
+                            visible={!!editingAttachment}
+                            transparent={true}
+                            onRequestClose={() => setEditingAttachment(null)}
+                            animationType="slide"
+                        >
+                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg }}>
+                                <Card style={{ width: '100%', maxWidth: 400 }}>
+                                    <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'center', marginBottom: Spacing.lg }}>
+                                        تعديل المرفق
+                                    </Text>
+
+                                    <View style={{ gap: Spacing.md }}>
+                                        <View>
+                                            <Text style={{ ...Typography.caption1, color: colors.textSecondary, marginBottom: 4, textAlign: 'right' }}>نوع المرفق</Text>
+                                            <View style={{ backgroundColor: colors.background, borderRadius: 12, overflow: 'hidden' }}>
+                                                <ScrollView style={{ maxHeight: 150 }}>
+                                                    {Object.entries(ATTACHMENT_TYPE_LABELS).map(([value, label]) => (
+                                                        <TouchableOpacity
+                                                            key={value}
+                                                            onPress={() => setEditType(value)}
+                                                            style={{
+                                                                padding: Spacing.sm,
+                                                                backgroundColor: editType === value ? colors.primary + '20' : 'transparent',
+                                                                borderBottomWidth: 1,
+                                                                borderBottomColor: colors.separator
+                                                            }}
+                                                        >
+                                                            <Text style={{ ...Typography.body, color: editType === value ? colors.primary : colors.text, textAlign: 'right' }}>{label}</Text>
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </ScrollView>
+                                            </View>
+                                        </View>
+
+                                        <View>
+                                            <Text style={{ ...Typography.caption1, color: colors.textSecondary, marginBottom: 4, textAlign: 'right' }}>الوصف</Text>
+                                            <TextInput
+                                                style={{
+                                                    backgroundColor: colors.background,
+                                                    color: colors.text,
+                                                    borderRadius: 12,
+                                                    padding: Spacing.md,
+                                                    textAlign: 'right'
+                                                }}
+                                                value={editDescription}
+                                                onChangeText={setEditDescription}
+                                                placeholder="وصف المرفق..."
+                                                placeholderTextColor={colors.textTertiary}
+                                            />
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row-reverse', gap: Spacing.md, marginTop: Spacing.sm }}>
+                                            <TouchableOpacity
+                                                onPress={async () => {
+                                                    if (!editingAttachment) return;
+                                                    setUpdateLoading(true);
+                                                    try {
+                                                        await api.put(`/api/attachments/${editingAttachment.id}`, {
+                                                            description: editDescription,
+                                                            fileType: editType,
+                                                        });
+                                                        setEditingAttachment(null);
+                                                        fetchData();
+                                                    } catch (e: any) {
+                                                        Alert.alert('خطأ', e?.response?.data?.message || 'فشل تحديث المرفق');
+                                                    } finally {
+                                                        setUpdateLoading(false);
+                                                    }
+                                                }}
+                                                disabled={updateLoading}
+                                                style={{
+                                                    flex: 1,
+                                                    backgroundColor: colors.primary,
+                                                    height: 50,
+                                                    borderRadius: 12,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    opacity: updateLoading ? 0.7 : 1
+                                                }}
+                                            >
+                                                <Text style={{ ...Typography.headline, color: '#FFFFFF' }}>
+                                                    {updateLoading ? 'جاري الحفظ...' : 'حفظ'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() => setEditingAttachment(null)}
+                                                style={{
+                                                    flex: 1,
+                                                    backgroundColor: colors.separator,
+                                                    height: 50,
+                                                    borderRadius: 12,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                            >
+                                                <Text style={{ ...Typography.headline, color: colors.text }}>إلغاء</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </Card>
                             </View>
                         </Modal>
 

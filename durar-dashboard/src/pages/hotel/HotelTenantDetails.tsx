@@ -765,6 +765,7 @@ export default function HotelTenantDetails() {
             attachments={tenant.attachments || []}
             onAdd={() => setAddAttachmentOpen(true)}
             onDelete={handleDeleteAttachment}
+            onUpdate={loadTenant}
           />
 
 
