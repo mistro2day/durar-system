@@ -89,6 +89,9 @@ export async function getTenantById(req: Request, res: Response) {
         orderBy: { date: "desc" },
         take: 50,
       },
+      attachments: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -223,6 +226,7 @@ type TenantWithRelations = {
   contracts: Array<Contract & { unit: (Unit & { property: Property | null }) | null }>;
   invoices: Array<Pick<Invoice, "id" | "status" | "amount" | "dueDate"> & { payments: any[] }>;
   communicationLogs?: Array<{ id: number; type: string; content: string; date: Date; performedBy: string | null }>;
+  attachments?: Array<{ id: number; fileName: string; filePath: string; fileType: string; description: string | null; createdAt: Date }>;
 };
 
 function enrichTenant(tenant: TenantWithRelations) {
@@ -330,6 +334,10 @@ function enrichTenant(tenant: TenantWithRelations) {
       ...log,
       date: log.date.toISOString(),
     })) || [],
+    attachments: (tenant.attachments || []).map(att => ({
+      ...att,
+      createdAt: att.createdAt.toISOString(),
+    })),
   };
 }
 

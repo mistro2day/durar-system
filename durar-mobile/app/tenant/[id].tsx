@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Modal, TextInput, Alert, Image as RNImage } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -46,12 +46,28 @@ interface Invoice {
     payments?: { amount: number }[];
 }
 
+interface Attachment {
+    id: number;
+    fileName: string;
+    fileType: string;
+    filePath: string;
+    description?: string;
+    createdAt: string;
+}
+
 const invoiceStatusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral' }> = {
     PENDING: { label: 'مستحقة', variant: 'warning' },
     PAID: { label: 'مدفوعة', variant: 'success' },
     PARTIAL: { label: 'سداد جزئي', variant: 'info' },
     OVERDUE: { label: 'متأخرة', variant: 'danger' },
     CANCELLED: { label: 'ملغية', variant: 'neutral' },
+};
+
+const ATTACHMENT_TYPE_LABELS: Record<string, string> = {
+    CONTRACT: "عقد إيجار",
+    ID: "هوية وطنية - اقامة - جواز سفر",
+    RECEIPT: "إيصال سداد",
+    OTHER: "أخرى",
 };
 
 export default function TenantDetail() {
@@ -61,9 +77,16 @@ export default function TenantDetail() {
     const [tenant, setTenant] = useState<Tenant | null>(null);
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [loading, setLoading] = useState(true);
     const [renewingContract, setRenewingContract] = useState<Contract | null>(null);
     const [renewalLoading, setRenewalLoading] = useState(false);
+
+    // UI State
+    const [showMoreInfo, setShowMoreInfo] = useState(false);
+    const [invoicePage, setInvoicePage] = useState(1);
+    const INVOICE_PAGE_SIZE = 5;
+    const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -93,6 +116,11 @@ export default function TenantDetail() {
                     (inv: any) => inv.tenantId === Number(id) || inv.tenant?.id === Number(id)
                 );
                 setInvoices(tenantInvoices);
+
+                // Fetch Attachments
+                const attachmentsResponse = await api.get(`/api/attachments/${id}`);
+                setAttachments(attachmentsResponse.data);
+
             } catch (error) {
                 console.log('[TenantDetail] Error:', error);
             } finally {
@@ -126,6 +154,17 @@ export default function TenantDetail() {
         } catch {
             return dateString;
         }
+    };
+
+    const getDownloadUrl = (filePath: string) => {
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        const parts = normalizedPath.split('uploads/');
+        const relativePath = parts.length > 1 ? parts[1] : normalizedPath;
+        // Use the base URL from api instance logic (needs manual construction here or use api.defaults.baseURL if accessible, assuming fixed known or dynamic)
+        // Since we are inside component, we can assume relative path works if backend is proxy, BUT in React Native we need absolute URL.
+        // We will fallback to a default dev IP if not set, same as in api.ts
+        const baseUrl = "http://192.168.1.21:8080"; // Ideally import from constants
+        return `${baseUrl}/uploads/${relativePath}`;
     };
 
     const DetailRow = ({ label, value }: { label: string; value: string }) => (
@@ -171,6 +210,7 @@ export default function TenantDetail() {
             setRenewingContract(null);
             // Reload data
             if (id) {
+                // Refresh logic... simplified for now
                 const contractsResponse = await api.get('/api/contracts');
                 const allContracts = Array.isArray(contractsResponse.data)
                     ? contractsResponse.data
@@ -215,6 +255,10 @@ export default function TenantDetail() {
 
         return { label, color };
     })();
+
+    // Pagination logic
+    const totalInvoicePages = Math.ceil(invoices.length / INVOICE_PAGE_SIZE);
+    const paginatedInvoices = invoices.slice((invoicePage - 1) * INVOICE_PAGE_SIZE, invoicePage * INVOICE_PAGE_SIZE);
 
     return (
         <>
@@ -300,20 +344,24 @@ export default function TenantDetail() {
                             {/* Separator */}
                             <View style={{ height: 1, backgroundColor: colors.separator, marginVertical: Spacing.sm }} />
 
-                            {/* Invoice Summary */}
+                            {/* Invoice Summary - High Contrast */}
                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingTop: Spacing.sm }}>
                                 <View style={{ alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ ...Typography.title3, color: colors.primary }}>
+                                    <Text style={{ ...Typography.title3, color: '#10B981' }}>{/* Emerald-500 */}
                                         {pendingTotal.toLocaleString()}
                                     </Text>
-                                    <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>ر.س مستحق</Text>
+                                    <Text style={{ ...Typography.caption2, color: '#065F46' }}>{/* Emerald-900 */}
+                                        ر.س مستحق
+                                    </Text>
                                 </View>
                                 <View style={{ width: 1, backgroundColor: colors.separator }} />
                                 <View style={{ alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ ...Typography.title3, color: pendingInvoices.length > 0 ? colors.warning : colors.success }}>
+                                    <Text style={{ ...Typography.title3, color: pendingInvoices.length > 0 ? '#F59E0B' : '#10B981' }}>
                                         {pendingInvoices.length}
                                     </Text>
-                                    <Text style={{ ...Typography.caption2, color: colors.textSecondary }}>فواتير معلقة</Text>
+                                    <Text style={{ ...Typography.caption2, color: '#78350F' }}>{/* Amber-900 like */}
+                                        فواتير معلقة
+                                    </Text>
                                 </View>
                                 {remainingInfo && (
                                     <>
@@ -329,24 +377,31 @@ export default function TenantDetail() {
                             </View>
                         </Card>
 
-                        {/* Details Card */}
+                        {/* Details Card - Collapsible */}
                         <Card style={{ marginBottom: Spacing.md }}>
-                            <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right', marginBottom: Spacing.md }}>
-                                معلومات المستأجر
-                            </Text>
+                            <TouchableOpacity onPress={() => setShowMoreInfo(!showMoreInfo)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
+                                <Ionicons name={showMoreInfo ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textTertiary} />
+                                <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right' }}>
+                                    معلومات المستأجر
+                                </Text>
+                            </TouchableOpacity>
 
                             <View style={{ gap: Spacing.sm }}>
                                 <DetailRow label="رقم الهوية" value={tenant.nationalId || '-'} />
-                                <DetailRow label="البريد الإلكتروني" value={tenant.email || '-'} />
-                                <DetailRow label="المدينة" value={tenant.city || '-'} />
-                                <DetailRow label="الدولة" value={tenant.country || '-'} />
-                                <DetailRow label="العنوان" value={tenant.address || '-'} />
-                                <DetailRow label="جهة العمل" value={tenant.employer || '-'} />
+                                {showMoreInfo && (
+                                    <>
+                                        <DetailRow label="البريد الإلكتروني" value={tenant.email || '-'} />
+                                        <DetailRow label="المدينة" value={tenant.city || '-'} />
+                                        <DetailRow label="الدولة" value={tenant.country || '-'} />
+                                        <DetailRow label="العنوان" value={tenant.address || '-'} />
+                                        <DetailRow label="جهة العمل" value={tenant.employer || '-'} />
+                                    </>
+                                )}
                             </View>
                         </Card>
 
-                        {/* Emergency Contact */}
-                        {(tenant.emergencyContactName || tenant.emergencyContactPhone) && (
+                        {/* Emergency Contact - Collapsible inside Show More or separate? Keeping it conditional for now */}
+                        {(tenant.emergencyContactName || tenant.emergencyContactPhone) && showMoreInfo && (
                             <Card style={{ marginBottom: Spacing.md }}>
                                 <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right', marginBottom: Spacing.md }}>
                                     جهة اتصال الطوارئ
@@ -367,6 +422,101 @@ export default function TenantDetail() {
                                 </Text>
                             </Card>
                         )}
+
+                        {/* Attachments Section */}
+                        <Card style={{ marginBottom: Spacing.md }}>
+                            <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right', marginBottom: Spacing.md }}>
+                                المرفقات ({attachments.length})
+                            </Text>
+                            {attachments.length > 0 ? (
+                                attachments.map((att, index) => {
+                                    const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
+                                    return (
+                                        <View key={att.id} style={{
+                                            flexDirection: 'row',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            paddingVertical: Spacing.sm,
+                                            borderBottomWidth: index < attachments.length - 1 ? 1 : 0,
+                                            borderBottomColor: colors.separator,
+                                        }}>
+                                            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+                                                {/* View/Download Actions */}
+                                                <TouchableOpacity
+                                                    onPress={() => {
+                                                        if (isPdf) {
+                                                            Linking.openURL(getDownloadUrl(att.filePath));
+                                                        } else {
+                                                            setViewingAttachment(att);
+                                                        }
+                                                    }}
+                                                    style={{ padding: 4 }}
+                                                >
+                                                    <Ionicons name="eye-outline" size={20} color={colors.primary} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    onPress={() => Linking.openURL(getDownloadUrl(att.filePath))}
+                                                    style={{ padding: 4 }}
+                                                >
+                                                    <Ionicons name="download-outline" size={20} color={colors.textSecondary} />
+                                                </TouchableOpacity>
+                                            </View>
+
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1, justifyContent: 'flex-end' }}>
+                                                <View style={{ alignItems: 'flex-end' }}>
+                                                    <Text style={{ ...Typography.body, color: colors.text, textAlign: 'right' }} numberOfLines={1}>
+                                                        {att.description || att.fileName}
+                                                    </Text>
+                                                    <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
+                                                        <Text style={{ ...Typography.caption2, color: colors.textTertiary, marginRight: 4 }}>
+                                                            {ATTACHMENT_TYPE_LABELS[att.fileType] || att.fileType}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                <View style={{
+                                                    width: 40, height: 40, borderRadius: 8,
+                                                    backgroundColor: isPdf ? '#FEE2E2' : '#F3E8FF', // Red-100 or Purple-100
+                                                    alignItems: 'center', justifyContent: 'center'
+                                                }}>
+                                                    <Ionicons
+                                                        name={isPdf ? 'document-text' : 'image'}
+                                                        size={20}
+                                                        color={isPdf ? '#EF4444' : '#A855F7'}
+                                                    />
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                })
+                            ) : (
+                                <Text style={{ ...Typography.body, color: colors.textSecondary, textAlign: 'center', padding: Spacing.sm }}>
+                                    لا توجد مرفقات
+                                </Text>
+                            )}
+                        </Card>
+
+                        {/* View Attachment Modal */}
+                        <Modal
+                            visible={!!viewingAttachment}
+                            transparent={true}
+                            onRequestClose={() => setViewingAttachment(null)}
+                            animationType="fade"
+                        >
+                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+                                <TouchableOpacity
+                                    style={{ position: 'absolute', top: 40, right: 20, zIndex: 10, padding: 10 }}
+                                    onPress={() => setViewingAttachment(null)}
+                                >
+                                    <Ionicons name="close-circle" size={30} color="#FFFFFF" />
+                                </TouchableOpacity>
+                                {viewingAttachment && (
+                                    <RNImage
+                                        source={{ uri: getDownloadUrl(viewingAttachment.filePath) }}
+                                        style={{ width: '100%', height: '80%', resizeMode: 'contain' }}
+                                    />
+                                )}
+                            </View>
+                        </Modal>
 
                         {/* Contracts */}
                         {contracts.length > 0 && (
@@ -439,7 +589,7 @@ export default function TenantDetail() {
                                 <Text style={{ ...Typography.headline, color: colors.text, textAlign: 'right', marginBottom: Spacing.md }}>
                                     الفواتير ({invoices.length})
                                 </Text>
-                                {invoices.map((invoice, index) => {
+                                {paginatedInvoices.map((invoice, index) => {
                                     const statusKey = (invoice.status || '').toUpperCase();
                                     const statusInfo = invoiceStatusLabels[statusKey] || { label: invoice.status, variant: 'neutral' as const };
                                     return (
@@ -451,7 +601,7 @@ export default function TenantDetail() {
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 paddingVertical: Spacing.sm,
-                                                borderBottomWidth: index < invoices.length - 1 ? 1 : 0,
+                                                borderBottomWidth: index < paginatedInvoices.length - 1 ? 1 : 0,
                                                 borderBottomColor: colors.separator,
                                             }}
                                         >
@@ -481,6 +631,28 @@ export default function TenantDetail() {
                                         </TouchableOpacity>
                                     );
                                 })}
+                                {/* Pagination Controls */}
+                                {totalInvoicePages > 1 && (
+                                    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: colors.separator }}>
+                                        <TouchableOpacity
+                                            disabled={invoicePage === 1}
+                                            onPress={() => setInvoicePage(p => Math.max(1, p - 1))}
+                                            style={{ padding: Spacing.xs, opacity: invoicePage === 1 ? 0.3 : 1 }}
+                                        >
+                                            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                                        </TouchableOpacity>
+                                        <Text style={{ ...Typography.caption1, color: colors.text }}>
+                                            {invoicePage} / {totalInvoicePages}
+                                        </Text>
+                                        <TouchableOpacity
+                                            disabled={invoicePage === totalInvoicePages}
+                                            onPress={() => setInvoicePage(p => Math.min(totalInvoicePages, p + 1))}
+                                            style={{ padding: Spacing.xs, opacity: invoicePage === totalInvoicePages ? 0.3 : 1 }}
+                                        >
+                                            <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
                             </Card>
                         )}
                     </ScrollView>

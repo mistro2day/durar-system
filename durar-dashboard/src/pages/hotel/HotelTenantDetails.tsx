@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
-import { Eye, PlusCircle, Bell } from "lucide-react";
+import { Eye, PlusCircle, Bell, ChevronDown, ChevronUp } from "lucide-react";
 import api from "../../lib/api";
 import Currency from "../../components/Currency";
 import DateInput from "../../components/DateInput";
+
 import { RenewContractModal } from "../../components/RenewContractModal";
+import TenantAttachments from "../../components/TenantAttachments";
+import AddAttachmentModal from "../../components/AddAttachmentModal";
 import {
   TenantDetail,
   EMPTY_STATS,
@@ -44,7 +47,13 @@ export default function HotelTenantDetails() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
   const [addingInvoice, setAddingInvoice] = useState(false);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const INVOICE_PAGE_SIZE = 5;
+
   const [renewingContract, setRenewingContract] = useState<TenantContract | null>(null);
+  const [addAttachmentOpen, setAddAttachmentOpen] = useState(false);
+  const [addingAttachment, setAddingAttachment] = useState(false);
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
 
   const role = getRole();
   const site = getSettings();
@@ -123,6 +132,13 @@ export default function HotelTenantDetails() {
     sortState: invoiceSort,
     toggleSort: toggleInvoiceSort,
   } = useTableSort<TenantInvoice, InvoiceSortKey>(invoiceList, invoiceSortAccessors, { key: "dueDate", direction: "desc" });
+
+  const paginatedInvoices = useMemo(() => {
+    const start = (invoicePage - 1) * INVOICE_PAGE_SIZE;
+    return sortedInvoices.slice(start, start + INVOICE_PAGE_SIZE);
+  }, [sortedInvoices, invoicePage]);
+
+  const totalInvoicePages = Math.ceil(sortedInvoices.length / INVOICE_PAGE_SIZE);
 
   async function handleSave(form: TenantFormState) {
     if (!tenantId) return;
@@ -234,6 +250,39 @@ export default function HotelTenantDetails() {
       alert(e?.response?.data?.message || "تعذر حذف المستأجر");
     } finally {
       setDeleteBusy(false);
+    }
+
+  }
+
+  async function handleAddAttachment(file: File, type: string, description: string) {
+    if (!tenantId) return;
+    setAddingAttachment(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("fileType", type);
+      formData.append("description", description);
+
+      await api.post(`/api/attachments/${tenantId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setAddAttachmentOpen(false);
+      await loadTenant();
+      alert("تم إضافة المرفق بنجاح");
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر إضافة المرفق");
+    } finally {
+      setAddingAttachment(false);
+    }
+  }
+
+  async function handleDeleteAttachment(id: number) {
+    try {
+      await api.delete(`/api/attachments/${id}`);
+      await loadTenant();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "تعذر حذف المرفق");
     }
   }
 
@@ -439,91 +488,115 @@ export default function HotelTenantDetails() {
               </div>
             </header>
             {invoiceList.length ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-white/10">
-                  <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 dark:bg-white/5 dark:text-slate-300">
-                    <tr>
-                      <th className="py-2 text-right">
-                        <SortHeader
-                          label="الرقم"
-                          active={invoiceSort?.key === "id"}
-                          direction={invoiceSort?.key === "id" ? invoiceSort.direction : null}
-                          onToggle={() => toggleInvoiceSort("id")}
-                        />
-                      </th>
-                      <th className="py-2 text-right">
-                        <SortHeader
-                          label="المبلغ"
-                          active={invoiceSort?.key === "amount"}
-                          direction={invoiceSort?.key === "amount" ? invoiceSort.direction : null}
-                          onToggle={() => toggleInvoiceSort("amount")}
-                        />
-                      </th>
-                      <th className="py-2 text-right">
-                        <SortHeader
-                          label="الاستحقاق"
-                          active={invoiceSort?.key === "dueDate"}
-                          direction={invoiceSort?.key === "dueDate" ? invoiceSort.direction : null}
-                          onToggle={() => toggleInvoiceSort("dueDate")}
-                        />
-                      </th>
-                      <th className="py-2 text-right">الحالة</th>
-                      <th className="py-2 text-right">إجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-white/10">
-                    {sortedInvoices.map((invoice) => (
-                      <tr key={invoice.id} className="odd:bg-white even:bg-gray-50 dark:odd:bg-white/5 dark:even:bg-white/10">
-                        <td className="py-2 text-right font-medium">
-                          <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
-                            #{invoice.id}
-                          </Link>
-                        </td>
-                        <td className="py-2 text-right text-gray-700 dark:text-slate-200">
-                          {invoice.status === 'PARTIAL' || invoice.status === 'partial' ? (
-                            <div className="flex flex-col items-start leading-tight">
-                              <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                                <Currency amount={Number((invoice.amount - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)).toFixed(2))} />
-                              </span>
-                              <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500">
-                                <span>المتبقي من</span>
-                                <Currency amount={invoice.amount} />
-                              </div>
-                            </div>
-                          ) : (
-                            <Currency amount={invoice.amount} />
-                          )}
-                        </td>
-                        <td className="py-2 text-right text-gray-600 dark:text-slate-300">
-                          {formatDate(invoice.dueDate)}
-                        </td>
-                        <td className="py-2 text-right">
-                          <InvoiceBadge status={invoice.status} dueDate={invoice.dueDate} />
-                        </td>
-                        <td className="py-2 text-right">
-                          <div className="flex items-center gap-2">
-                            <Link to={`/invoices/${invoice.id}`} state={{ invoice }} className="btn-soft btn-soft-primary" title="عرض التفاصيل">
-                              <Eye className="w-4 h-4" />
-                            </Link>
-                            {invoice.status !== 'PAID' && (
-                              <RecordPaymentModal invoice={invoice} onRecorded={loadTenant} />
-                            )}
-                            {(invoice.status === 'OVERDUE' || (invoice.dueDate && new Date(invoice.dueDate) < new Date() && invoice.status !== 'PAID')) && (
-                              <button
-                                onClick={() => handleSendReminder(invoice.id)}
-                                className="btn-soft btn-soft-warning"
-                                title="إرسال تذكير"
-                              >
-                                <Bell className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-white/10">
+                    <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 dark:bg-white/5 dark:text-slate-300">
+                      <tr>
+                        <th className="py-2 text-right">
+                          <SortHeader
+                            label="الرقم"
+                            active={invoiceSort?.key === "id"}
+                            direction={invoiceSort?.key === "id" ? invoiceSort.direction : null}
+                            onToggle={() => toggleInvoiceSort("id")}
+                          />
+                        </th>
+                        <th className="py-2 text-right">
+                          <SortHeader
+                            label="المبلغ"
+                            active={invoiceSort?.key === "amount"}
+                            direction={invoiceSort?.key === "amount" ? invoiceSort.direction : null}
+                            onToggle={() => toggleInvoiceSort("amount")}
+                          />
+                        </th>
+                        <th className="py-2 text-right">
+                          <SortHeader
+                            label="الاستحقاق"
+                            active={invoiceSort?.key === "dueDate"}
+                            direction={invoiceSort?.key === "dueDate" ? invoiceSort.direction : null}
+                            onToggle={() => toggleInvoiceSort("dueDate")}
+                          />
+                        </th>
+                        <th className="py-2 text-right">الحالة</th>
+                        <th className="py-2 text-right">إجراءات</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-white/10">
+                      {paginatedInvoices.map((invoice) => (
+                        <tr key={invoice.id} className="odd:bg-white even:bg-gray-50 dark:odd:bg-white/5 dark:even:bg-white/10">
+                          <td className="py-2 text-right font-medium">
+                            <Link to={`/invoices/${invoice.id}`} className="text-indigo-600 hover:text-indigo-800 hover:underline">
+                              #{invoice.id}
+                            </Link>
+                          </td>
+                          <td className="py-2 text-right text-gray-700 dark:text-slate-200">
+                            {invoice.status === 'PARTIAL' || invoice.status === 'partial' ? (
+                              <div className="flex flex-col items-start leading-tight">
+                                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                  <Currency amount={Number((invoice.amount - (invoice.payments || []).reduce((sum, p) => sum + p.amount, 0)).toFixed(2))} />
+                                </span>
+                                <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500">
+                                  <span>المتبقي من</span>
+                                  <Currency amount={invoice.amount} />
+                                </div>
+                              </div>
+                            ) : (
+                              <Currency amount={invoice.amount} />
+                            )}
+                          </td>
+                          <td className="py-2 text-right text-gray-600 dark:text-slate-300">
+                            {formatDate(invoice.dueDate)}
+                          </td>
+                          <td className="py-2 text-right">
+                            <InvoiceBadge status={invoice.status} dueDate={invoice.dueDate} />
+                          </td>
+                          <td className="py-2 text-right">
+                            <div className="flex items-center gap-2">
+                              <Link to={`/invoices/${invoice.id}`} state={{ invoice }} className="btn-soft btn-soft-primary" title="عرض التفاصيل">
+                                <Eye className="w-4 h-4" />
+                              </Link>
+                              {invoice.status !== 'PAID' && (
+                                <RecordPaymentModal invoice={invoice} onRecorded={loadTenant} />
+                              )}
+                              {(invoice.status === 'OVERDUE' || (invoice.dueDate && new Date(invoice.dueDate) < new Date() && invoice.status !== 'PAID')) && (
+                                <button
+                                  onClick={() => handleSendReminder(invoice.id)}
+                                  className="btn-soft btn-soft-warning"
+                                  title="إرسال تذكير"
+                                >
+                                  <Bell className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {totalInvoicePages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-2 border-t border-gray-100 dark:border-white/10">
+                    <button
+                      disabled={invoicePage === 1}
+                      onClick={() => setInvoicePage((p) => Math.max(1, p - 1))}
+                      className="px-3 py-1 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-white/10 dark:bg-white/5 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-300 dark:text-slate-300 transition-colors"
+                    >
+                      السابق
+                    </button>
+                    <span className="text-xs font-medium text-gray-600 dark:text-slate-400">
+                      صفحة {invoicePage} من {totalInvoicePages}
+                    </span>
+                    <button
+                      disabled={invoicePage === totalInvoicePages}
+                      onClick={() => setInvoicePage((p) => Math.min(totalInvoicePages, p + 1))}
+                      className="px-3 py-1 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-white/10 dark:bg-white/5 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-300 dark:text-slate-300 transition-colors"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <EmptyState message="لا توجد فواتير مرتبطة بهذا المستأجر." />
             )}
@@ -605,6 +678,46 @@ export default function HotelTenantDetails() {
               </div>
             </div>
 
+            <div className="grid grid-cols-3 gap-2">
+              <MiniStat label="عقود نشطة" value={stats.activeContracts} tone={stats.activeContracts ? "success" : "default"} />
+              <MiniStat label="إجمالي العقود" value={stats.totalContracts} />
+              <MiniStat
+                label="المتبقي"
+                value={<Currency amount={stats.receivables} />}
+                tone={stats.receivables > 0 ? "warning" : "default"}
+              />
+              <MiniStat
+                label="مستحق"
+                value={<Currency amount={stats.dueReceivables} />}
+                tone={stats.dueReceivables > 0 ? "danger" : "default"}
+              />
+              <MiniStat label="آخر فاتورة" value={formatDate(stats.lastInvoiceDueDate) || "-"} />
+              {stats.latestContract && stats.latestContract.status === 'ACTIVE' && (
+                (() => {
+                  const end = new Date(stats.latestContract.endDate);
+                  const now = new Date();
+                  const diff = end.getTime() - now.getTime();
+                  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+                  let label = `${daysLeft} يوم`;
+                  let tone: "default" | "success" | "warning" | "danger" = "default";
+
+                  if (daysLeft <= 0) {
+                    label = "منتهي";
+                    tone = "danger";
+                  } else if (daysLeft <= 30) {
+                    tone = "danger";
+                  } else if (daysLeft <= 60) {
+                    tone = "warning";
+                  } else {
+                    tone = "success";
+                  }
+
+                  return <MiniStat label="نهاية العقد" value={label} tone={tone} />;
+                })()
+              )}
+            </div>
+
             {tenant.phone && (
               <a
                 href={`tel:${tenant.phone}`}
@@ -614,91 +727,93 @@ export default function HotelTenantDetails() {
               </a>
             )}
 
-            <div className="grid grid-cols-1 gap-4 text-sm">
-              <InfoField label="البريد الإلكتروني" value={formatValue(tenant.email)} />
-              <InfoField label="جهة العمل" value={formatValue(tenant.employer)} />
-              <InfoField label="العنوان الكامل" value={buildAddress(tenant) || "—"} />
-              <InfoField label="جهة الطوارئ" value={buildEmergency(tenant) || "—"} />
-            </div>
-          </div>
-
-          <div className="card space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-100">نظرة عامة</h4>
-            <SummaryStat label="عقود نشطة" value={stats.activeContracts} tone={stats.activeContracts ? "success" : "default"} />
-            <SummaryStat label="إجمالي العقود" value={stats.totalContracts} />
-            <SummaryStat
-              label="الرصيد المتبقي بالعقد"
-              value={<Currency amount={stats.receivables} />}
-              tone={stats.receivables > 0 ? "warning" : "default"}
-            />
-            <SummaryStat
-              label="المستحق حالياً"
-              value={<Currency amount={stats.dueReceivables} />}
-              tone={stats.dueReceivables > 0 ? "danger" : "default"}
-            />
-            <SummaryStat label="آخر استحقاق" value={formatDate(stats.lastInvoiceDueDate)} />
-            {stats.latestContract && stats.latestContract.status === 'ACTIVE' && (
-              (() => {
-                const end = new Date(stats.latestContract.endDate);
-                const now = new Date();
-                const diff = end.getTime() - now.getTime();
-                const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-                let label = `${daysLeft} يوم`;
-                let tone: "default" | "success" | "warning" | "danger" = "default";
-
-                if (daysLeft <= 0) {
-                  label = "منتهي";
-                  tone = "danger";
-                } else if (daysLeft <= 30) {
-                  tone = "danger";
-                } else if (daysLeft <= 60) {
-                  tone = "warning";
-                } else {
-                  tone = "success";
-                }
-
-                return <SummaryStat label="المدة المتبقية للعقد" value={label} tone={tone} />;
-              })()
+            {showMoreInfo && (
+              <div className="grid grid-cols-1 gap-4 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <InfoField label="البريد الإلكتروني" value={formatValue(tenant.email)} />
+                <InfoField label="جهة العمل" value={formatValue(tenant.employer)} />
+                <InfoField label="العنوان الكامل" value={buildAddress(tenant) || "—"} />
+                <InfoField label="جهة الطوارئ" value={buildEmergency(tenant) || "—"} />
+              </div>
             )}
+
+            <button
+              onClick={() => setShowMoreInfo(!showMoreInfo)}
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-gray-200 p-2 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200 transition-colors"
+            >
+              {showMoreInfo ? (
+                <>
+                  <span>إخفاء التفاصيل</span>
+                  <ChevronUp className="h-3 w-3" />
+                </>
+              ) : (
+                <>
+                  <span>عرض المزيد من التفاصيل</span>
+                  <ChevronDown className="h-3 w-3" />
+                </>
+              )}
+            </button>
           </div>
+
+          <TenantAttachments
+            attachments={tenant.attachments || []}
+            onAdd={() => setAddAttachmentOpen(true)}
+            onDelete={handleDeleteAttachment}
+          />
+
+
         </aside>
       </section>
 
-      {editOpen && (
-        <EditTenantModal
-          tenant={tenant}
-          saving={saving}
-          onClose={() => setEditOpen(false)}
-          onSave={handleSave}
-        />
-      )}
+      {
+        editOpen && (
+          <EditTenantModal
+            tenant={tenant}
+            saving={saving}
+            onClose={() => setEditOpen(false)}
+            onSave={handleSave}
+          />
+        )
+      }
 
-      {addInvoiceOpen && (
-        <AddInvoiceModal
-          contracts={contractList}
-          onClose={() => setAddInvoiceOpen(false)}
-          onSave={handleAddInvoice}
-          saving={addingInvoice}
-        />
-      )}
+      {
+        addInvoiceOpen && (
+          <AddInvoiceModal
+            contracts={contractList}
+            onClose={() => setAddInvoiceOpen(false)}
+            onSave={handleAddInvoice}
+            saving={addingInvoice}
+          />
+        )
+      }
 
-      {renewingContract && (
-        <RenewContractModal
-          contract={{
-            id: renewingContract.id,
-            endDate: renewingContract.endDate,
-            rentAmount: renewingContract.rentAmount,
-            paymentFrequency: renewingContract.paymentFrequency,
-          }}
-          onClose={() => setRenewingContract(null)}
-          onSuccess={() => {
-            setRenewingContract(null);
-            loadTenant();
-          }}
-        />
-      )}
-    </div>
+      {
+        renewingContract && (
+          <RenewContractModal
+            contract={{
+              id: renewingContract.id,
+              endDate: renewingContract.endDate,
+              rentAmount: renewingContract.rentAmount,
+              paymentFrequency: renewingContract.paymentFrequency,
+            }}
+            onClose={() => setRenewingContract(null)}
+            onSuccess={() => {
+              setRenewingContract(null);
+              loadTenant();
+            }}
+          />
+        )
+      }
+
+      {
+        addAttachmentOpen && (
+          <AddAttachmentModal
+            onClose={() => setAddAttachmentOpen(false)}
+            onSave={handleAddAttachment}
+            saving={addingAttachment}
+          />
+        )
+      }
+    </div >
 
   );
 }
@@ -1217,5 +1332,31 @@ function RecordPaymentModal({ invoice, onRecorded }: { invoice: TenantInvoice, o
         </div>
       )}
     </>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: "default" | "success" | "warning" | "danger";
+}) {
+  const toneCtx =
+    tone === "success"
+      ? "text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20"
+      : tone === "warning"
+        ? "text-amber-600 bg-amber-500/10 border-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20"
+        : tone === "danger"
+          ? "text-rose-600 bg-rose-500/10 border-rose-500/20 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20"
+          : "text-gray-700 bg-gray-50 border-gray-100 dark:text-slate-300 dark:bg-white/5 dark:border-white/10";
+
+  return (
+    <div className={`flex flex-col items-center justify-center rounded-lg border px-2 py-3 text-center ${toneCtx}`}>
+      <span className="mb-1 text-xs font-bold">{label}</span>
+      <span className="text-sm font-bold leading-tight">{value}</span>
+    </div>
   );
 }

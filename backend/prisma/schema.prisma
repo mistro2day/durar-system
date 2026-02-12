@@ -82,6 +82,20 @@ model Tenant {
   communicationLogs     CommunicationLog[]
 
   @@index([name], map: "idx_Tenant_name")
+  attachments           TenantAttachment[]
+}
+
+model TenantAttachment {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  fileName    String
+  filePath    String
+  fileType    String   @default("OTHER") // CONTRACT, ID, RECEIPT, OTHER
+  description String?
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId], map: "idx_TenantAttachment_tenantId")
 }
 
 model Booking {

@@ -78,10 +78,20 @@ export type TenantSummary = {
   communicationLogs?: CommunicationLog[];
 };
 
+export type TenantAttachment = {
+  id: number;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  description?: string | null;
+  createdAt: string;
+};
+
 export type TenantDetail = TenantSummary & {
   contracts: TenantContract[];
   invoices: TenantInvoice[];
-  communicationLogs: CommunicationLog[];
+  communicationLogs: CommunicationLogType[];
+  attachments: TenantAttachment[];
 };
 
 export const NATIONALITIES: string[] = [

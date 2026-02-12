@@ -33,6 +33,7 @@ import tenantRoutes from "./routes/tenant.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import reportsRoutes from "./routes/reports.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
+import attachmentRoutes from "./routes/attachment.routes.js";
 
 
 
@@ -51,6 +52,8 @@ app.use("/api/tenants", tenantRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/attachments", attachmentRoutes);
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 
 // Healthcheck for quick connectivity tests
