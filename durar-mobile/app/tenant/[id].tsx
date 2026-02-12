@@ -115,6 +115,26 @@ export default function TenantDetail() {
                 const tenantInvoices = allInvoices.filter(
                     (inv: any) => inv.tenantId === Number(id) || inv.tenant?.id === Number(id)
                 );
+
+                // Sort invoices: PAID > OVERDUE > PARTIAL > PENDING > others
+                tenantInvoices.sort((a: any, b: any) => {
+                    const getScore = (status: string) => {
+                        const s = status?.toUpperCase() || "";
+                        if (s === "PAID") return 3;
+                        if (s === "OVERDUE") return 2;
+                        if (s === "PARTIAL") return 1.5;
+                        if (s === "PENDING") return 1;
+                        return 0;
+                    };
+                    const scoreA = getScore(a.status);
+                    const scoreB = getScore(b.status);
+                    if (scoreA !== scoreB) {
+                        return scoreB - scoreA;
+                    }
+                    // Secondary sort by due date (descending)
+                    return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+                });
+
                 setInvoices(tenantInvoices);
 
                 // Fetch Attachments

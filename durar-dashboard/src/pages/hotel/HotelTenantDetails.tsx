@@ -122,7 +122,14 @@ export default function HotelTenantDetails() {
       id: (invoice) => invoice.id,
       amount: (invoice) => invoice.amount,
       dueDate: (invoice) => invoice.dueDate || "",
-      status: (invoice) => invoice.status || "",
+      status: (invoice) => {
+        const s = invoice.status?.toUpperCase() || "";
+        if (s === "PAID") return 3;
+        if (s === "OVERDUE") return 2;
+        if (s === "PARTIAL") return 1.5;
+        if (s === "PENDING") return 1;
+        return 0;
+      },
     }),
     []
   );
@@ -131,7 +138,7 @@ export default function HotelTenantDetails() {
     sortedItems: sortedInvoices,
     sortState: invoiceSort,
     toggleSort: toggleInvoiceSort,
-  } = useTableSort<TenantInvoice, InvoiceSortKey>(invoiceList, invoiceSortAccessors, { key: "dueDate", direction: "desc" });
+  } = useTableSort<TenantInvoice, InvoiceSortKey>(invoiceList, invoiceSortAccessors, { key: "status", direction: "desc" });
 
   const paginatedInvoices = useMemo(() => {
     const start = (invoicePage - 1) * INVOICE_PAGE_SIZE;
